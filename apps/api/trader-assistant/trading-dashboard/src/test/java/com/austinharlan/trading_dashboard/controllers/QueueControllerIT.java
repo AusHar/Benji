@@ -17,19 +17,17 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(controllers = QuoteController.class)
 class QuoteControllerIT {
 
-    @Autowired
-    MockMvc mvc;
+  @Autowired MockMvc mvc;
 
-    @MockBean
-    private QuoteService quoteService;
+  @MockBean private QuoteService quoteService;
 
-    @Test
-    void getsQuote() throws Exception {
-        when(quoteService.getCached("UUUU"))
-                .thenReturn(new Quote("UUUU", BigDecimal.valueOf(100.00), Instant.now()));
+  @Test
+  void getsQuote() throws Exception {
+    when(quoteService.getCached("UUUU"))
+        .thenReturn(new Quote("UUUU", BigDecimal.valueOf(100.00), Instant.now()));
 
-        mvc.perform(get("/api/quotes/UUUU"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.symbol").value("UUUU"));
-    }
+    mvc.perform(get("/api/quotes/UUUU"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.symbol").value("UUUU"));
+  }
 }
