@@ -17,3 +17,16 @@ jobs:
           java-version: '21'
           cache: gradle
       - run: ./gradlew spotlessCheck build test --no-daemon
+
+      - name: OWASP Dependency-Check (report only)
+        run: ./gradlew dependencyCheckAnalyze || true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-reports
+          path: |
+            apps/api/trader-assistant/trading-dashboard/build/reports/tests/test/**
+            apps/api/trader-assistant/trading-dashboard/build/reports/dependency-check-report.html
+            apps/api/trader-assistant/trading-dashboard/build/reports/spotless/**
