@@ -1,0 +1,43 @@
+paths:
+  /quotes/{symbol}:
+    get:
+      tags: [Quotes]
+      operationId: getQuoteBySymbol
+      summary: Get latest quote for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z.]{1,10}$" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400":
+          description: Invalid symbol
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Quote not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+  schemas:
+    Quote:
+      type: object
+      properties:
+        symbol: { type: string }
+        price:  { type: number, format: double }
+        ts:     { type: string, format: date-time }  # or rename to 'timestamp'
+      required: [symbol, price, ts]
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+      required: [code, message]
