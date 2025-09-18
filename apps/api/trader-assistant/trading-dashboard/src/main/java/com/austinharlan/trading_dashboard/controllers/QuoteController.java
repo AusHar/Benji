@@ -11,6 +11,11 @@ import org.springframework.web.bind.annotation.*;
 public class QuoteController {
   private final QuoteService quoteService;
 
+  @GetMapping("")
+  public String rootHint() {
+    return "OK. Try GET /api/quotes/{symbol} (e.g., /api/quotes/AAPL)";
+  }
+
   @GetMapping("/{symbol}")
   public Quote get(@PathVariable String symbol) {
     return quoteService.getCached(symbol);

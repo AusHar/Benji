@@ -1,0 +1,39 @@
+openapi: 3.0.3
+info:
+  title: Trading Dashboard API
+  version: 1.0.0
+paths:
+  /quotes/{symbol}:
+    get:
+      operationId: getQuote
+      summary: Get a quote
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+        '400':
+          description: Bad request
+        '404':
+          description: Not found
+components:
+  schemas:
+    Quote:
+      type: object
+      required:
+        - symbol
+        - price
+      properties:
+        symbol:
+          type: string
+        price:
+          type: number
+          format: double

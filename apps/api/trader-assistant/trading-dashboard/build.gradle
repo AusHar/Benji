@@ -4,6 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
     id 'com.diffplug.spotless' version '6.25.0'
 	id 'org.owasp.dependencycheck' version '10.0.4'
+	id 'org.openapi.generator' version '7.7.0'
 }
 
 group = 'com.austinharlan'
@@ -32,6 +33,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
 	implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+	implementation 'io.swagger.core.v3:swagger-annotations:2.2.22'
+	implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
 	// implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	// implementation 'org.springframework.boot:spring-boot-starter-graphql'
 	// implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -54,7 +57,7 @@ tasks.test {
     useJUnitPlatform()
     testLogging {
         events "FAILED", "SKIPPED"
-        exceptionFormat "full"
+        exceptionFormat = "full"
         showStandardStreams = false
     }
 }
@@ -63,6 +66,53 @@ tasks.withType(Test).configureEach {
 	useJUnitPlatform() 
 	}
 
-spotless { 
-	java { googleJavaFormat() } 
-	}
+spotless {
+    java {
+        googleJavaFormat()
+        target 'src/**/*.java'
+        targetExclude "$buildDir/**/*.java"
+    }
+}
+
+tasks.named('spotlessJava').configure {
+    dependsOn tasks.named('openApiGenerate')
+}
+
+// Ensure Spotless runs after OpenAPI generation to avoid implicit dependency errors
+tasks.named('spotlessJava') { dependsOn tasks.named('openApiGenerate') }
+tasks.named('spotlessApply') { dependsOn tasks.named('openApiGenerate') }
+tasks.named('spotlessCheck') { dependsOn tasks.named('openApiGenerate') }
+
+// ── OpenAPI code generation (DTOs & API interfaces) ──────────────────────────
+openApiGenerate {
+    generatorName = 'spring'
+	inputSpec 	  = "${projectDir}/openAPI.yaml"
+    outputDir     = "${buildDir}/generated/openapi"
+
+    // Use your package namespace; avoid hyphens in package names
+    apiPackage     = "com.austinharlan.tradingdashboard.api"
+    modelPackage   = "com.austinharlan.tradingdashboard.dto"
+    invokerPackage = "com.austinharlan.tradingdashboard.invoker"
+
+    additionalProperties = [
+        interfaceOnly           : 'true',
+        useSpringBoot3          : 'true',
+        dateLibrary             : 'java8',
+        hideGenerationTimestamp : 'true',
+        useTags                 : 'true'
+    ]
+}
+
+// Include generated sources in main compilation
+sourceSets {
+    main {
+        java {
+            srcDir "${buildDir}/generated/openapi/src/main/java"
+        }
+    }
+}
+
+// Ensure code is generated before compiling
+tasks.named('compileJava') {
+    dependsOn tasks.named('openApiGenerate')
+}
