@@ -37,9 +37,7 @@ class MarketDataHealthIndicatorTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add(
-        "trading.marketdata.base-url",
-        () -> server.url("/").toString());
+    registry.add("trading.marketdata.base-url", () -> server.url("/").toString());
     registry.add("trading.marketdata.api-key", () -> "test-key");
     registry.add("trading.marketdata.health-symbol", () -> "AAPL");
     registry.add("trading.marketdata.connect-timeout", () -> "1s");

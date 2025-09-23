@@ -57,8 +57,7 @@ class RealMarketDataProviderTest {
                 }
                 """));
 
-    RealMarketDataProvider provider =
-        new RealMarketDataProvider(WebClient.builder(), properties);
+    RealMarketDataProvider provider = new RealMarketDataProvider(WebClient.builder(), properties);
 
     Quote quote = provider.getQuote("AAPL");
 
@@ -75,8 +74,7 @@ class RealMarketDataProviderTest {
             .addHeader("Content-Type", "application/json")
             .setBody("{\"error\":\"internal\"}"));
 
-    RealMarketDataProvider provider =
-        new RealMarketDataProvider(WebClient.builder(), properties);
+    RealMarketDataProvider provider = new RealMarketDataProvider(WebClient.builder(), properties);
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
         .isInstanceOf(MarketDataClientException.class)
@@ -91,8 +89,7 @@ class RealMarketDataProviderTest {
             .addHeader("Content-Type", "application/json")
             .setBody("{\"message\":\"Invalid\"}"));
 
-    RealMarketDataProvider provider =
-        new RealMarketDataProvider(WebClient.builder(), properties);
+    RealMarketDataProvider provider = new RealMarketDataProvider(WebClient.builder(), properties);
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
         .isInstanceOf(MarketDataClientException.class)

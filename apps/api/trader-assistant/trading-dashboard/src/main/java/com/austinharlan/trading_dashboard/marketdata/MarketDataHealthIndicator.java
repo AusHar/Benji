@@ -12,8 +12,7 @@ public class MarketDataHealthIndicator implements HealthIndicator {
   private final MarketDataProperties properties;
   private final MarketDataProvider provider;
 
-  public MarketDataHealthIndicator(
-      MarketDataProperties properties, MarketDataProvider provider) {
+  public MarketDataHealthIndicator(MarketDataProperties properties, MarketDataProvider provider) {
     this.properties = properties;
     this.provider = provider;
   }
