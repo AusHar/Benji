@@ -49,6 +49,16 @@ class MarketDataHealthIndicatorTest {
     registry.add("trading.marketdata.read-timeout", () -> "1s");
     registry.add("trading.marketdata.write-timeout", () -> "1s");
     registry.add("trading.marketdata.health-cache-ttl", () -> "0s");
+    registry.add(
+        "spring.datasource.url",
+        () ->
+            "jdbc:h2:mem:trading-dashboard-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
+    registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+    registry.add("spring.datasource.username", () -> "sa");
+    registry.add("spring.datasource.password", () -> "");
+    registry.add(
+        "spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
+    registry.add("spring.flyway.enabled", () -> "false");
   }
 
   @Test
