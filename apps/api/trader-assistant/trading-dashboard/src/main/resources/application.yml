@@ -1,6 +1,6 @@
 trading:
   marketdata:
-    base-url: https://api.alpha-vantage.co
+    base-url: https://www.alphavantage.co
     api-key: ${MARKETDATA_API_KEY:${ALPHA_VANTAGE_API_KEY}}
     health-symbol: ${MARKETDATA_HEALTH_SYMBOL:SPY}
     health-cache-ttl: ${MARKETDATA_HEALTH_CACHE_TTL:PT1M}
