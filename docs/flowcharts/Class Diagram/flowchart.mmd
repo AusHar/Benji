@@ -1,0 +1,39 @@
+classDiagram-v2
+  class QuoteController {
+    +rootHint(): String
+    +get(symbol): Quote
+  }
+
+  class QuoteService {
+    +getCached(symbol): Quote
+  }
+
+  class DefaultQuoteService {
+    -provider: MarketDataProvider
+    +DefaultQuoteService(provider)
+    +getCached(symbol): Quote
+  }
+
+  class MarketDataProvider {
+    +getQuote(symbol): Quote
+  }
+
+  class FakeMarketDataProvider {
+    +getQuote(symbol): Quote
+  }
+
+  class Quote {
+    +symbol: String
+    +price: BigDecimal
+    +timestamp: Instant
+  }
+
+  <<interface>> QuoteService
+  <<interface>> MarketDataProvider
+
+  QuoteController --> QuoteService
+  DefaultQuoteService ..|> QuoteService
+  DefaultQuoteService --> MarketDataProvider
+  FakeMarketDataProvider ..|> MarketDataProvider
+  MarketDataProvider --> Quote
+  QuoteService --> Quote

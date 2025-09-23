@@ -1,0 +1,21 @@
+sequenceDiagram
+  participant Client
+  participant Controller as QuoteController
+  participant Service as DefaultQuoteService
+  participant Cache as Cache("quotes")
+  participant Provider as FakeMarketDataProvider
+  participant External as ExternalAPI
+
+  Client->>Controller: GET /api/quotes/{symbol}
+  Controller->>Service: getCached(symbol)
+  Service->>Cache: lookup(symbol)
+  alt cache hit
+    Cache-->>Service: Quote
+  else cache miss
+    Service->>Provider: getQuote(symbol)
+    Provider->>External: (future) fetch quote
+    Provider-->>Service: Quote
+    Service->>Cache: store(symbol, Quote)
+  end
+  Service-->>Controller: Quote
+  Controller-->>Client: 200 OK + JSON

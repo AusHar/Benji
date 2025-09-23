@@ -1,0 +1,13 @@
+flowchart TD
+  Client[[Client / Web UI]]
+  Controller["QuoteController<br/>(/api/quotes)"]
+  Service["DefaultQuoteService<br/>@Cacheable('quotes')"]
+  Cache["Spring Cache<br/>(Caffeine target)"]
+  Provider["MarketDataProvider<br/>(FakeMarketDataProvider)"]
+  External["External Market APIs<br/>(future)"]
+  DB["PostgreSQL<br/>(future persistence)"]
+
+  Client --> Controller --> Service
+  Service --> Cache
+  Service --> Provider --> External
+  Service -.-> DB

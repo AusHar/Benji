@@ -1,10 +1,10 @@
 # ARCHITECTURE
 
 ## Overview
-The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio data, and assistant features for investing/trading. It follows a layered architecture (API → Service → Providers/Repositories) with swappable market-data providers and optional persistence (Postgres).
+The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio data, and assistant features for investing/trading/finance to provide a financial and budgeting dashboard and investing analysis. It follows a layered architecture (API → Service → Providers/Repositories) with swappable market-data providers and optional persistence (Postgres).
 
 ## Goals & Non-Goals
-- **Goals:** Clear layering, swappable data sources, fast local dev, production-ready security posture, testability.
+- **Goals:** Clear layering, swappable data sources, fast local dev, production-ready security posture, testability, AWS functionality/tooling, cloud ready, cloud cost-efficient.
 - **Non-Goals (for v0):** AuthN/AuthZ, multi-tenant RBAC, real trading execution.
 
 ## Components
