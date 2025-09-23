@@ -25,11 +25,13 @@ class QuoteControllerIT {
 
   @Test
   void getsQuote() throws Exception {
+    Instant timestamp = Instant.parse("2024-01-01T00:00:00Z");
     when(quoteService.getCached("UUUU"))
-        .thenReturn(new Quote("UUUU", BigDecimal.valueOf(100.00), Instant.now()));
+        .thenReturn(new Quote("UUUU", BigDecimal.valueOf(100.00), timestamp));
 
     mvc.perform(get("/api/quotes/UUUU"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.symbol").value("UUUU"));
+        .andExpect(jsonPath("$.symbol").value("UUUU"))
+        .andExpect(jsonPath("$.timestamp").value(timestamp.toString()));
   }
 }

@@ -31,9 +31,13 @@ components:
       required:
         - symbol
         - price
+        - timestamp
       properties:
         symbol:
           type: string
         price:
           type: number
           format: double
+        timestamp:
+          type: string
+          format: date-time
