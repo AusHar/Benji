@@ -15,6 +15,8 @@ public class MarketDataProperties {
 
   @NotBlank private String healthSymbol = "SPY";
 
+  @NotNull private Duration healthCacheTtl = Duration.ofMinutes(1);
+
   @NotNull private Duration connectTimeout = Duration.ofSeconds(2);
 
   @NotNull private Duration readTimeout = Duration.ofSeconds(5);
@@ -44,6 +46,14 @@ public class MarketDataProperties {
   public void setHealthSymbol(String healthSymbol) {
     this.healthSymbol =
         (healthSymbol != null && !healthSymbol.isBlank()) ? healthSymbol : this.healthSymbol;
+  }
+
+  public Duration getHealthCacheTtl() {
+    return healthCacheTtl;
+  }
+
+  public void setHealthCacheTtl(Duration healthCacheTtl) {
+    this.healthCacheTtl = healthCacheTtl != null ? healthCacheTtl : Duration.ofMinutes(1);
   }
 
   public Duration getConnectTimeout() {
