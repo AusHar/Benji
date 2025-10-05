@@ -1,0 +1,5 @@
+flowchart LR
+  GitHub["GitHub Actions<br/>ci.yml"] --> ECR["Amazon ECR<br/>trading-dashboard repo"]
+  ECR --> ECS["Amazon ECS Service"]
+  ECR --> EKS["Amazon EKS Deployment"]
+  ECR --> Beanstalk["Elastic Beanstalk<br/>Docker Platform"]
