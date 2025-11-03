@@ -7,6 +7,10 @@ trading:
     connect-timeout: 2s
     read-timeout: 5s
     write-timeout: 5s
+    retry:
+      max-attempts: ${TRADING_MARKETDATA_RETRY_MAX_ATTEMPTS:3}
+      initial-backoff: ${TRADING_MARKETDATA_RETRY_INITIAL_BACKOFF:PT0.5S}
+      max-backoff: ${TRADING_MARKETDATA_RETRY_MAX_BACKOFF:PT5S}
   cache:
     quotes:
       ttl: ${TRADING_CACHE_QUOTES_TTL:PT30S}

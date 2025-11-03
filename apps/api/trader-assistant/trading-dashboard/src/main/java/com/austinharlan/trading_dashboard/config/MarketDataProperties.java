@@ -2,6 +2,7 @@ package com.austinharlan.trading_dashboard.config;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +23,8 @@ public class MarketDataProperties {
   @NotNull private Duration readTimeout = Duration.ofSeconds(5);
 
   @NotNull private Duration writeTimeout = Duration.ofSeconds(5);
+
+  private RetryProperties retry = new RetryProperties();
 
   public String getBaseUrl() {
     return baseUrl;
@@ -78,5 +81,45 @@ public class MarketDataProperties {
 
   public void setWriteTimeout(Duration writeTimeout) {
     this.writeTimeout = writeTimeout != null ? writeTimeout : Duration.ofSeconds(5);
+  }
+
+  public RetryProperties getRetry() {
+    return retry;
+  }
+
+  public void setRetry(RetryProperties retry) {
+    this.retry = retry != null ? retry : new RetryProperties();
+  }
+
+  public static class RetryProperties {
+    @Positive private int maxAttempts = 3;
+
+    @NotNull private Duration initialBackoff = Duration.ofMillis(500);
+
+    @NotNull private Duration maxBackoff = Duration.ofSeconds(5);
+
+    public int getMaxAttempts() {
+      return maxAttempts;
+    }
+
+    public void setMaxAttempts(int maxAttempts) {
+      this.maxAttempts = maxAttempts > 0 ? maxAttempts : 3;
+    }
+
+    public Duration getInitialBackoff() {
+      return initialBackoff;
+    }
+
+    public void setInitialBackoff(Duration initialBackoff) {
+      this.initialBackoff = initialBackoff != null ? initialBackoff : Duration.ofMillis(500);
+    }
+
+    public Duration getMaxBackoff() {
+      return maxBackoff;
+    }
+
+    public void setMaxBackoff(Duration maxBackoff) {
+      this.maxBackoff = maxBackoff != null ? maxBackoff : Duration.ofSeconds(5);
+    }
   }
 }
