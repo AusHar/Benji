@@ -1,9 +1,3 @@
-diff --git a/docs/PRD.md b/docs/PRD.md
-new file mode 100644
-index 0000000000000000000000000000000000000000..6386ff3112544880f3fef5900b2d293cf1ecf9e5
---- /dev/null
-+++ b/docs/PRD.md
-@@ -0,0 +1,98 @@
 +# Product Requirements Document (PRD)
 +
 +## 1. Product Overview

@@ -1,9 +1,3 @@
-diff --git a/docs/RUNBOOK.md b/docs/RUNBOOK.md
-new file mode 100644
-index 0000000000000000000000000000000000000000..67d2fefd2762f8fab88bdfc0baad8af25547f16d
---- /dev/null
-+++ b/docs/RUNBOOK.md
-@@ -0,0 +1,83 @@
 +# Runbook
 +
 +## 1. Service Overview
