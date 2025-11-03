@@ -2,42 +2,331 @@ openapi: 3.0.3
 info:
   title: Trading Dashboard API
   version: 1.0.0
+  description: |
+    Contract for the Benji trader assistant API. Endpoints expose quote intelligence,
+    portfolio holdings, and personal finance insights consumed by the dashboard UI.
 paths:
-  /quotes/{symbol}:
+  /api/quotes:
     get:
+      tags:
+        - Quotes
+      operationId: getQuotesIndex
+      summary: Describe the quote service entry point.
+      responses:
+        '200':
+          description: Quote service metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotesIndex'
+  /api/quotes/{symbol}:
+    get:
+      tags:
+        - Quotes
       operationId: getQuote
-      summary: Get a quote
+      summary: Retrieve the latest quote for a ticker symbol.
       parameters:
         - name: symbol
           in: path
           required: true
+          description: Equity or ETF ticker symbol (case insensitive).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '200':
+          description: Quote payload for the requested symbol.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '400':
+          description: Invalid ticker was provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No quote could be located for the symbol.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/portfolio/positions:
+    get:
+      tags:
+        - Portfolio
+      operationId: listPortfolioPositions
+      summary: List normalized portfolio positions and cost basis.
+      responses:
+        '200':
+          description: Portfolio positions currently stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPositionsResponse'
+        '204':
+          description: No portfolio positions available.
+  /api/portfolio/summary:
+    get:
+      tags:
+        - Portfolio
+      operationId: getPortfolioSummary
+      summary: Provide aggregate portfolio metrics derived from stored positions.
+      responses:
+        '200':
+          description: Portfolio summary view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSummary'
+        '204':
+          description: No portfolio data is available to summarize.
+  /api/finance/summary:
+    get:
+      tags:
+        - Finance
+      operationId: getFinanceSummary
+      summary: Provide high-level spend analytics for the current month.
+      responses:
+        '200':
+          description: Finance snapshot derived from recent transactions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceSummary'
+        '204':
+          description: No finance data is available.
+  /api/finance/transactions:
+    get:
+      tags:
+        - Finance
+      operationId: listFinanceTransactions
+      summary: List categorized personal finance transactions.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of most recent transactions to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: category
+          in: query
+          required: false
+          description: Filter transactions by normalized category slug (e.g., housing, dining).
           schema:
             type: string
       responses:
         '200':
-          description: Quote returned
+          description: Finance transactions matching the criteria.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Quote'
-        '400':
-          description: Bad request
-        '404':
-          description: Not found
+                $ref: '#/components/schemas/FinanceTransactionsResponse'
+        '204':
+          description: No transactions matched the query.
 components:
   schemas:
-    Quote:
+    QuotesIndex:
+      type: object
+      required:
+        - message
+        - endpoints
+      properties:
+        message:
+          type: string
+          example: Quote service ready.
+        endpoints:
+          type: array
+          minItems: 1
+          description: Helpful endpoints exposed by the quote service.
+          items:
+            type: string
+            example: /api/quotes/{symbol}
+    QuoteResponse:
       type: object
       required:
         - symbol
         - price
-        - timestamp
+        - as_of
       properties:
         symbol:
           type: string
+          description: Requested ticker symbol.
+          example: AAPL
         price:
           type: number
           format: double
-        timestamp:
+          description: Last traded price reported by the primary provider.
+          example: 193.63
+        currency:
+          type: string
+          description: ISO 4217 currency code for the quote.
+          example: USD
+        as_of:
           type: string
           format: date-time
+          description: Timestamp the quote was last refreshed.
+          example: '2024-07-19T15:30:00Z'
+        source:
+          type: string
+          description: Market data provider that supplied the quote.
+          example: AlphaVantage
+    PortfolioPositionsResponse:
+      type: object
+      required:
+        - positions
+      properties:
+        as_of:
+          type: string
+          format: date-time
+          description: Snapshot timestamp when the positions were generated.
+        positions:
+          type: array
+          description: Portfolio positions persisted by the ingestion pipeline.
+          items:
+            $ref: '#/components/schemas/PortfolioPosition'
+    PortfolioPosition:
+      type: object
+      required:
+        - ticker
+        - quantity
+        - cost_basis
+      properties:
+        ticker:
+          type: string
+          description: Normalized ticker symbol.
+          example: VOO
+        quantity:
+          type: number
+          format: double
+          description: Total shares held for the ticker.
+          example: 12.5
+        cost_basis:
+          type: number
+          format: double
+          description: Aggregate cost basis for the position.
+          example: 4500.12
+    PortfolioSummary:
+      type: object
+      required:
+        - positions_count
+        - total_quantity
+        - total_cost_basis
+      properties:
+        positions_count:
+          type: integer
+          format: int32
+          description: Number of unique tickers in the portfolio.
+          example: 8
+        total_quantity:
+          type: number
+          format: double
+          description: Sum of share quantities across all positions.
+          example: 154.72
+        total_cost_basis:
+          type: number
+          format: double
+          description: Total invested cost basis across the portfolio.
+          example: 25340.55
+        as_of:
+          type: string
+          format: date-time
+          description: Timestamp when the summary metrics were calculated.
+    FinanceSummary:
+      type: object
+      required:
+        - month_to_date_spend
+        - average_daily_spend
+        - projected_month_end_spend
+        - as_of
+      properties:
+        month_to_date_spend:
+          type: number
+          format: double
+          description: Total spend recorded for the current calendar month.
+          example: 2845.22
+        average_daily_spend:
+          type: number
+          format: double
+          description: Average daily spend computed for the active month.
+          example: 142.26
+        projected_month_end_spend:
+          type: number
+          format: double
+          description: Forecasted spend by the end of the month.
+          example: 4400.0
+        as_of:
+          type: string
+          format: date-time
+          description: Timestamp when analytics were calculated.
+    FinanceTransactionsResponse:
+      type: object
+      required:
+        - transactions
+      properties:
+        as_of:
+          type: string
+          format: date-time
+          description: Snapshot timestamp for the transaction list.
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinanceTransaction'
+          description: Transactions ordered from newest to oldest.
+    FinanceTransaction:
+      type: object
+      required:
+        - id
+        - posted_at
+        - description
+        - amount
+        - category
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the transaction.
+          example: txn_20240719_001
+        posted_at:
+          type: string
+          format: date-time
+          description: Timestamp the transaction posted.
+          example: '2024-07-18T12:00:00Z'
+        description:
+          type: string
+          description: Human readable description.
+          example: Whole Foods Market
+        amount:
+          type: number
+          format: double
+          description: Signed transaction amount; debits are negative.
+          example: -72.34
+        category:
+          type: string
+          description: Normalized category slug.
+          example: groceries
+        notes:
+          type: string
+          description: Optional annotations captured by the user.
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine readable error code.
+          example: SYMBOL_INVALID
+        message:
+          type: string
+          description: Explanation of the error condition.
+          example: Provided ticker symbol is invalid.
+        details:
+          type: array
+          description: Additional detail strings.
+          items:
+            type: string

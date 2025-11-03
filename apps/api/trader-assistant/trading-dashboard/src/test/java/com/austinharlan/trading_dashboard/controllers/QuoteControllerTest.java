@@ -34,7 +34,8 @@ class QuoteControllerTest {
     mvc.perform(get("/api/quotes/UUUU"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.symbol", is("UUUU")))
-        .andExpect(jsonPath("$.timestamp", is(timestamp.toString())));
+        .andExpect(jsonPath("$.as_of", is(timestamp.toString())))
+        .andExpect(jsonPath("$.currency", is("USD")));
   }
 
   @Test
