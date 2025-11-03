@@ -9,10 +9,19 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 
 @Configuration
 @Profile("!dev")
 class ActuatorSecurityConfig {
+  private final ApiSecurityProperties apiSecurityProperties;
+  private final ApiKeyAuthFilter apiKeyAuthFilter;
+
+  ActuatorSecurityConfig(
+      ApiSecurityProperties apiSecurityProperties, ApiKeyAuthFilter apiKeyAuthFilter) {
+    this.apiSecurityProperties = apiSecurityProperties;
+    this.apiKeyAuthFilter = apiKeyAuthFilter;
+  }
 
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -30,9 +39,16 @@ class ActuatorSecurityConfig {
   }
 
   @Bean
+  @Order(Ordered.LOWEST_PRECEDENCE)
   SecurityFilterChain applicationSecurity(HttpSecurity http) throws Exception {
-    http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-        .httpBasic(AbstractHttpConfigurer::disable)
+    if (apiSecurityProperties.isEnabled()) {
+      http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+          .addFilterBefore(apiKeyAuthFilter, AnonymousAuthenticationFilter.class);
+    } else {
+      http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+    }
+
+    http.httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .csrf(AbstractHttpConfigurer::disable);
     return http.build();

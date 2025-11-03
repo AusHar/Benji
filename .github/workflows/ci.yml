@@ -17,7 +17,7 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - run: ./gradlew spotlessCheck build test --no-daemon
+      - run: ./gradlew spotlessCheck build --no-daemon
 
       - name: OWASP Dependency-Check (report only)
         run: ./gradlew dependencyCheckAnalyze || true
@@ -36,12 +36,26 @@ jobs:
     needs: api
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    environment: production
     permissions:
       contents: read
       id-token: write
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+      ECS_EXECUTION_ROLE_ARN: ${{ vars.ECS_EXECUTION_ROLE_ARN }}
+      ECS_TASK_ROLE_ARN: ${{ vars.ECS_TASK_ROLE_ARN }}
+      ECS_LOG_GROUP: ${{ vars.ECS_LOG_GROUP }}
+      POSTGRES_URL_PARAM: ${{ vars.POSTGRES_URL_PARAM }}
+      POSTGRES_USER_PARAM: ${{ vars.POSTGRES_USER_PARAM }}
+      POSTGRES_PASSWORD_PARAM: ${{ vars.POSTGRES_PASSWORD_PARAM }}
+      MARKETDATA_API_KEY_PARAM: ${{ vars.MARKETDATA_API_KEY_PARAM }}
+      TRADING_API_KEY_PARAM: ${{ vars.TRADING_API_KEY_PARAM }}
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_uri: ${{ steps.meta.outputs.image_uri }}
     defaults:
       run:
         working-directory: apps/api/trader-assistant/trading-dashboard
@@ -58,19 +72,110 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Compute image tag and URI
+        id: meta
         run: |
           if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
           else
             IMAGE_TAG="${GITHUB_SHA}"
           fi
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_uri=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
-          docker build \
-            --file Dockerfile \
-            --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
-            .
+      - name: Build and push Docker image
+        run: |
+          docker build -f Dockerfile -t "${{ steps.meta.outputs.image_uri }}" .
+          docker push "${{ steps.meta.outputs.image_uri }}"
 
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+  deploy-ecs:
+    needs: publish-trading-dashboard-image
+    runs-on: ubuntu-latest
+    if: needs.publish-trading-dashboard-image.result == 'success'
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+      ECS_LOG_GROUP: ${{ vars.ECS_LOG_GROUP }}
+      IMAGE_TAG: ${{ needs.publish-trading-dashboard-image.outputs.image_tag }}
+      IMAGE_URI: ${{ needs.publish-trading-dashboard-image.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ensure log group exists
+        run: aws logs create-log-group --log-group-name "$ECS_LOG_GROUP" || true
+
+      - name: Render task definition
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          task_definition = {
+              "family": "trading-dashboard",
+              "networkMode": "awsvpc",
+              "requiresCompatibilities": ["FARGATE"],
+              "cpu": "512",
+              "memory": "1024",
+              "executionRoleArn": os.environ["ECS_EXECUTION_ROLE_ARN"],
+              "taskRoleArn": os.environ["ECS_TASK_ROLE_ARN"],
+              "containerDefinitions": [
+                  {
+                      "name": "trading-dashboard",
+                      "image": os.environ["IMAGE_URI"],
+                      "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
+                      "logConfiguration": {
+                          "logDriver": "awslogs",
+                          "options": {
+                              "awslogs-group": os.environ["ECS_LOG_GROUP"],
+                              "awslogs-region": os.environ["AWS_REGION"],
+                              "awslogs-stream-prefix": "ecs"
+                          }
+                      },
+                      "environment": [
+                          {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"}
+                      ],
+                      "secrets": [
+                          {"name": "SPRING_DATASOURCE_URL", "valueFrom": os.environ["POSTGRES_URL_PARAM"]},
+                          {"name": "SPRING_DATASOURCE_USERNAME", "valueFrom": os.environ["POSTGRES_USER_PARAM"]},
+                          {"name": "SPRING_DATASOURCE_PASSWORD", "valueFrom": os.environ["POSTGRES_PASSWORD_PARAM"]},
+                          {"name": "MARKETDATA_API_KEY", "valueFrom": os.environ["MARKETDATA_API_KEY_PARAM"]},
+                          {"name": "TRADING_API_KEY", "valueFrom": os.environ["TRADING_API_KEY_PARAM"]}
+                      ],
+                      "healthCheck": {
+                          "command": [
+                              "CMD-SHELL",
+                              "curl -f http://localhost:8080/actuator/health || exit 1"
+                          ],
+                          "interval": 30,
+                          "timeout": 5,
+                          "retries": 3,
+                          "startPeriod": 60
+                      }
+                  }
+              ]
+          }
+
+          with open("taskdef.json", "w", encoding="utf-8") as fp:
+              json.dump(task_definition, fp, indent=2)
+          PY
+
+      - name: Register task definition
+        run: aws ecs register-task-definition --cli-input-json file://taskdef.json
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --force-new-deployment

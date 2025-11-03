@@ -95,4 +95,40 @@ class RealMarketDataProviderTest {
         .isInstanceOf(MarketDataClientException.class)
         .hasMessageContaining("Global Quote");
   }
+
+  @Test
+  void shouldSurfaceRateLimitOn429Response() {
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(429)
+            .addHeader("Content-Type", "application/json")
+            .setBody("{\"message\":\"Too many requests\"}"));
+
+    RealMarketDataProvider provider = new RealMarketDataProvider(WebClient.builder(), properties);
+
+    assertThatThrownBy(() -> provider.getQuote("AAPL"))
+        .isInstanceOf(MarketDataRateLimitException.class)
+        .hasMessageContaining("rate limit");
+  }
+
+  @Test
+  void shouldSurfaceRateLimitWhenNoteInPayload() {
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody(
+                """
+                {
+                  "Note": "Thank you for using Alpha Vantage! ... API call frequency is 5 per minute.",
+                  "Global Quote": {}
+                }
+                """));
+
+    RealMarketDataProvider provider = new RealMarketDataProvider(WebClient.builder(), properties);
+
+    assertThatThrownBy(() -> provider.getQuote("AAPL"))
+        .isInstanceOf(MarketDataRateLimitException.class)
+        .hasMessageContaining("API call frequency");
+  }
 }

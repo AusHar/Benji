@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -84,6 +85,18 @@ public class RealMarketDataProvider implements MarketDataProvider {
                     .build())
         .retrieve()
         .onStatus(
+            status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
+            clientResponse ->
+                clientResponse
+                    .bodyToMono(String.class)
+                    .defaultIfEmpty("")
+                    .map(
+                        body ->
+                            new MarketDataRateLimitException(
+                                body.isBlank()
+                                    ? "AlphaVantage rate limit reached"
+                                    : "AlphaVantage rate limit reached: %s".formatted(body))))
+        .onStatus(
             HttpStatusCode::isError,
             clientResponse ->
                 clientResponse
@@ -112,6 +125,8 @@ public class RealMarketDataProvider implements MarketDataProvider {
       throw new MarketDataClientException("AlphaVantage response was empty");
     }
 
+    checkForRateLimit(root);
+
     JsonNode globalQuote = root.path("Global Quote");
     if (globalQuote.isMissingNode() || globalQuote.isEmpty()) {
       throw new MarketDataClientException("AlphaVantage response missing 'Global Quote'");
@@ -130,6 +145,18 @@ public class RealMarketDataProvider implements MarketDataProvider {
     }
 
     return new Quote(symbol, price, extractTimestamp(globalQuote));
+  }
+
+  private void checkForRateLimit(JsonNode root) {
+    String note = textValue(root, "Note");
+    if (note != null && !note.isBlank()) {
+      throw new MarketDataRateLimitException(note.trim());
+    }
+
+    String information = textValue(root, "Information");
+    if (information != null && !information.isBlank()) {
+      throw new MarketDataRateLimitException(information.trim());
+    }
   }
 
   private static String textValue(JsonNode node, String fieldName) {

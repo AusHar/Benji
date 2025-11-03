@@ -18,7 +18,7 @@ build:
 	./gradlew clean build
 
 check:
-	./gradlew spotlessApply test dependencyCheckAnalyze
+	./gradlew spotlessCheck test dependencyCheckAnalyze
 
 codegen:
 	./gradlew openApiGenerate

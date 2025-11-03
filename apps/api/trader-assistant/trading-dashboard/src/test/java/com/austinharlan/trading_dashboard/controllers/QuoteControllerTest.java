@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import com.austinharlan.trading_dashboard.service.QuoteService;
 import java.math.BigDecimal;
@@ -34,5 +35,15 @@ class QuoteControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.symbol", is("UUUU")))
         .andExpect(jsonPath("$.timestamp", is(timestamp.toString())));
+  }
+
+  @Test
+  void getQuoteReturns429WhenRateLimited() throws Exception {
+    when(quoteService.getCached("TSLA"))
+        .thenThrow(new MarketDataRateLimitException("AlphaVantage rate limit reached"));
+
+    mvc.perform(get("/api/quotes/TSLA"))
+        .andExpect(status().isTooManyRequests())
+        .andExpect(jsonPath("$.error", is("rate_limited")));
   }
 }

@@ -7,6 +7,13 @@ trading:
     connect-timeout: 2s
     read-timeout: 5s
     write-timeout: 5s
+  cache:
+    quotes:
+      ttl: ${TRADING_CACHE_QUOTES_TTL:PT30S}
+      maximum-size: ${TRADING_CACHE_QUOTES_MAXIMUM_SIZE:1024}
+  api:
+    key: ${TRADING_API_KEY:}
+    header-name: ${TRADING_API_KEY_HEADER:X-API-KEY}
 
 spring:
   profiles:
