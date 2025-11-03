@@ -123,15 +123,13 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
 
     repository.saveAll(List.of(groceriesEarly, dining, groceriesLatest));
 
-    List<FinanceTransactionRecord> groceries =
-        service.listTransactions(5, "groceries");
+    List<FinanceTransactionRecord> groceries = service.listTransactions(5, "groceries");
 
     assertThat(groceries)
         .extracting(FinanceTransactionRecord::id)
         .containsExactly("groceries-latest", "groceries-early");
 
-    List<FinanceTransactionRecord> limited =
-        service.listTransactions(2, null);
+    List<FinanceTransactionRecord> limited = service.listTransactions(2, null);
 
     assertThat(limited)
         .extracting(FinanceTransactionRecord::id)

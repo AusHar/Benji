@@ -2,12 +2,12 @@ package com.austinharlan.trading_dashboard.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.austinharlan.trading_dashboard.testsupport.DatabaseIntegrationTest;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import com.austinharlan.trading_dashboard.testsupport.DatabaseIntegrationTest;
 
 @SpringBootTest
 class PortfolioPositionRepositoryIT extends DatabaseIntegrationTest {

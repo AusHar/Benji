@@ -37,11 +37,7 @@ public class FinanceTransactionEntity {
   }
 
   public FinanceTransactionEntity(
-      Instant postedAt,
-      String description,
-      BigDecimal amount,
-      String category,
-      String notes) {
+      Instant postedAt, String description, BigDecimal amount, String category, String notes) {
     this(UUID.randomUUID().toString(), postedAt, description, amount, category, notes);
   }
 

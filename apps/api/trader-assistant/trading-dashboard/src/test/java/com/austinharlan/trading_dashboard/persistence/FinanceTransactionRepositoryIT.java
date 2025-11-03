@@ -52,12 +52,7 @@ class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
 
     FinanceTransactionEntity groceriesLater =
         new FinanceTransactionEntity(
-            "groceries-2",
-            now,
-            "Whole Foods",
-            new BigDecimal("85.75"),
-            "Groceries",
-            null);
+            "groceries-2", now, "Whole Foods", new BigDecimal("85.75"), "Groceries", null);
 
     repository.saveAll(List.of(groceries, dining, groceriesLater));
 
@@ -69,8 +64,7 @@ class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
         .containsExactly("groceries-2", "groceries-1");
 
     List<FinanceTransactionEntity> rangeResults =
-        repository.findWithinRange(
-            now.minus(3, ChronoUnit.DAYS), now.plus(1, ChronoUnit.MINUTES));
+        repository.findWithinRange(now.minus(3, ChronoUnit.DAYS), now.plus(1, ChronoUnit.MINUTES));
 
     assertThat(rangeResults)
         .hasSize(3)

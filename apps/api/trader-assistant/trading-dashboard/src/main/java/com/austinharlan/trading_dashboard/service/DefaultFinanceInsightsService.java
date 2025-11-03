@@ -39,8 +39,7 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
     Instant now = Instant.now(clock);
     YearMonth currentMonth = YearMonth.now(clock);
     LocalDate today = LocalDate.now(clock);
-    Instant startOfMonth =
-        currentMonth.atDay(1).atStartOfDay(clock.getZone()).toInstant();
+    Instant startOfMonth = currentMonth.atDay(1).atStartOfDay(clock.getZone()).toInstant();
     Instant startOfNextMonth =
         currentMonth.plusMonths(1).atDay(1).atStartOfDay(clock.getZone()).toInstant();
 
