@@ -27,7 +27,7 @@
 +
 +## 5. Deployment Procedure
 +1. Ensure `main` branch is green (tests passing) and version bump applied if needed.
-+2. Tag the release (`git tag vX.Y.Z && git push --tags`) or trigger the `deploy.yml` workflow manually.
++2. Tag the release (`git tag vX.Y.Z && git push --tags`) or trigger the `ci.yml` workflow manually.
 +3. GitHub Actions job `deploy` will:
 +   - Build the Gradle project (`./gradlew build`).
 +   - Build/push Docker image to `${ECR_REPOSITORY}`.
