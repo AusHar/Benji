@@ -95,8 +95,8 @@ class RealMarketDataProviderTest {
     RealMarketDataProvider provider = provider();
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataClientException.class)
-        .hasMessageContaining("Global Quote");
+        .isInstanceOf(QuoteNotFoundException.class)
+        .hasMessageContaining("Quote was not found");
   }
 
   @Test

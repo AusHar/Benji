@@ -183,19 +183,19 @@ public class RealMarketDataProvider implements MarketDataProvider {
 
   private Quote toQuote(String symbol, JsonNode root) {
     if (root == null || root.isEmpty()) {
-      throw new MarketDataClientException("AlphaVantage response was empty");
+      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
 
     checkForRateLimit(root);
 
     JsonNode globalQuote = root.path("Global Quote");
     if (globalQuote.isMissingNode() || globalQuote.isEmpty()) {
-      throw new MarketDataClientException("AlphaVantage response missing 'Global Quote'");
+      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
 
     String priceValue = textValue(globalQuote, "05. price");
     if (priceValue == null || priceValue.isBlank()) {
-      throw new MarketDataClientException("AlphaVantage response missing price");
+      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
 
     BigDecimal price;
