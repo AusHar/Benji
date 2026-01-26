@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Collections;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
@@ -36,7 +37,7 @@ class ApiKeyAuthFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     String providedKey = request.getHeader(properties.getHeaderName());
-    if (!StringUtils.hasText(providedKey) || !providedKey.equals(properties.getKey())) {
+    if (!StringUtils.hasText(providedKey) || !isKeyValid(providedKey)) {
       response.setStatus(HttpStatus.UNAUTHORIZED.value());
       response.setContentType(MediaType.APPLICATION_JSON_VALUE);
       response
@@ -53,5 +54,17 @@ class ApiKeyAuthFilter extends OncePerRequestFilter {
     } finally {
       SecurityContextHolder.clearContext();
     }
+  }
+
+  /**
+   * Validates the provided API key using constant-time comparison to prevent timing attacks.
+   *
+   * @param providedKey the API key from the request header
+   * @return true if the key matches the configured key
+   */
+  private boolean isKeyValid(String providedKey) {
+    byte[] providedBytes = providedKey.getBytes(StandardCharsets.UTF_8);
+    byte[] expectedBytes = properties.getKey().getBytes(StandardCharsets.UTF_8);
+    return MessageDigest.isEqual(providedBytes, expectedBytes);
   }
 }
