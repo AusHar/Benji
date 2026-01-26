@@ -5,6 +5,8 @@ info:
   description: |
     Contract for the Benji trader assistant API. Endpoints expose quote intelligence,
     portfolio holdings, and personal finance insights consumed by the dashboard UI.
+security:
+  - ApiKeyAuth: []
 paths:
   /api/quotes:
     get:
@@ -330,3 +332,9 @@ components:
           description: Additional detail strings.
           items:
             type: string
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key for authenticating requests to the Trading Dashboard API.

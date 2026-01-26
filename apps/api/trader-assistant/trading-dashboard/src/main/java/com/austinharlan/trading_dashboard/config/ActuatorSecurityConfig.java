@@ -48,7 +48,8 @@ class ActuatorSecurityConfig {
       http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
     }
 
-    http.httpBasic(AbstractHttpConfigurer::disable)
+    http.cors(Customizer.withDefaults())
+        .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .csrf(AbstractHttpConfigurer::disable);
     return http.build();
