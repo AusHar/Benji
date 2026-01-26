@@ -70,6 +70,126 @@ paths:
                 $ref: '#/components/schemas/PortfolioPositionsResponse'
         '204':
           description: No portfolio positions available.
+    post:
+      tags:
+        - Portfolio
+      operationId: createPortfolioPosition
+      summary: Create a new portfolio position.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortfolioPositionRequest'
+      responses:
+        '201':
+          description: Position created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPosition'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Position for ticker already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/portfolio/positions/{ticker}:
+    get:
+      tags:
+        - Portfolio
+      operationId: getPortfolioPosition
+      summary: Retrieve a single portfolio position by ticker.
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          description: Stock ticker symbol.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '200':
+          description: Position found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPosition'
+        '404':
+          description: Position not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Portfolio
+      operationId: updatePortfolioPosition
+      summary: Update an existing portfolio position.
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          description: Stock ticker symbol.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePortfolioPositionRequest'
+      responses:
+        '200':
+          description: Position updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPosition'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Position not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Portfolio
+      operationId: deletePortfolioPosition
+      summary: Delete a portfolio position.
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          description: Stock ticker symbol.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '204':
+          description: Position deleted successfully.
+        '404':
+          description: Position not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/portfolio/summary:
     get:
       tags:
@@ -130,6 +250,114 @@ paths:
                 $ref: '#/components/schemas/FinanceTransactionsResponse'
         '204':
           description: No transactions matched the query.
+    post:
+      tags:
+        - Finance
+      operationId: createFinanceTransaction
+      summary: Create a new finance transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFinanceTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceTransaction'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/finance/transactions/{id}:
+    get:
+      tags:
+        - Finance
+      operationId: getFinanceTransaction
+      summary: Retrieve a single finance transaction by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique transaction identifier.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceTransaction'
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Finance
+      operationId: updateFinanceTransaction
+      summary: Update an existing finance transaction.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique transaction identifier.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFinanceTransactionRequest'
+      responses:
+        '200':
+          description: Transaction updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceTransaction'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Finance
+      operationId: deleteFinanceTransaction
+      summary: Delete a finance transaction.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique transaction identifier.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Transaction deleted successfully.
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     QuotesIndex:
@@ -313,6 +541,110 @@ components:
         notes:
           type: string
           description: Optional annotations captured by the user.
+    CreateFinanceTransactionRequest:
+      type: object
+      required:
+        - posted_at
+        - description
+        - amount
+        - category
+      properties:
+        posted_at:
+          type: string
+          format: date-time
+          description: Timestamp the transaction posted.
+          example: '2024-07-18T12:00:00Z'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human readable description.
+          example: Whole Foods Market
+        amount:
+          type: number
+          format: double
+          description: Signed transaction amount; debits are negative.
+          example: -72.34
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Normalized category slug.
+          example: groceries
+        notes:
+          type: string
+          maxLength: 1000
+          description: Optional annotations captured by the user.
+    UpdateFinanceTransactionRequest:
+      type: object
+      properties:
+        posted_at:
+          type: string
+          format: date-time
+          description: Timestamp the transaction posted.
+          example: '2024-07-18T12:00:00Z'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human readable description.
+          example: Whole Foods Market
+        amount:
+          type: number
+          format: double
+          description: Signed transaction amount; debits are negative.
+          example: -72.34
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Normalized category slug.
+          example: groceries
+        notes:
+          type: string
+          maxLength: 1000
+          description: Optional annotations captured by the user.
+    CreatePortfolioPositionRequest:
+      type: object
+      required:
+        - ticker
+        - quantity
+        - cost_basis
+      properties:
+        ticker:
+          type: string
+          minLength: 1
+          maxLength: 12
+          pattern: '^[A-Za-z0-9.]+$'
+          description: Stock ticker symbol.
+          example: VOO
+        quantity:
+          type: number
+          format: double
+          minimum: 0
+          description: Total shares held for the ticker.
+          example: 12.5
+        cost_basis:
+          type: number
+          format: double
+          minimum: 0
+          description: Aggregate cost basis for the position.
+          example: 4500.12
+    UpdatePortfolioPositionRequest:
+      type: object
+      properties:
+        quantity:
+          type: number
+          format: double
+          minimum: 0
+          description: Total shares held for the ticker.
+          example: 12.5
+        cost_basis:
+          type: number
+          format: double
+          minimum: 0
+          description: Aggregate cost basis for the position.
+          example: 4500.12
     ErrorResponse:
       type: object
       required:

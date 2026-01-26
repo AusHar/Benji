@@ -11,11 +11,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -83,6 +85,73 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
     return transactionRepository.findAllByOrderByPostedAtDesc(pageable).stream()
         .map(this::toRecord)
         .toList();
+  }
+
+  @Override
+  public Optional<FinanceTransactionRecord> findById(String id) {
+    if (!StringUtils.hasText(id)) {
+      return Optional.empty();
+    }
+    return transactionRepository.findById(id).map(this::toRecord);
+  }
+
+  @Override
+  @Transactional
+  public FinanceTransactionRecord create(
+      Instant postedAt, String description, BigDecimal amount, String category, String notes) {
+    FinanceTransactionEntity entity =
+        new FinanceTransactionEntity(postedAt, description, amount, category, notes);
+    FinanceTransactionEntity saved = transactionRepository.save(entity);
+    return toRecord(saved);
+  }
+
+  @Override
+  @Transactional
+  public Optional<FinanceTransactionRecord> update(
+      String id,
+      Instant postedAt,
+      String description,
+      BigDecimal amount,
+      String category,
+      String notes) {
+    if (!StringUtils.hasText(id)) {
+      return Optional.empty();
+    }
+
+    return transactionRepository
+        .findById(id)
+        .map(
+            entity -> {
+              if (postedAt != null) {
+                entity.setPostedAt(postedAt);
+              }
+              if (StringUtils.hasText(description)) {
+                entity.setDescription(description);
+              }
+              if (amount != null) {
+                entity.setAmount(amount);
+              }
+              if (category != null) {
+                entity.setCategory(category);
+              }
+              if (notes != null) {
+                entity.setNotes(notes);
+              }
+              return toRecord(transactionRepository.save(entity));
+            });
+  }
+
+  @Override
+  @Transactional
+  public boolean delete(String id) {
+    if (!StringUtils.hasText(id)) {
+      return false;
+    }
+    if (transactionRepository.existsById(id)) {
+      transactionRepository.deleteById(id);
+      return true;
+    }
+    return false;
   }
 
   private BigDecimal safeAmount(BigDecimal amount) {

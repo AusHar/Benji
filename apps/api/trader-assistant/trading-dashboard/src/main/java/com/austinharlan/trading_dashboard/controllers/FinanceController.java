@@ -4,9 +4,13 @@ import com.austinharlan.trading_dashboard.finance.FinanceSummaryData;
 import com.austinharlan.trading_dashboard.finance.FinanceTransactionRecord;
 import com.austinharlan.trading_dashboard.service.FinanceInsightsService;
 import com.austinharlan.tradingdashboard.api.FinanceApi;
+import com.austinharlan.tradingdashboard.dto.CreateFinanceTransactionRequest;
 import com.austinharlan.tradingdashboard.dto.FinanceSummary;
 import com.austinharlan.tradingdashboard.dto.FinanceTransaction;
 import com.austinharlan.tradingdashboard.dto.FinanceTransactionsResponse;
+import com.austinharlan.tradingdashboard.dto.UpdateFinanceTransactionRequest;
+import java.math.BigDecimal;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -46,6 +50,55 @@ public class FinanceController implements FinanceApi {
             .asOf(OffsetDateTime.now(ZoneOffset.UTC))
             .transactions(payload);
     return ResponseEntity.ok(response);
+  }
+
+  @Override
+  public ResponseEntity<FinanceTransaction> getFinanceTransaction(String id) {
+    return financeInsightsService
+        .findById(id)
+        .map(this::toDto)
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
+  @Override
+  public ResponseEntity<FinanceTransaction> createFinanceTransaction(
+      CreateFinanceTransactionRequest request) {
+    FinanceTransactionRecord created =
+        financeInsightsService.create(
+            request.getPostedAt().toInstant(),
+            request.getDescription(),
+            BigDecimal.valueOf(request.getAmount()),
+            request.getCategory(),
+            request.getNotes());
+
+    FinanceTransaction dto = toDto(created);
+    return ResponseEntity.created(URI.create("/api/finance/transactions/" + created.id()))
+        .body(dto);
+  }
+
+  @Override
+  public ResponseEntity<FinanceTransaction> updateFinanceTransaction(
+      String id, UpdateFinanceTransactionRequest request) {
+    return financeInsightsService
+        .update(
+            id,
+            request.getPostedAt() != null ? request.getPostedAt().toInstant() : null,
+            request.getDescription(),
+            request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null,
+            request.getCategory(),
+            request.getNotes())
+        .map(this::toDto)
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
+  @Override
+  public ResponseEntity<Void> deleteFinanceTransaction(String id) {
+    if (financeInsightsService.delete(id)) {
+      return ResponseEntity.noContent().build();
+    }
+    return ResponseEntity.notFound().build();
   }
 
   private FinanceTransaction toDto(FinanceTransactionRecord record) {

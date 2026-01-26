@@ -24,6 +24,10 @@ trading:
   api:
     key: ${TRADING_API_KEY:}
     header-name: ${TRADING_API_KEY_HEADER:X-API-KEY}
+  rate-limit:
+    enabled: ${TRADING_RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${TRADING_RATE_LIMIT_REQUESTS_PER_MINUTE:100}
+    quote-requests-per-minute: ${TRADING_RATE_LIMIT_QUOTE_REQUESTS_PER_MINUTE:30}
 
 spring:
   profiles:
