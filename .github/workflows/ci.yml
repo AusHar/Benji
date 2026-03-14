@@ -58,7 +58,7 @@ jobs:
 
       - name: Deploy JAR to Lightsail
         run: |
-          ssh -i ~/.ssh/deploy.pem ubuntu@107.22.236.28 "cat > /opt/benji/benji.jar" < dist/trading-dashboard-*.jar
+          rsync -az -e "ssh -i ~/.ssh/deploy.pem" dist/trading-dashboard-*.jar ubuntu@107.22.236.28:/opt/benji/benji.jar
 
       - name: Restart service
         run: |
