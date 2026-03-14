@@ -58,7 +58,7 @@ jobs:
 
       - name: Deploy JAR to Lightsail
         run: |
-          scp -i ~/.ssh/deploy.pem dist/trading-dashboard-*.jar ubuntu@107.22.236.28:/opt/benji/benji.jar
+          scp -O -i ~/.ssh/deploy.pem dist/trading-dashboard-*.jar ubuntu@107.22.236.28:/opt/benji/benji.jar
 
       - name: Restart service
         run: |
