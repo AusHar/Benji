@@ -1,9 +1,12 @@
 package com.austinharlan.trader.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
+import java.util.List;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,11 +21,26 @@ public class CacheConfig {
 
   @Bean
   CacheManager cacheManager() {
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager("quotes");
-    cacheManager.setCaffeine(
-        Caffeine.newBuilder()
-            .expireAfterWrite(cacheProperties.getQuotes().getTtl())
-            .maximumSize(cacheProperties.getQuotes().getMaximumSize()));
-    return cacheManager;
+    SimpleCacheManager manager = new SimpleCacheManager();
+    manager.setCaches(
+        List.of(
+            buildCache(
+                "quotes",
+                cacheProperties.getQuotes().getTtl(),
+                cacheProperties.getQuotes().getMaximumSize()),
+            buildCache(
+                "overviews",
+                cacheProperties.getOverview().getTtl(),
+                cacheProperties.getOverview().getMaximumSize()),
+            buildCache(
+                "history",
+                cacheProperties.getHistory().getTtl(),
+                cacheProperties.getHistory().getMaximumSize())));
+    return manager;
+  }
+
+  private CaffeineCache buildCache(String name, Duration ttl, long maxSize) {
+    return new CaffeineCache(
+        name, Caffeine.newBuilder().expireAfterWrite(ttl).maximumSize(maxSize).build());
   }
 }

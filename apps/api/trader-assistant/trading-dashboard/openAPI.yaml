@@ -55,6 +55,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/quotes/{symbol}/overview:
+    get:
+      tags:
+        - Quotes
+      operationId: getQuoteOverview
+      summary: Retrieve company fundamentals for a ticker symbol.
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Equity or ETF ticker symbol (case insensitive).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '200':
+          description: Company overview payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyOverviewResponse'
+        '400':
+          description: Invalid ticker was provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No overview could be located for the symbol.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/quotes/{symbol}/history:
+    get:
+      tags:
+        - Quotes
+      operationId: getQuoteHistory
+      summary: Retrieve daily price history for a ticker symbol.
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Equity or ETF ticker symbol (case insensitive).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '200':
+          description: Daily price history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceHistoryResponse'
+        '400':
+          description: Invalid ticker was provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No history could be located for the symbol.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/portfolio/positions:
     get:
       tags:
@@ -313,6 +381,112 @@ components:
         notes:
           type: string
           description: Optional annotations captured by the user.
+    CompanyOverviewResponse:
+      type: object
+      required:
+        - symbol
+      properties:
+        symbol:
+          type: string
+          description: Requested ticker symbol.
+          example: AAPL
+        name:
+          type: string
+          description: Company name.
+          example: Apple Inc
+        sector:
+          type: string
+          description: Market sector.
+          example: Technology
+        industry:
+          type: string
+          description: Industry classification.
+          example: Consumer Electronics
+        market_cap:
+          type: number
+          format: double
+          description: Market capitalization in USD.
+          example: 3000000000000
+        pe_ratio:
+          type: number
+          format: double
+          description: Price-to-earnings ratio.
+          example: 25.4
+        eps:
+          type: number
+          format: double
+          description: Earnings per share.
+          example: 6.5
+        dividend_yield:
+          type: number
+          format: double
+          description: Annual dividend yield as a decimal.
+          example: 0.0055
+        beta:
+          type: number
+          format: double
+          description: Beta coefficient.
+          example: 1.18
+        fifty_two_week_high:
+          type: number
+          format: double
+          description: 52-week high price.
+          example: 199.62
+        fifty_two_week_low:
+          type: number
+          format: double
+          description: 52-week low price.
+          example: 124.17
+    PriceHistoryResponse:
+      type: object
+      required:
+        - symbol
+        - bars
+      properties:
+        symbol:
+          type: string
+          description: Requested ticker symbol.
+          example: AAPL
+        bars:
+          type: array
+          description: Daily OHLCV bars sorted oldest to newest.
+          items:
+            $ref: '#/components/schemas/DailyBarDto'
+    DailyBarDto:
+      type: object
+      required:
+        - date
+        - open
+        - high
+        - low
+        - close
+        - volume
+      properties:
+        date:
+          type: string
+          format: date
+          description: Trading date.
+          example: '2024-07-19'
+        open:
+          type: number
+          format: double
+          example: 190.0
+        high:
+          type: number
+          format: double
+          example: 195.5
+        low:
+          type: number
+          format: double
+          example: 189.2
+        close:
+          type: number
+          format: double
+          example: 193.63
+        volume:
+          type: integer
+          format: int64
+          example: 45000000
     ErrorResponse:
       type: object
       required:

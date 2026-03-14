@@ -513,6 +513,55 @@
       min-height: 16px;
     }
 
+    /* ── Overview grid ───────────────────────── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+      margin: 18px 0 24px;
+    }
+
+    .overview-item {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+
+    .overview-item .card-label { margin-bottom: 4px; }
+
+    .overview-val {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-dark);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Chart ──────────────────────────────── */
+    .chart-wrap {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 18px 18px 14px;
+      box-shadow: var(--shadow-sm);
+      margin-top: 18px;
+    }
+
+    .chart-wrap canvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
+
+    .chart-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 12px;
+    }
+
     /* ── Scrollbar ───────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -794,20 +843,144 @@
   }
 
   /* ── Quotes ─────────────────────────────── */
+  const largeMoney = n => {
+    if (n == null) return '--';
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+    if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+    return money(n);
+  };
+  const pct = n => n != null ? (n * 100).toFixed(2) + '%' : '--';
+  const safeNum = (n, d) => n != null ? Number(n).toFixed(d ?? 2) : '--';
+
+  function overviewCard(o) {
+    const row = (label, value) =>
+      `<div class="overview-item"><div class="card-label">${label}</div><div class="overview-val">${value}</div></div>`;
+    return `<div class="overview-grid">
+      ${row('Sector', o.sector || '--')}
+      ${row('Market Cap', largeMoney(o.market_cap))}
+      ${row('P/E Ratio', safeNum(o.pe_ratio))}
+      ${row('EPS', o.eps != null ? money(o.eps) : '--')}
+      ${row('Dividend Yield', pct(o.dividend_yield))}
+      ${row('Beta', safeNum(o.beta))}
+      ${row('52-Week High', o.fifty_two_week_high != null ? money(o.fifty_two_week_high) : '--')}
+      ${row('52-Week Low', o.fifty_two_week_low != null ? money(o.fifty_two_week_low) : '--')}
+    </div>`;
+  }
+
+  function drawChart(canvasId, bars) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !bars || bars.length < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+    const pad = { top: 12, right: 14, bottom: 28, left: 58 };
+    const cW = W - pad.left - pad.right;
+    const cH = H - pad.top - pad.bottom;
+
+    const closes = bars.map(b => b.close);
+    let min = Math.min(...closes), max = Math.max(...closes);
+    const range = max - min || 1;
+    min -= range * 0.05; max += range * 0.05;
+
+    const x = i => pad.left + (i / (bars.length - 1)) * cW;
+    const y = v => pad.top + cH - ((v - min) / (max - min)) * cH;
+
+    // grid
+    ctx.strokeStyle = '#e0dbd0';
+    ctx.lineWidth = 0.5;
+    ctx.fillStyle = '#96b0a0';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    const gridLines = 5;
+    for (let i = 0; i <= gridLines; i++) {
+      const val = min + (max - min) * (i / gridLines);
+      const yy = y(val);
+      ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(W - pad.right, yy); ctx.stroke();
+      ctx.fillText('$' + val.toFixed(2), pad.left - 6, yy + 3);
+    }
+
+    // x-axis labels
+    ctx.textAlign = 'center';
+    const step = Math.max(1, Math.floor(bars.length / 6));
+    for (let i = 0; i < bars.length; i += step) {
+      const d = bars[i].date;
+      const label = typeof d === 'string' ? d.slice(5) : d;
+      ctx.fillText(label, x(i), H - 6);
+    }
+
+    // area fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+    grad.addColorStop(0, 'rgba(106,150,120,0.28)');
+    grad.addColorStop(1, 'rgba(106,150,120,0.02)');
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(x(i), y(closes[i]));
+    ctx.lineTo(x(closes.length - 1), pad.top + cH);
+    ctx.lineTo(x(0), pad.top + cH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    ctx.moveTo(x(0), y(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(x(i), y(closes[i]));
+    ctx.strokeStyle = '#254d36';
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
   async function fetchQuote() {
     const sym = document.getElementById('quoteInput').value.trim().toUpperCase();
     if (!sym) return;
     const el = document.getElementById('quoteResult');
     el.innerHTML = '<div class="state-box" style="padding:20px"><span class="spinner"></span> Fetching…</div>';
-    try {
-      const q = await get('/api/quotes/' + sym);
-      el.innerHTML = `<div class="quote-result-card">
+
+    const [qRes, oRes, hRes] = await Promise.allSettled([
+      get('/api/quotes/' + sym),
+      get('/api/quotes/' + sym + '/overview'),
+      get('/api/quotes/' + sym + '/history'),
+    ]);
+
+    let html = '';
+
+    // Price card
+    if (qRes.status === 'fulfilled' && qRes.value) {
+      const q = qRes.value;
+      html += `<div class="quote-result-card">
         <div class="qr-symbol">${q.symbol}${q.currency ? ' · ' + q.currency : ''}</div>
         <div class="qr-price">${money(q.price)}</div>
         <div class="qr-meta">As of ${ts(q.as_of)}${q.source ? ' · ' + q.source : ''}</div>
       </div>`;
-    } catch {
+    } else {
       el.innerHTML = empty('🔍', 'No quote found', `Could not find a price for <strong>${sym}</strong>. Check the symbol and try again.`);
+      return;
+    }
+
+    // Fundamentals
+    if (oRes.status === 'fulfilled' && oRes.value) {
+      html += overviewCard(oRes.value);
+    }
+
+    // Chart placeholder
+    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+      html += `<div class="chart-wrap">
+        <div class="chart-title">100-Day Price History</div>
+        <canvas id="priceChart"></canvas>
+      </div>`;
+    }
+
+    el.innerHTML = html;
+
+    // Draw chart after DOM update
+    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+      requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
     }
   }
 

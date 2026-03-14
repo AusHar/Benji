@@ -22,6 +22,12 @@ trading:
     quotes:
       ttl: ${TRADING_CACHE_QUOTES_TTL:PT30S}
       maximum-size: ${TRADING_CACHE_QUOTES_MAXIMUM_SIZE:1024}
+    overview:
+      ttl: ${TRADING_CACHE_OVERVIEW_TTL:PT4H}
+      maximum-size: ${TRADING_CACHE_OVERVIEW_MAXIMUM_SIZE:256}
+    history:
+      ttl: ${TRADING_CACHE_HISTORY_TTL:PT1H}
+      maximum-size: ${TRADING_CACHE_HISTORY_MAXIMUM_SIZE:256}
   api:
     # PROD-REQUIRED: set TRADING_API_KEY to a real secret before deployment.
     key: ${TRADING_API_KEY:}

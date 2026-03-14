@@ -1,8 +1,13 @@
 package com.austinharlan.trading_dashboard.controllers;
 
+import com.austinharlan.trading_dashboard.marketdata.CompanyOverview;
+import com.austinharlan.trading_dashboard.marketdata.DailyBar;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import com.austinharlan.trading_dashboard.service.QuoteService;
 import com.austinharlan.tradingdashboard.api.QuotesApi;
+import com.austinharlan.tradingdashboard.dto.CompanyOverviewResponse;
+import com.austinharlan.tradingdashboard.dto.DailyBarDto;
+import com.austinharlan.tradingdashboard.dto.PriceHistoryResponse;
 import com.austinharlan.tradingdashboard.dto.QuoteResponse;
 import com.austinharlan.tradingdashboard.dto.QuotesIndex;
 import java.time.OffsetDateTime;
@@ -25,7 +30,11 @@ public class QuoteController implements QuotesApi {
     QuotesIndex index =
         new QuotesIndex()
             .message("Quote service ready.")
-            .endpoints(List.of("/api/quotes/{symbol}"));
+            .endpoints(
+                List.of(
+                    "/api/quotes/{symbol}",
+                    "/api/quotes/{symbol}/overview",
+                    "/api/quotes/{symbol}/history"));
     return ResponseEntity.ok(index);
   }
 
@@ -39,6 +48,46 @@ public class QuoteController implements QuotesApi {
             .price(quote.price().doubleValue())
             .currency("USD")
             .asOf(OffsetDateTime.ofInstant(quote.timestamp(), ZoneOffset.UTC));
+    return ResponseEntity.ok(response);
+  }
+
+  @Override
+  public ResponseEntity<CompanyOverviewResponse> getQuoteOverview(String symbol) {
+    String normalizedSymbol = normalize(symbol);
+    CompanyOverview overview = quoteService.getCachedOverview(normalizedSymbol);
+    CompanyOverviewResponse response =
+        new CompanyOverviewResponse()
+            .symbol(overview.symbol())
+            .name(overview.name())
+            .sector(overview.sector())
+            .industry(overview.industry())
+            .marketCap(toDouble(overview.marketCap()))
+            .peRatio(toDouble(overview.pe()))
+            .eps(toDouble(overview.eps()))
+            .dividendYield(toDouble(overview.dividendYield()))
+            .beta(toDouble(overview.beta()))
+            .fiftyTwoWeekHigh(toDouble(overview.fiftyTwoWeekHigh()))
+            .fiftyTwoWeekLow(toDouble(overview.fiftyTwoWeekLow()));
+    return ResponseEntity.ok(response);
+  }
+
+  @Override
+  public ResponseEntity<PriceHistoryResponse> getQuoteHistory(String symbol) {
+    String normalizedSymbol = normalize(symbol);
+    List<DailyBar> bars = quoteService.getCachedHistory(normalizedSymbol);
+    List<DailyBarDto> dtos =
+        bars.stream()
+            .map(
+                b ->
+                    new DailyBarDto()
+                        .date(b.date())
+                        .open(b.open().doubleValue())
+                        .high(b.high().doubleValue())
+                        .low(b.low().doubleValue())
+                        .close(b.close().doubleValue())
+                        .volume(b.volume()))
+            .toList();
+    PriceHistoryResponse response = new PriceHistoryResponse().symbol(normalizedSymbol).bars(dtos);
     return ResponseEntity.ok(response);
   }
 
@@ -57,5 +106,9 @@ public class QuoteController implements QuotesApi {
     }
 
     return candidate.toUpperCase(Locale.US);
+  }
+
+  private static Double toDouble(java.math.BigDecimal value) {
+    return value != null ? value.doubleValue() : null;
   }
 }

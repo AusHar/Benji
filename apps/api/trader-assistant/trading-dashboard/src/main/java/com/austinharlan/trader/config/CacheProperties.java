@@ -7,9 +7,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CacheProperties {
 
   private final Quotes quotes = new Quotes();
+  private final Overview overview = new Overview();
+  private final History history = new History();
 
   public Quotes getQuotes() {
     return quotes;
+  }
+
+  public Overview getOverview() {
+    return overview;
+  }
+
+  public History getHistory() {
+    return history;
   }
 
   public static class Quotes {
@@ -30,6 +40,48 @@ public class CacheProperties {
 
     public void setMaximumSize(long maximumSize) {
       this.maximumSize = maximumSize > 0 ? maximumSize : 1024;
+    }
+  }
+
+  public static class Overview {
+    private Duration ttl = Duration.ofHours(4);
+    private long maximumSize = 256;
+
+    public Duration getTtl() {
+      return ttl;
+    }
+
+    public void setTtl(Duration ttl) {
+      this.ttl = ttl == null ? Duration.ofHours(4) : ttl;
+    }
+
+    public long getMaximumSize() {
+      return maximumSize;
+    }
+
+    public void setMaximumSize(long maximumSize) {
+      this.maximumSize = maximumSize > 0 ? maximumSize : 256;
+    }
+  }
+
+  public static class History {
+    private Duration ttl = Duration.ofHours(1);
+    private long maximumSize = 256;
+
+    public Duration getTtl() {
+      return ttl;
+    }
+
+    public void setTtl(Duration ttl) {
+      this.ttl = ttl == null ? Duration.ofHours(1) : ttl;
+    }
+
+    public long getMaximumSize() {
+      return maximumSize;
+    }
+
+    public void setMaximumSize(long maximumSize) {
+      this.maximumSize = maximumSize > 0 ? maximumSize : 256;
     }
   }
 }

@@ -1,11 +1,14 @@
 package com.austinharlan.trading_dashboard.service;
 
 import com.austinharlan.trader.config.CacheProperties;
+import com.austinharlan.trading_dashboard.marketdata.CompanyOverview;
+import com.austinharlan.trading_dashboard.marketdata.DailyBar;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataProvider;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.cache.Cache;
@@ -17,6 +20,8 @@ public class DefaultQuoteService implements QuoteService {
   private final MarketDataProvider provider;
   private final CacheProperties cacheProperties;
   private final Cache quotesCache;
+  private final Cache overviewsCache;
+  private final Cache historyCache;
   private final Map<String, Instant> cacheTimestamps = new ConcurrentHashMap<>();
 
   public DefaultQuoteService(
@@ -24,22 +29,48 @@ public class DefaultQuoteService implements QuoteService {
     this.provider = provider;
     this.cacheProperties = cacheProperties;
     this.quotesCache = cacheManager != null ? cacheManager.getCache("quotes") : null;
+    this.overviewsCache = cacheManager != null ? cacheManager.getCache("overviews") : null;
+    this.historyCache = cacheManager != null ? cacheManager.getCache("history") : null;
   }
 
   @Override
   public Quote getCached(String symbol) {
-    Quote cached = getCachedQuote(symbol);
-    Duration ttl = cacheProperties.getQuotes().getTtl();
-    if (cached != null && !isStale(symbol, ttl)) {
+    return fetchWithCache(
+        symbol,
+        "quote",
+        quotesCache,
+        Quote.class,
+        cacheProperties.getQuotes().getTtl(),
+        () -> provider.getQuote(symbol));
+  }
+
+  @Override
+  public CompanyOverview getCachedOverview(String symbol) {
+    return fetchWithCache(
+        symbol,
+        "overview",
+        overviewsCache,
+        CompanyOverview.class,
+        cacheProperties.getOverview().getTtl(),
+        () -> provider.getOverview(symbol));
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<DailyBar> getCachedHistory(String symbol) {
+    String cacheKey = "history:" + symbol;
+    List<DailyBar> cached = getCachedValue(historyCache, cacheKey, List.class);
+    Duration ttl = cacheProperties.getHistory().getTtl();
+    if (cached != null && !isStale(cacheKey, ttl)) {
       return cached;
     }
 
     try {
-      Quote fresh = provider.getQuote(symbol);
-      cacheQuote(symbol, fresh);
+      List<DailyBar> fresh = provider.getDailyHistory(symbol);
+      putCache(historyCache, cacheKey, fresh);
       return fresh;
     } catch (MarketDataRateLimitException ex) {
-      Quote fallback = getCachedQuote(symbol);
+      List<DailyBar> fallback = getCachedValue(historyCache, cacheKey, List.class);
       if (fallback != null) {
         return fallback;
       }
@@ -47,25 +78,51 @@ public class DefaultQuoteService implements QuoteService {
     }
   }
 
-  private Quote getCachedQuote(String symbol) {
-    if (quotesCache == null) {
+  private <T> T fetchWithCache(
+      String symbol,
+      String namespace,
+      Cache cache,
+      Class<T> type,
+      Duration ttl,
+      java.util.function.Supplier<T> fetcher) {
+    String cacheKey = namespace + ":" + symbol;
+    T cached = getCachedValue(cache, cacheKey, type);
+    if (cached != null && !isStale(cacheKey, ttl)) {
+      return cached;
+    }
+
+    try {
+      T fresh = fetcher.get();
+      putCache(cache, cacheKey, fresh);
+      return fresh;
+    } catch (MarketDataRateLimitException ex) {
+      T fallback = getCachedValue(cache, cacheKey, type);
+      if (fallback != null) {
+        return fallback;
+      }
+      throw ex;
+    }
+  }
+
+  private <T> T getCachedValue(Cache cache, String key, Class<T> type) {
+    if (cache == null) {
       return null;
     }
-    return quotesCache.get(symbol, Quote.class);
+    return cache.get(key, type);
   }
 
-  private void cacheQuote(String symbol, Quote quote) {
-    if (quotesCache != null && quote != null) {
-      quotesCache.put(symbol, quote);
-      cacheTimestamps.put(symbol, Instant.now());
+  private void putCache(Cache cache, String key, Object value) {
+    if (cache != null && value != null) {
+      cache.put(key, value);
+      cacheTimestamps.put(key, Instant.now());
     }
   }
 
-  private boolean isStale(String symbol, Duration ttl) {
+  private boolean isStale(String key, Duration ttl) {
     if (ttl.isZero() || ttl.isNegative()) {
       return true;
     }
-    Instant cachedAt = cacheTimestamps.get(symbol);
+    Instant cachedAt = cacheTimestamps.get(key);
     if (cachedAt == null) {
       return true;
     }

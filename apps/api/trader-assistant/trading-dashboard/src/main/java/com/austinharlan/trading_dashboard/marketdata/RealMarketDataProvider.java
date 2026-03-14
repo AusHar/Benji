@@ -11,7 +11,12 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -36,6 +41,8 @@ import reactor.util.retry.RetryBackoffSpec;
 @Profile("!dev")
 public class RealMarketDataProvider implements MarketDataProvider {
   private static final DateTimeFormatter TRADING_DAY_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+  private static final java.util.Set<String> NULL_MARKERS =
+      java.util.Set.of("none", "-", "null", "");
 
   private static final Logger log = LoggerFactory.getLogger(RealMarketDataProvider.class);
 
@@ -93,26 +100,44 @@ public class RealMarketDataProvider implements MarketDataProvider {
 
   @Override
   public Quote getQuote(String symbol) {
-    if (symbol == null || symbol.isBlank()) {
-      throw new IllegalArgumentException("symbol must not be blank");
-    }
-
-    JsonNode response = retrieve(symbol).block(properties.getReadTimeout());
+    requireSymbol(symbol);
+    JsonNode response =
+        retrieveFunction("GLOBAL_QUOTE", symbol, Map.of()).block(properties.getReadTimeout());
     return toQuote(symbol, response);
   }
 
-  private Mono<JsonNode> retrieve(String symbol) {
+  @Override
+  public CompanyOverview getOverview(String symbol) {
+    requireSymbol(symbol);
+    JsonNode response =
+        retrieveFunction("OVERVIEW", symbol, Map.of()).block(properties.getReadTimeout());
+    return toOverview(symbol, response);
+  }
+
+  @Override
+  public List<DailyBar> getDailyHistory(String symbol) {
+    requireSymbol(symbol);
+    JsonNode response =
+        retrieveFunction("TIME_SERIES_DAILY", symbol, Map.of("outputsize", "compact"))
+            .block(properties.getReadTimeout());
+    return toHistory(symbol, response);
+  }
+
+  private Mono<JsonNode> retrieveFunction(
+      String function, String symbol, Map<String, String> extraParams) {
     Mono<JsonNode> request =
         webClient
             .get()
             .uri(
-                uriBuilder ->
-                    uriBuilder
-                        .path("/query")
-                        .queryParam("function", "GLOBAL_QUOTE")
-                        .queryParam("symbol", symbol)
-                        .queryParam("apikey", properties.getApiKey())
-                        .build())
+                uriBuilder -> {
+                  uriBuilder
+                      .path("/query")
+                      .queryParam("function", function)
+                      .queryParam("symbol", symbol)
+                      .queryParam("apikey", properties.getApiKey());
+                  extraParams.forEach(uriBuilder::queryParam);
+                  return uriBuilder.build();
+                })
             .retrieve()
             .onStatus(
                 status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
@@ -138,12 +163,14 @@ public class RealMarketDataProvider implements MarketDataProvider {
                                     "AlphaVantage error %s: %s"
                                         .formatted(clientResponse.statusCode(), body))))
             .bodyToMono(JsonNode.class)
-            .doOnSubscribe(sub -> log.debug("Requesting AlphaVantage quote for {}", symbol))
-            .doOnSuccess(body -> log.debug("Received AlphaVantage quote payload for {}", symbol))
+            .doOnSubscribe(sub -> log.debug("Requesting AlphaVantage {} for {}", function, symbol))
+            .doOnSuccess(
+                body -> log.debug("Received AlphaVantage {} payload for {}", function, symbol))
             .doOnError(
                 ex ->
                     log.warn(
-                        "AlphaVantage quote request for {} failed: {}",
+                        "AlphaVantage {} request for {} failed: {}",
+                        function,
                         symbol,
                         ex.getMessage(),
                         ex))
@@ -167,7 +194,8 @@ public class RealMarketDataProvider implements MarketDataProvider {
         baseRetrySpec.doBeforeRetry(
             retrySignal ->
                 log.warn(
-                    "Retrying AlphaVantage quote for {} after attempt {} failed (max {} attempts): {}",
+                    "Retrying AlphaVantage {} for {} after attempt {} failed (max {} attempts): {}",
+                    function,
                     symbol,
                     retrySignal.totalRetries(),
                     maxAttempts,
@@ -181,11 +209,12 @@ public class RealMarketDataProvider implements MarketDataProvider {
     return new MarketDataClientException("AlphaVantage retries exhausted", failure);
   }
 
+  // ── Quote parsing ──────────────────────────────────────────────────────────
+
   private Quote toQuote(String symbol, JsonNode root) {
     if (root == null || root.isEmpty()) {
       throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
-
     checkForRateLimit(root);
 
     JsonNode globalQuote = root.path("Global Quote");
@@ -208,6 +237,78 @@ public class RealMarketDataProvider implements MarketDataProvider {
     return new Quote(symbol, price, extractTimestamp(globalQuote));
   }
 
+  // ── Overview parsing ───────────────────────────────────────────────────────
+
+  private CompanyOverview toOverview(String symbol, JsonNode root) {
+    if (root == null || root.isEmpty()) {
+      throw new QuoteNotFoundException("Overview was not found for %s".formatted(symbol));
+    }
+    checkForRateLimit(root);
+
+    String sym = textValue(root, "Symbol");
+    if (sym == null || sym.isBlank()) {
+      throw new QuoteNotFoundException("Overview was not found for %s".formatted(symbol));
+    }
+
+    return new CompanyOverview(
+        symbol,
+        safeText(root, "Name"),
+        safeText(root, "Sector"),
+        safeText(root, "Industry"),
+        safeBigDecimal(root, "MarketCapitalization"),
+        safeBigDecimal(root, "PERatio"),
+        safeBigDecimal(root, "EPS"),
+        safeBigDecimal(root, "DividendYield"),
+        safeBigDecimal(root, "Beta"),
+        safeBigDecimal(root, "52WeekHigh"),
+        safeBigDecimal(root, "52WeekLow"));
+  }
+
+  // ── History parsing ────────────────────────────────────────────────────────
+
+  private List<DailyBar> toHistory(String symbol, JsonNode root) {
+    if (root == null || root.isEmpty()) {
+      throw new QuoteNotFoundException("History was not found for %s".formatted(symbol));
+    }
+    checkForRateLimit(root);
+
+    JsonNode timeSeries = root.path("Time Series (Daily)");
+    if (timeSeries.isMissingNode() || timeSeries.isEmpty()) {
+      throw new QuoteNotFoundException("History was not found for %s".formatted(symbol));
+    }
+
+    List<DailyBar> bars = new ArrayList<>();
+    Iterator<Map.Entry<String, JsonNode>> fields = timeSeries.fields();
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> entry = fields.next();
+      try {
+        LocalDate date = LocalDate.parse(entry.getKey(), TRADING_DAY_FORMAT);
+        JsonNode day = entry.getValue();
+        bars.add(
+            new DailyBar(
+                date,
+                requireDecimal(day, "1. open"),
+                requireDecimal(day, "2. high"),
+                requireDecimal(day, "3. low"),
+                requireDecimal(day, "4. close"),
+                day.path("5. volume").asLong(0)));
+      } catch (DateTimeParseException | NumberFormatException ex) {
+        log.warn("Skipping malformed daily bar entry: {}", entry.getKey(), ex);
+      }
+    }
+
+    bars.sort(Comparator.comparing(DailyBar::date));
+    return bars;
+  }
+
+  // ── Shared helpers ─────────────────────────────────────────────────────────
+
+  private void requireSymbol(String symbol) {
+    if (symbol == null || symbol.isBlank()) {
+      throw new IllegalArgumentException("symbol must not be blank");
+    }
+  }
+
   private void checkForRateLimit(JsonNode root) {
     String note = textValue(root, "Note");
     if (note != null && !note.isBlank()) {
@@ -223,6 +324,34 @@ public class RealMarketDataProvider implements MarketDataProvider {
   private static String textValue(JsonNode node, String fieldName) {
     JsonNode raw = node.get(fieldName);
     return raw != null ? raw.asText(null) : null;
+  }
+
+  private static String safeText(JsonNode node, String fieldName) {
+    String val = textValue(node, fieldName);
+    if (val == null || NULL_MARKERS.contains(val.trim().toLowerCase(java.util.Locale.ROOT))) {
+      return null;
+    }
+    return val.trim();
+  }
+
+  private static BigDecimal safeBigDecimal(JsonNode node, String fieldName) {
+    String val = textValue(node, fieldName);
+    if (val == null || NULL_MARKERS.contains(val.trim().toLowerCase(java.util.Locale.ROOT))) {
+      return null;
+    }
+    try {
+      return new BigDecimal(val.trim());
+    } catch (NumberFormatException ex) {
+      return null;
+    }
+  }
+
+  private static BigDecimal requireDecimal(JsonNode node, String fieldName) {
+    String val = textValue(node, fieldName);
+    if (val == null || val.isBlank()) {
+      throw new NumberFormatException("Missing required field: " + fieldName);
+    }
+    return new BigDecimal(val.trim());
   }
 
   private Instant extractTimestamp(JsonNode globalQuote) {
