@@ -48,12 +48,17 @@ public class RealMarketDataProvider implements MarketDataProvider {
 
   private final WebClient webClient;
   private final MarketDataProperties properties;
+  private final MarketDataQuotaTracker quotaTracker;
   private final boolean retryEnabled;
   private final int maxAttempts;
   private final RetryBackoffSpec baseRetrySpec;
 
   public RealMarketDataProvider(
-      WebClient.Builder builder, MarketDataProperties properties, Environment environment) {
+      WebClient.Builder builder,
+      MarketDataProperties properties,
+      MarketDataQuotaTracker quotaTracker,
+      Environment environment) {
+    this.quotaTracker = Objects.requireNonNull(quotaTracker, "quotaTracker must not be null");
     this.properties = Objects.requireNonNull(properties, "properties must not be null");
     Objects.requireNonNull(environment, "environment must not be null");
 
@@ -101,6 +106,7 @@ public class RealMarketDataProvider implements MarketDataProvider {
   @Override
   public Quote getQuote(String symbol) {
     requireSymbol(symbol);
+    quotaTracker.increment();
     JsonNode response =
         retrieveFunction("GLOBAL_QUOTE", symbol, Map.of()).block(properties.getReadTimeout());
     return toQuote(symbol, response);
@@ -109,6 +115,7 @@ public class RealMarketDataProvider implements MarketDataProvider {
   @Override
   public CompanyOverview getOverview(String symbol) {
     requireSymbol(symbol);
+    quotaTracker.increment();
     JsonNode response =
         retrieveFunction("OVERVIEW", symbol, Map.of()).block(properties.getReadTimeout());
     return toOverview(symbol, response);
@@ -117,10 +124,15 @@ public class RealMarketDataProvider implements MarketDataProvider {
   @Override
   public List<DailyBar> getDailyHistory(String symbol) {
     requireSymbol(symbol);
+    quotaTracker.increment();
     JsonNode response =
         retrieveFunction("TIME_SERIES_DAILY", symbol, Map.of("outputsize", "compact"))
             .block(properties.getReadTimeout());
     return toHistory(symbol, response);
+  }
+
+  public MarketDataQuotaTracker getQuotaTracker() {
+    return quotaTracker;
   }
 
   private Mono<JsonNode> retrieveFunction(

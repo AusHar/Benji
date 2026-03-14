@@ -537,6 +537,50 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* ── Quota badge ─────────────────────────── */
+    .quota-bar {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 18px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .quota-track {
+      flex: 1;
+      max-width: 160px;
+      height: 4px;
+      background: var(--cream-border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .quota-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+
+    .quota-fill.ok     { background: var(--sage); }
+    .quota-fill.warn   { background: var(--amber); }
+    .quota-fill.danger { background: var(--negative); }
+
+    .quota-label { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    /* ── Rate-limit banner ───────────────────── */
+    .rate-limit-banner {
+      background: rgba(122,48,32,.06);
+      border: 1px solid rgba(122,48,32,.18);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      margin-bottom: 18px;
+    }
+
+    .rate-limit-banner .rl-icon  { font-size: 22px; margin-bottom: 8px; }
+    .rate-limit-banner .rl-title { font-size: 14px; font-weight: 600; color: var(--negative); margin-bottom: 4px; }
+    .rate-limit-banner .rl-sub   { font-size: 12.5px; color: var(--text-muted); }
+
     /* ── Chart ──────────────────────────────── */
     .chart-wrap {
       background: var(--cream-card);
@@ -674,6 +718,10 @@
         <div class="field-row">
           <input class="field wide" id="quoteInput" type="text" placeholder="Ticker — AAPL, VOO, MSFT…" maxlength="12" autocomplete="off">
           <button class="btn btn-primary" id="quoteBtn">Get Quote</button>
+        </div>
+        <div class="quota-bar" id="quotaBar" style="display:none">
+          <div class="quota-track"><div class="quota-fill ok" id="quotaFill" style="width:0%"></div></div>
+          <span class="quota-label" id="quotaLabel"></span>
         </div>
         <div id="quoteResult"></div>
       </div>
@@ -842,6 +890,23 @@
       : empty('📡', 'Quotes unavailable', 'Could not load watchlist at this time.');
   }
 
+  /* ── Quota ──────────────────────────────── */
+  async function loadQuota() {
+    try {
+      const q = await get('/api/marketdata/quota');
+      if (!q) return;
+      const { used, daily_limit } = q;
+      const pct = Math.min(100, Math.round((used / daily_limit) * 100));
+      const fill = document.getElementById('quotaFill');
+      const label = document.getElementById('quotaLabel');
+      const bar = document.getElementById('quotaBar');
+      fill.style.width = pct + '%';
+      fill.className = 'quota-fill ' + (pct >= 90 ? 'danger' : pct >= 60 ? 'warn' : 'ok');
+      label.textContent = used + ' / ' + daily_limit + ' queries today';
+      bar.style.display = 'flex';
+    } catch { /* quota endpoint optional — fail silently */ }
+  }
+
   /* ── Quotes ─────────────────────────────── */
   const largeMoney = n => {
     if (n == null) return '--';
@@ -948,7 +1013,11 @@
       get('/api/quotes/' + sym + '/history'),
     ]);
 
+    // Refresh quota counter after calls complete
+    loadQuota();
+
     let html = '';
+    const rateLimited = [qRes, oRes, hRes].some(r => r.reason === 429);
 
     // Price card
     if (qRes.status === 'fulfilled' && qRes.value) {
@@ -958,6 +1027,13 @@
         <div class="qr-price">${money(q.price)}</div>
         <div class="qr-meta">As of ${ts(q.as_of)}${q.source ? ' · ' + q.source : ''}</div>
       </div>`;
+    } else if (qRes.reason === 429) {
+      el.innerHTML = `<div class="rate-limit-banner">
+        <div class="rl-icon">⏳</div>
+        <div class="rl-title">Daily query limit reached</div>
+        <div class="rl-sub">AlphaVantage free tier allows 25 requests per day. Quota resets at midnight UTC — check back then.</div>
+      </div>`;
+      return;
     } else {
       el.innerHTML = empty('🔍', 'No quote found', `Could not find a price for <strong>${sym}</strong>. Check the symbol and try again.`);
       return;
@@ -966,23 +1042,29 @@
     // Fundamentals
     if (oRes.status === 'fulfilled' && oRes.value) {
       html += overviewCard(oRes.value);
+    } else if (rateLimited) {
+      html += `<div class="rate-limit-banner" style="margin-top:18px">
+        <div class="rl-icon">⏳</div>
+        <div class="rl-title">Daily query limit reached</div>
+        <div class="rl-sub">Fundamentals and chart data are unavailable until quota resets at midnight UTC.</div>
+      </div>`;
     } else {
-      const reason = oRes.reason === 429 ? 'Rate limited — try again shortly.' : 'Fundamentals unavailable for this symbol.';
-      html += `<p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 20px;">${reason}</p>`;
+      html += `<p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 20px;">Fundamentals not available for this symbol.</p>`;
     }
 
-    // Chart placeholder
-    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
-      html += `<div class="chart-wrap">
-        <div class="chart-title">100-Day Price History</div>
-        <canvas id="priceChart"></canvas>
-      </div>`;
+    // Chart
+    if (!rateLimited) {
+      if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+        html += `<div class="chart-wrap">
+          <div class="chart-title">100-Day Price History</div>
+          <canvas id="priceChart"></canvas>
+        </div>`;
+      }
     }
 
     el.innerHTML = html;
 
-    // Draw chart after DOM update
-    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+    if (!rateLimited && hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
       requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
     }
   }

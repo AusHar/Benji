@@ -123,6 +123,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/marketdata/quota:
+    get:
+      tags:
+        - Quotes
+      operationId: getMarketDataQuota
+      summary: Return today's AlphaVantage API usage against the daily limit.
+      responses:
+        '200':
+          description: Quota usage for today.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketDataQuota'
   /api/portfolio/positions:
     get:
       tags:
@@ -381,6 +394,22 @@ components:
         notes:
           type: string
           description: Optional annotations captured by the user.
+    MarketDataQuota:
+      type: object
+      required:
+        - used
+        - daily_limit
+      properties:
+        used:
+          type: integer
+          format: int32
+          description: Number of AlphaVantage API calls made today.
+          example: 7
+        daily_limit:
+          type: integer
+          format: int32
+          description: Maximum calls allowed per day on the current plan.
+          example: 25
     CompanyOverviewResponse:
       type: object
       required:

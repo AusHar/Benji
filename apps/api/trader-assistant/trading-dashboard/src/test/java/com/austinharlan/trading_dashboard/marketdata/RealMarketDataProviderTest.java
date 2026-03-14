@@ -197,6 +197,7 @@ class RealMarketDataProviderTest {
   private RealMarketDataProvider provider(String... activeProfiles) {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles(activeProfiles);
-    return new RealMarketDataProvider(WebClient.builder(), properties, environment);
+    return new RealMarketDataProvider(
+        WebClient.builder(), properties, new MarketDataQuotaTracker(), environment);
   }
 }
