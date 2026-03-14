@@ -35,10 +35,7 @@ class FinanceControllerTest {
     Instant asOf = Instant.parse("2024-05-15T12:00:00Z");
     FinanceSummaryData summary =
         new FinanceSummaryData(
-            new BigDecimal("1500.00"),
-            new BigDecimal("100.00"),
-            new BigDecimal("3100.00"),
-            asOf);
+            new BigDecimal("1500.00"), new BigDecimal("100.00"), new BigDecimal("3100.00"), asOf);
     when(financeInsightsService.getSummary()).thenReturn(summary);
 
     mockMvc
@@ -98,12 +95,7 @@ class FinanceControllerTest {
     List<FinanceTransactionRecord> groceryTransactions =
         List.of(
             new FinanceTransactionRecord(
-                "txn-001",
-                postedAt,
-                "Grocery Store",
-                new BigDecimal("-75.50"),
-                "groceries",
-                null));
+                "txn-001", postedAt, "Grocery Store", new BigDecimal("-75.50"), "groceries", null));
     when(financeInsightsService.listTransactions(isNull(), eq("groceries")))
         .thenReturn(groceryTransactions);
 

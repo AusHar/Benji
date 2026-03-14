@@ -93,8 +93,7 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
   }
 
   private Pageable resolvePageable(Integer limit) {
-    int effectiveLimit =
-        (limit == null || limit <= 0) ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
+    int effectiveLimit = (limit == null || limit <= 0) ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
     return PageRequest.of(0, effectiveLimit, Sort.by(Sort.Direction.DESC, "postedAt"));
   }
 
