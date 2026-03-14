@@ -966,6 +966,9 @@
     // Fundamentals
     if (oRes.status === 'fulfilled' && oRes.value) {
       html += overviewCard(oRes.value);
+    } else {
+      const reason = oRes.reason === 429 ? 'Rate limited — try again shortly.' : 'Fundamentals unavailable for this symbol.';
+      html += `<p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 20px;">${reason}</p>`;
     }
 
     // Chart placeholder

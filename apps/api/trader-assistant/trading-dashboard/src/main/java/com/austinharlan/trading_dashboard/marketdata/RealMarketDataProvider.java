@@ -240,16 +240,13 @@ public class RealMarketDataProvider implements MarketDataProvider {
   // ── Overview parsing ───────────────────────────────────────────────────────
 
   private CompanyOverview toOverview(String symbol, JsonNode root) {
-    if (root == null || root.isEmpty()) {
+    if (root == null) {
       throw new QuoteNotFoundException("Overview was not found for %s".formatted(symbol));
     }
     checkForRateLimit(root);
 
-    String sym = textValue(root, "Symbol");
-    if (sym == null || sym.isBlank()) {
-      throw new QuoteNotFoundException("Overview was not found for %s".formatted(symbol));
-    }
-
+    // ETFs and some symbols return {} from AlphaVantage — return partial record
+    // with whatever fields are available rather than throwing.
     return new CompanyOverview(
         symbol,
         safeText(root, "Name"),
