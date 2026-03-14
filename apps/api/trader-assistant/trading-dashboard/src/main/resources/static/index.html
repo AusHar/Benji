@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Benji</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --forest-deep:  #131f17;
+      --forest-mid:   #1a3324;
+      --forest-body:  #254d36;
+      --forest-soft:  #3a6e50;
+      --sage:         #6a9678;
+      --sage-light:   #93b5a0;
+      --mist:         #c5d3ca;
+      --cream:        #f3efe4;
+      --cream-card:   #f9f7f1;
+      --cream-border: #e0dbd0;
+      --amber:        #a87830;
+      --amber-light:  #c49040;
+      --text-dark:    #171f1a;
+      --text-mid:     #3a5444;
+      --text-light:   #647d6e;
+      --text-muted:   #96b0a0;
+      --positive:     #2a6644;
+      --negative:     #7a3020;
+      --radius-sm:    6px;
+      --radius-md:    10px;
+      --radius-lg:    16px;
+      --shadow-sm:    0 1px 3px rgba(19,31,23,.07), 0 1px 2px rgba(19,31,23,.04);
+      --shadow-md:    0 4px 16px rgba(19,31,23,.10);
+      --sidebar-w:    224px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--cream);
+      color: var(--text-dark);
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ──────────────────────────────── */
+    .layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ─────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--forest-deep);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      background: var(--forest-body);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-size: 17px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -.3px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--sage);
+      letter-spacing: .2px;
+      margin-top: 1px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      overflow-y: auto;
+    }
+
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--sage);
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 14px 10px 5px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--sage-light);
+      cursor: pointer;
+      font-size: 13.5px;
+      font-weight: 400;
+      transition: background .12s, color .12s;
+      user-select: none;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,.06); color: #e8efe9; }
+    .nav-item.active { background: var(--forest-body); color: #fff; font-weight: 500; }
+
+    .nav-item svg { opacity: .75; flex-shrink: 0; }
+    .nav-item.active svg { opacity: 1; }
+
+    .sidebar-footer {
+      padding: 14px;
+      border-top: 1px solid rgba(255,255,255,.05);
+    }
+
+    .key-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,.04);
+      cursor: pointer;
+      transition: background .12s;
+    }
+
+    .key-badge:hover { background: rgba(255,255,255,.08); }
+
+    .key-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--sage);
+      flex-shrink: 0;
+    }
+
+    .key-label {
+      font-size: 12px;
+      color: var(--sage-light);
+      flex: 1;
+    }
+
+    /* ── Main ────────────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar {
+      height: 54px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cream-border);
+      background: var(--cream-card);
+      flex-shrink: 0;
+    }
+
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-dark);
+      letter-spacing: -.2px;
+    }
+
+    .topbar-date {
+      font-size: 12.5px;
+      color: var(--text-light);
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    /* ── Cards ───────────────────────────────── */
+    .card {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 7px;
+    }
+
+    .card-value {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -.6px;
+      color: var(--text-dark);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-value.amber  { color: var(--amber); }
+    .card-value.green  { color: var(--positive); }
+
+    .card-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    /* ── Section label ───────────────────────── */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+
+    .section-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Inputs / Buttons ────────────────────── */
+    .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
+
+    .field {
+      padding: 9px 13px;
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 13.5px;
+      color: var(--text-dark);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .field:focus { border-color: var(--sage); }
+    .field::placeholder { color: var(--text-muted); }
+    .field.wide { min-width: 240px; }
+
+    select.field { cursor: pointer; }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .12s, transform .08s;
+    }
+
+    .btn:active { transform: scale(.98); }
+
+    .btn-primary { background: var(--forest-body); color: #fff; }
+    .btn-primary:hover { background: var(--forest-mid); }
+
+    .btn-sm { padding: 7px 13px; font-size: 12.5px; }
+
+    /* ── Quote cards ─────────────────────────── */
+    .quote-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .quote-tile {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 15px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .qt-symbol {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 5px;
+    }
+
+    .qt-price {
+      font-size: 21px;
+      font-weight: 600;
+      color: var(--amber);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.4px;
+    }
+
+    .qt-ts {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    /* ── Quote result ────────────────────────── */
+    .quote-result-card {
+      max-width: 300px;
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .qr-symbol { font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; letter-spacing: .3px; }
+    .qr-price  { font-size: 38px; font-weight: 600; color: var(--amber); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+    .qr-meta   { font-size: 11.5px; color: var(--text-muted); margin-top: 7px; }
+
+    /* ── Table ───────────────────────────────── */
+    .table-wrap {
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--cream-card);
+      box-shadow: var(--shadow-sm);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      background: var(--cream);
+      border-bottom: 1px solid var(--cream-border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 11px 16px;
+      font-size: 13px;
+      color: var(--text-dark);
+      border-bottom: 1px solid var(--cream-border);
+      font-variant-numeric: tabular-nums;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(45,90,61,.025); }
+
+    td.amber    { color: var(--amber); font-weight: 500; }
+    td.positive { color: var(--positive); font-weight: 500; }
+    td.negative { color: var(--negative); font-weight: 500; }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      background: rgba(42,102,68,.1);
+      color: var(--forest-body);
+    }
+
+    /* ── Empty / Loading ─────────────────────── */
+    .state-box {
+      padding: 52px 24px;
+      text-align: center;
+    }
+
+    .state-icon { font-size: 28px; margin-bottom: 12px; opacity: .45; }
+    .state-title { font-size: 13.5px; font-weight: 500; color: var(--text-light); margin-bottom: 4px; }
+    .state-sub   { font-size: 12.5px; color: var(--text-muted); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--mist);
+      border-top-color: var(--sage);
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+      vertical-align: middle;
+      margin-right: 7px;
+    }
+
+    /* ── Page sections ───────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Unlock screen ───────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .unlock-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-lg);
+      padding: 36px 36px 32px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .unlock-brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin-bottom: 30px;
+    }
+
+    .unlock-icon {
+      width: 46px; height: 46px;
+      background: var(--forest-deep);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .unlock-name { font-size: 22px; font-weight: 600; color: var(--text-dark); letter-spacing: -.4px; }
+    .unlock-sub  { font-size: 12.5px; color: var(--text-light); margin-top: 1px; }
+
+    .unlock-label { font-size: 12.5px; font-weight: 500; color: var(--text-mid); margin-bottom: 7px; }
+
+    .unlock-input {
+      display: block;
+      width: 100%;
+      padding: 10px 13px;
+      background: var(--cream);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 13.5px;
+      color: var(--text-dark);
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color .15s;
+      letter-spacing: .4px;
+    }
+
+    .unlock-input:focus { border-color: var(--sage); }
+
+    .unlock-btn {
+      display: block;
+      width: 100%;
+      padding: 11px;
+      background: var(--forest-deep);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .12s;
+    }
+
+    .unlock-btn:hover { background: var(--forest-mid); }
+    .unlock-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .unlock-err {
+      font-size: 12px;
+      color: var(--negative);
+      text-align: center;
+      margin-top: 10px;
+      min-height: 16px;
+    }
+
+    /* ── Scrollbar ───────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--mist); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- Unlock -->
+<div class="overlay" id="overlay">
+  <div class="unlock-card">
+    <div class="unlock-brand">
+      <div class="unlock-icon">🌲</div>
+      <div>
+        <div class="unlock-name">Benji</div>
+        <div class="unlock-sub">Your personal financial assistant</div>
+      </div>
+    </div>
+    <div class="unlock-label">API Key</div>
+    <input class="unlock-input" id="keyInput" type="password" placeholder="Enter your API key" autocomplete="off">
+    <button class="unlock-btn" id="unlockBtn">Access Dashboard</button>
+    <div class="unlock-err" id="unlockErr"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="layout" id="app" style="display:none">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand">
+        <div class="brand-icon">🌲</div>
+        <div>
+          <div class="brand-name">Benji</div>
+          <div class="brand-sub">Financial Assistant</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="5.5" height="5.5" rx="1"/>
+          <rect x="8.5" y="1" width="5.5" height="5.5" rx="1"/>
+          <rect x="1" y="8.5" width="5.5" height="5.5" rx="1"/>
+          <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1"/>
+        </svg>
+        Dashboard
+      </div>
+      <div class="nav-group-label">Markets</div>
+      <div class="nav-item" data-page="quotes">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="1,10 4.5,6.5 7.5,8.5 14,2.5"/>
+          <polyline points="10,2.5 14,2.5 14,6.5"/>
+        </svg>
+        Quotes
+      </div>
+      <div class="nav-item" data-page="portfolio">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="4.5" width="13" height="9" rx="1.5"/>
+          <path d="M5 4.5V3.5a2.5 2 0 0 1 5 0v1"/>
+        </svg>
+        Portfolio
+      </div>
+      <div class="nav-group-label">Personal</div>
+      <div class="nav-item" data-page="finance">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="2" width="13" height="11" rx="1.5"/>
+          <path d="M1 6h13M5 2v4"/>
+        </svg>
+        Finance
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="key-badge" id="keyBadge" title="Click to sign out">
+        <div class="key-dot"></div>
+        <div class="key-label">Connected</div>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.35;flex-shrink:0">
+          <path d="M1 10l3.5-3.5m0 0L8 3l2 2-3.5 3.5m-1-1L7 9"/>
+        </svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-date" id="pageDate"></div>
+    </div>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stat-grid" id="dash-stats">
+          <div class="state-box"><span class="spinner"></span></div>
+        </div>
+        <div class="section-head">
+          <span class="section-title">Watchlist</span>
+          <span class="section-hint">Live quotes</span>
+        </div>
+        <div class="quote-grid" id="dash-watchlist">
+          <div class="state-box" style="padding:20px"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+      <!-- Quotes -->
+      <div class="page" id="page-quotes">
+        <div class="field-row">
+          <input class="field wide" id="quoteInput" type="text" placeholder="Ticker — AAPL, VOO, MSFT…" maxlength="12" autocomplete="off">
+          <button class="btn btn-primary" id="quoteBtn">Get Quote</button>
+        </div>
+        <div id="quoteResult"></div>
+      </div>
+
+      <!-- Portfolio -->
+      <div class="page" id="page-portfolio">
+        <div class="stat-grid" id="port-stats"></div>
+        <div class="section-head" style="margin-bottom:14px">
+          <span class="section-title">Positions</span>
+        </div>
+        <div class="table-wrap" id="port-table">
+          <div class="state-box"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+      <!-- Finance -->
+      <div class="page" id="page-finance">
+        <div class="stat-grid" id="fin-stats"></div>
+        <div class="section-head" style="margin-bottom:10px">
+          <span class="section-title">Transactions</span>
+        </div>
+        <div class="field-row">
+          <select class="field" id="catFilter"><option value="">All categories</option></select>
+          <button class="btn btn-primary btn-sm" id="filterBtn">Filter</button>
+        </div>
+        <div class="table-wrap" id="fin-table">
+          <div class="state-box"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  let KEY = '';
+
+  /* ── Format helpers ─────────────────────── */
+  const money = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num   = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 4 });
+  const dt    = s => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const ts    = s => new Date(s).toLocaleString('en-US',  { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const today = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  /* ── API ────────────────────────────────── */
+  async function get(path) {
+    const r = await fetch(path, { headers: { 'X-API-KEY': KEY } });
+    if (r.status === 204) return null;
+    if (!r.ok) throw r.status;
+    return r.json();
+  }
+
+  /* ── Auth ───────────────────────────────── */
+  function boot() {
+    const k = localStorage.getItem('benji_k');
+    if (k) { KEY = k; launch(); }
+  }
+
+  async function tryKey() {
+    const k = document.getElementById('keyInput').value.trim();
+    if (!k) return;
+    const btn = document.getElementById('unlockBtn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying…';
+    try {
+      const r = await fetch('/api/quotes', { headers: { 'X-API-KEY': k } });
+      if (r.status === 401) throw 'bad';
+      KEY = k;
+      localStorage.setItem('benji_k', k);
+      launch();
+    } catch {
+      document.getElementById('unlockErr').textContent = 'Invalid key — please try again.';
+      btn.disabled = false;
+      btn.textContent = 'Access Dashboard';
+    }
+  }
+
+  function launch() {
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('app').style.display     = 'flex';
+    document.getElementById('pageDate').textContent  = today();
+    go('dashboard');
+  }
+
+  document.getElementById('unlockBtn').addEventListener('click', tryKey);
+  document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryKey(); });
+  document.getElementById('keyBadge').addEventListener('click', () => {
+    if (confirm('Sign out and clear saved key?')) { localStorage.removeItem('benji_k'); location.reload(); }
+  });
+
+  /* ── Router ─────────────────────────────── */
+  const TITLES = { dashboard: 'Dashboard', quotes: 'Quotes', portfolio: 'Portfolio', finance: 'Finance' };
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', () => go(el.dataset.page));
+  });
+
+  function go(page) {
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+    document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === 'page-' + page));
+    document.getElementById('pageTitle').textContent = TITLES[page];
+    if (page === 'dashboard') loadDashboard();
+    if (page === 'portfolio') loadPortfolio();
+    if (page === 'finance')   loadFinance();
+  }
+
+  /* ── Helpers ────────────────────────────── */
+  const statCard = (label, value, cls, hint) =>
+    `<div class="card">
+       <div class="card-label">${label}</div>
+       <div class="card-value ${cls}">${value}</div>
+       ${hint ? `<div class="card-hint">${hint}</div>` : ''}
+     </div>`;
+
+  const empty = (icon, title, sub) =>
+    `<div class="state-box">
+       <div class="state-icon">${icon}</div>
+       <div class="state-title">${title}</div>
+       <div class="state-sub">${sub}</div>
+     </div>`;
+
+  /* ── Dashboard ──────────────────────────── */
+  const WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
+
+  async function loadDashboard() {
+    document.getElementById('dash-stats').innerHTML = '<div class="state-box" style="padding:16px"><span class="spinner"></span></div>';
+    document.getElementById('dash-watchlist').innerHTML = '<div class="state-box" style="padding:16px"><span class="spinner"></span></div>';
+
+    const [portRes, finRes] = await Promise.allSettled([
+      get('/api/portfolio/summary'),
+      get('/api/finance/summary'),
+    ]);
+
+    const p = portRes.status === 'fulfilled' ? portRes.value : null;
+    const f = finRes.status  === 'fulfilled' ? finRes.value  : null;
+
+    const cards = [];
+    if (p) {
+      cards.push(statCard('Positions',   p.positions_count,              '',      ''));
+      cards.push(statCard('Cost Basis',  money(p.total_cost_basis),      'amber', p.as_of ? 'As of ' + dt(p.as_of) : ''));
+    }
+    if (f) {
+      cards.push(statCard('MTD Spend',   money(f.month_to_date_spend),   'amber', 'Month to date'));
+      cards.push(statCard('Daily Avg',   money(f.average_daily_spend),   '',      ''));
+      cards.push(statCard('Projected',   money(f.projected_month_end_spend), 'amber', 'End of month'));
+    }
+
+    document.getElementById('dash-stats').innerHTML = cards.length
+      ? cards.join('')
+      : empty('🌱', 'No data yet', 'Add portfolio positions and finance transactions to get started.');
+
+    // Watchlist
+    const results = await Promise.allSettled(WATCHLIST.map(s => get('/api/quotes/' + s)));
+    const tiles = results.map(r => {
+      if (r.status !== 'fulfilled' || !r.value) return '';
+      const q = r.value;
+      return `<div class="quote-tile">
+        <div class="qt-symbol">${q.symbol}</div>
+        <div class="qt-price">${money(q.price)}</div>
+        <div class="qt-ts">${ts(q.as_of)}</div>
+      </div>`;
+    }).filter(Boolean);
+
+    document.getElementById('dash-watchlist').innerHTML = tiles.length
+      ? tiles.join('')
+      : empty('📡', 'Quotes unavailable', 'Could not load watchlist at this time.');
+  }
+
+  /* ── Quotes ─────────────────────────────── */
+  async function fetchQuote() {
+    const sym = document.getElementById('quoteInput').value.trim().toUpperCase();
+    if (!sym) return;
+    const el = document.getElementById('quoteResult');
+    el.innerHTML = '<div class="state-box" style="padding:20px"><span class="spinner"></span> Fetching…</div>';
+    try {
+      const q = await get('/api/quotes/' + sym);
+      el.innerHTML = `<div class="quote-result-card">
+        <div class="qr-symbol">${q.symbol}${q.currency ? ' · ' + q.currency : ''}</div>
+        <div class="qr-price">${money(q.price)}</div>
+        <div class="qr-meta">As of ${ts(q.as_of)}${q.source ? ' · ' + q.source : ''}</div>
+      </div>`;
+    } catch {
+      el.innerHTML = empty('🔍', 'No quote found', `Could not find a price for <strong>${sym}</strong>. Check the symbol and try again.`);
+    }
+  }
+
+  document.getElementById('quoteBtn').addEventListener('click', fetchQuote);
+  document.getElementById('quoteInput').addEventListener('keydown', e => { if (e.key === 'Enter') fetchQuote(); });
+
+  /* ── Portfolio ──────────────────────────── */
+  async function loadPortfolio() {
+    document.getElementById('port-stats').innerHTML = '';
+    document.getElementById('port-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+
+    const [sRes, pRes] = await Promise.allSettled([
+      get('/api/portfolio/summary'),
+      get('/api/portfolio/positions'),
+    ]);
+
+    const s = sRes.status === 'fulfilled' ? sRes.value : null;
+    if (s) {
+      document.getElementById('port-stats').innerHTML = [
+        statCard('Positions',    s.positions_count,          '',      ''),
+        statCard('Total Shares', num(s.total_quantity),      '',      ''),
+        statCard('Cost Basis',   money(s.total_cost_basis),  'amber', s.as_of ? 'As of ' + dt(s.as_of) : ''),
+      ].join('');
+    }
+
+    const p = pRes.status === 'fulfilled' ? pRes.value : null;
+    if (!p?.positions?.length) {
+      document.getElementById('port-table').innerHTML = empty('📊', 'No positions yet', 'Portfolio positions will appear here once added.');
+      return;
+    }
+
+    document.getElementById('port-table').innerHTML =
+      `<table>
+        <thead><tr><th>Ticker</th><th>Shares</th><th>Cost Basis</th><th>Avg Cost / Share</th></tr></thead>
+        <tbody>
+          ${p.positions.map(x => `<tr>
+            <td><strong>${x.ticker}</strong></td>
+            <td>${num(x.quantity)}</td>
+            <td class="amber">${money(x.cost_basis)}</td>
+            <td class="amber">${money(x.cost_basis / x.quantity)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  /* ── Finance ────────────────────────────── */
+  async function loadFinance(cat) {
+    document.getElementById('fin-stats').innerHTML = '';
+    document.getElementById('fin-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+
+    const qs = cat ? '?category=' + encodeURIComponent(cat) : '';
+    const [sRes, tRes] = await Promise.allSettled([
+      get('/api/finance/summary'),
+      get('/api/finance/transactions' + qs),
+    ]);
+
+    const s = sRes.status === 'fulfilled' ? sRes.value : null;
+    if (s) {
+      document.getElementById('fin-stats').innerHTML = [
+        statCard('MTD Spend',  money(s.month_to_date_spend),         'amber', ''),
+        statCard('Daily Avg',  money(s.average_daily_spend),         '',      ''),
+        statCard('Projected',  money(s.projected_month_end_spend),   'amber', 'End of month'),
+      ].join('');
+    }
+
+    const t = tRes.status === 'fulfilled' ? tRes.value : null;
+    if (!t?.transactions?.length) {
+      document.getElementById('fin-table').innerHTML = empty('🧾', 'No transactions', 'Finance transactions will appear here once imported.');
+      return;
+    }
+
+    // Populate category dropdown once
+    const sel = document.getElementById('catFilter');
+    if (sel.options.length === 1) {
+      [...new Set(t.transactions.map(x => x.category))].sort().forEach(c => {
+        const o = document.createElement('option');
+        o.value = c;
+        o.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+        sel.appendChild(o);
+      });
+    }
+
+    document.getElementById('fin-table').innerHTML =
+      `<table>
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th></tr></thead>
+        <tbody>
+          ${t.transactions.map(x => `<tr>
+            <td style="white-space:nowrap">${dt(x.posted_at)}</td>
+            <td>${x.description}</td>
+            <td><span class="pill">${x.category}</span></td>
+            <td class="${x.amount < 0 ? 'negative' : 'positive'}">${money(x.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  document.getElementById('filterBtn').addEventListener('click', () => {
+    loadFinance(document.getElementById('catFilter').value || undefined);
+  });
+
+  /* ── Start ──────────────────────────────── */
+  boot();
+</script>
+</body>
+</html>
