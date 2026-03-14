@@ -93,6 +93,9 @@ spring:
   config:
     activate:
       on-profile: test
+  security:
+    user:
+      password: test-actuator-password
   datasource:
     url: jdbc:h2:mem:trading-dashboard-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
