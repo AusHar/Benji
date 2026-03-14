@@ -31,7 +31,8 @@ class ApiKeyAuthFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String uri = request.getRequestURI();
     return !properties.isEnabled()
-        || uri.equals("/") || uri.equals("/index.html")
+        || uri.equals("/")
+        || uri.equals("/index.html")
         || uri.startsWith("/actuator/")
         || uri.startsWith("/swagger-ui")
         || uri.startsWith("/v3/api-docs");

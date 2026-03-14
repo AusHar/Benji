@@ -45,8 +45,11 @@ class ActuatorSecurityConfig {
       http.authorizeHttpRequests(
               auth ->
                   auth.requestMatchers(
-                          "/", "/index.html",
-                          "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                          "/",
+                          "/index.html",
+                          "/swagger-ui/**",
+                          "/swagger-ui.html",
+                          "/v3/api-docs/**")
                       .permitAll()
                       .anyRequest()
                       .authenticated())
