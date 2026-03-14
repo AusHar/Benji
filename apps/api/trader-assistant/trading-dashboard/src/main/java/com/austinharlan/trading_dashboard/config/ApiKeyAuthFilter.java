@@ -29,7 +29,11 @@ class ApiKeyAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return request.getRequestURI().startsWith("/actuator/") || !properties.isEnabled();
+    String uri = request.getRequestURI();
+    return !properties.isEnabled()
+        || uri.startsWith("/actuator/")
+        || uri.startsWith("/swagger-ui")
+        || uri.startsWith("/v3/api-docs");
   }
 
   @Override
