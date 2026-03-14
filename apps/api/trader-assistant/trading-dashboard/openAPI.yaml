@@ -131,11 +131,6 @@ paths:
         '204':
           description: No transactions matched the query.
 components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-KEY
   schemas:
     QuotesIndex:
       type: object
