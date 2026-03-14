@@ -42,7 +42,12 @@ class ActuatorSecurityConfig {
   @Order(Ordered.LOWEST_PRECEDENCE)
   SecurityFilterChain applicationSecurity(HttpSecurity http) throws Exception {
     if (apiSecurityProperties.isEnabled()) {
-      http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+      http.authorizeHttpRequests(
+              auth ->
+                  auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                      .permitAll()
+                      .anyRequest()
+                      .authenticated())
           .addFilterBefore(apiKeyAuthFilter, AnonymousAuthenticationFilter.class);
     } else {
       http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
