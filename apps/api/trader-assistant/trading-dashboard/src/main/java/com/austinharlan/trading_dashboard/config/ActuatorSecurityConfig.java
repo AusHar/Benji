@@ -30,9 +30,9 @@ class ActuatorSecurityConfig {
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers("/actuator/health", "/actuator/health/**")
-                    .hasRole("ACTUATOR")
+                    .permitAll()
                     .anyRequest()
-                    .denyAll())
+                    .hasRole("ACTUATOR"))
         .httpBasic(Customizer.withDefaults())
         .csrf(AbstractHttpConfigurer::disable);
     return http.build();

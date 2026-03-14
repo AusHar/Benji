@@ -43,6 +43,7 @@ Keep these priorities in mind: correctness → tests → clarity → performance
 - Do not place domain/business logic in controllers.
 - Do not commit secrets — see `ENV.example` for required env vars.
 - Do not bypass OpenAPI generation; maintain the spec as the source of truth.
+- Avoid adding keys or secrets directly in code; use environment variables or secure vaults once production readiness is a concern.
 
 ## Observability & runtime notes
 - Actuator endpoints are available (health/metrics). Use `localhost:8080/actuator/health` when running locally.

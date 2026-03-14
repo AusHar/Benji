@@ -110,7 +110,7 @@ paths:
         - name: limit
           in: query
           required: false
-          description: Maximum number of most recent transactions to return.
+          description: Maximum number of most recent transactions to return (default 100, max 500).
           schema:
             type: integer
             minimum: 1
@@ -131,6 +131,11 @@ paths:
         '204':
           description: No transactions matched the query.
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
   schemas:
     QuotesIndex:
       type: object

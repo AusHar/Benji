@@ -7,6 +7,7 @@ trading:
     max-age: 3600
   marketdata:
     base-url: https://www.alphavantage.co
+    # PROD-REQUIRED: set MARKETDATA_API_KEY to a real secret before deployment.
     api-key: ${MARKETDATA_API_KEY:${ALPHA_VANTAGE_API_KEY}}
     health-symbol: ${MARKETDATA_HEALTH_SYMBOL:SPY}
     health-cache-ttl: ${MARKETDATA_HEALTH_CACHE_TTL:PT1M}
@@ -22,6 +23,7 @@ trading:
       ttl: ${TRADING_CACHE_QUOTES_TTL:PT30S}
       maximum-size: ${TRADING_CACHE_QUOTES_MAXIMUM_SIZE:1024}
   api:
+    # PROD-REQUIRED: set TRADING_API_KEY to a real secret before deployment.
     key: ${TRADING_API_KEY:}
     header-name: ${TRADING_API_KEY_HEADER:X-API-KEY}
 

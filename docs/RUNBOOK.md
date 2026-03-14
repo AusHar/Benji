@@ -17,6 +17,7 @@
 +| `ACTUATOR_USERNAME` / `ACTUATOR_PASSWORD` | AWS SSM/Secrets Manager | Basic auth for `/actuator/*` endpoints when secured. |
 +
 +Store secrets in the GitHub environment (for CI) as references to AWS via OIDC or pre-populated environment variables in ECS task definitions.
++Prod startup validates required secrets and rejects placeholder values (e.g., `changeMe`, `changeme`, `demo`, `replace_me`).
 +
 +## 4. Operations Dashboard
 +- **Health checks:**

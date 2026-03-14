@@ -20,6 +20,9 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class DefaultFinanceInsightsService implements FinanceInsightsService {
+  private static final int DEFAULT_LIMIT = 100;
+  private static final int MAX_LIMIT = 500;
+
   private final FinanceTransactionRepository transactionRepository;
   private final Clock clock;
 
@@ -90,10 +93,9 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
   }
 
   private Pageable resolvePageable(Integer limit) {
-    if (limit == null || limit <= 0) {
-      return Pageable.unpaged();
-    }
-    return PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "postedAt"));
+    int effectiveLimit =
+        (limit == null || limit <= 0) ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
+    return PageRequest.of(0, effectiveLimit, Sort.by(Sort.Direction.DESC, "postedAt"));
   }
 
   private FinanceTransactionRecord toRecord(FinanceTransactionEntity entity) {
