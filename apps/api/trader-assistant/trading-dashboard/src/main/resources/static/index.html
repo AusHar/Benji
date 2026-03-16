@@ -648,6 +648,24 @@
       margin-bottom: 12px;
     }
 
+    /* ── Treemap ─────────────────────────────── */
+    #portTreemap { width: 100%; height: 300px; display: block; cursor: default; }
+
+    #treemap-tip {
+      display: none;
+      position: fixed;
+      background: var(--forest-mid);
+      color: var(--cream);
+      border: 1px solid var(--forest-soft);
+      border-radius: var(--radius-md);
+      padding: 9px 13px;
+      font-size: 12.5px;
+      line-height: 1.65;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: var(--shadow-md);
+    }
+
     /* ── Watchlist tile controls ─────────────── */
     .quote-tile { position: relative; }
 
@@ -837,7 +855,11 @@
       <!-- Portfolio -->
       <div class="page" id="page-portfolio">
         <div class="stat-grid" id="port-stats"></div>
-        <div class="section-head" style="margin-bottom:14px">
+        <div class="chart-wrap" id="port-treemap-wrap" style="display:none">
+          <div class="chart-title">Allocation by Market Value</div>
+          <canvas id="portTreemap"></canvas>
+        </div>
+        <div class="section-head" style="margin-bottom:14px;margin-top:22px">
           <span class="section-title">Positions</span>
         </div>
         <div class="table-wrap" id="port-table">
@@ -867,6 +889,8 @@
     </div>
   </div>
 </div>
+
+<div id="treemap-tip"></div>
 
 <script>
   let KEY = '';
@@ -1354,9 +1378,13 @@
     document.getElementById('port-stats').innerHTML = cards.join('');
 
     if (!positions?.length) {
+      document.getElementById('port-treemap-wrap').style.display = 'none';
       document.getElementById('port-table').innerHTML = empty('📊', 'No positions yet', 'Portfolio positions will appear here once added.');
       return;
     }
+
+    // Draw treemap (deferred one frame so canvas has layout width)
+    requestAnimationFrame(() => drawTreemap(positions, priceMap));
 
     document.getElementById('port-table').innerHTML =
       `<table>
@@ -1442,6 +1470,145 @@
   document.getElementById('filterBtn').addEventListener('click', () => {
     loadFinance(document.getElementById('catFilter').value || undefined);
   });
+
+  /* ── Treemap ────────────────────────────── */
+  function _tmWorstRatio(row, rowSum, shortSide, total, area) {
+    const stripLen = (rowSum / total) * (area / shortSide);
+    let worst = 0;
+    row.forEach(item => {
+      const itemSize = (item.value / rowSum) * shortSide;
+      if (itemSize <= 0) return;
+      const r = Math.max(stripLen / itemSize, itemSize / stripLen);
+      worst = Math.max(worst, r);
+    });
+    return worst;
+  }
+
+  function _tmSquarify(items, x, y, w, h, total, out) {
+    if (!items.length || w <= 1 || h <= 1) return;
+    if (items.length === 1) { out.push({ ...items[0], x, y, w, h }); return; }
+    const s = Math.min(w, h), area = w * h;
+    let row = [], rowSum = 0, prevWorst = Infinity;
+    for (let i = 0; i < items.length; i++) {
+      const newRow = [...row, items[i]];
+      const newSum = rowSum + items[i].value;
+      const worst  = _tmWorstRatio(newRow, newSum, s, total, area);
+      if (row.length > 0 && worst > prevWorst) break;
+      row = newRow; rowSum = newSum; prevWorst = worst;
+    }
+    const stripLen = (rowSum / total) * (w >= h ? w : h);
+    let cursor = 0;
+    row.forEach(item => {
+      const dim = (item.value / rowSum) * s;
+      if (w >= h) out.push({ ...item, x, y: y + cursor, w: stripLen, h: dim });
+      else        out.push({ ...item, x: x + cursor, y, w: dim, h: stripLen });
+      cursor += dim;
+    });
+    const rest = items.slice(row.length);
+    if (rest.length) {
+      if (w >= h) _tmSquarify(rest, x + stripLen, y, w - stripLen, h, total - rowSum, out);
+      else        _tmSquarify(rest, x, y + stripLen, w, h - stripLen, total - rowSum, out);
+    }
+  }
+
+  function tmPnlColor(pct) {
+    const t = Math.max(-1, Math.min(1, pct / 0.08));
+    if (t >= 0) {
+      return `rgb(${Math.round(106 - 77*t)},${Math.round(136 - 30*t)},${Math.round(120 - 54*t)})`;
+    } else {
+      const u = -t;
+      return `rgb(${Math.round(106 + 33*u)},${Math.round(136 - 89*u)},${Math.round(120 - 88*u)})`;
+    }
+  }
+
+  function drawTreemap(positions, priceMap) {
+    const wrap   = document.getElementById('port-treemap-wrap');
+    const canvas = document.getElementById('portTreemap');
+    const tip    = document.getElementById('treemap-tip');
+
+    const items = positions
+      .filter(p => priceMap[p.ticker] != null)
+      .map(p => {
+        const price  = priceMap[p.ticker];
+        const mktVal = p.quantity * price;
+        const pnl    = mktVal - p.cost_basis;
+        const pct    = p.cost_basis > 0 ? pnl / p.cost_basis : 0;
+        return { ticker: p.ticker, value: mktVal, pnl, pct, price };
+      })
+      .filter(x => x.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    if (!items.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    function render() {
+      const dpr = window.devicePixelRatio || 1;
+      const W   = canvas.offsetWidth || 600;
+      const H   = 300;
+      canvas.width  = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.height = H + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const total = items.reduce((s, i) => s + i.value, 0);
+      const rects = [];
+      _tmSquarify(items, 0, 0, W, H, total, rects);
+      canvas._rects = rects;
+
+      const PAD = 2, R = 5;
+      rects.forEach(r => {
+        const rx = r.x + PAD, ry = r.y + PAD, rw = r.w - PAD * 2, rh = r.h - PAD * 2;
+        if (rw <= 0 || rh <= 0) return;
+        ctx.fillStyle = tmPnlColor(r.pct);
+        ctx.beginPath();
+        ctx.roundRect(rx, ry, rw, rh, Math.min(R, rw / 2, rh / 2));
+        ctx.fill();
+
+        if (rw > 32 && rh > 18) {
+          const fs      = Math.min(14, Math.max(9, Math.min(rw / 5, rh / 2.5)));
+          const showPct = rh > 42;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle    = 'rgba(255,255,255,0.92)';
+          ctx.font         = `600 ${fs}px Inter,sans-serif`;
+          ctx.fillText(r.ticker, rx + rw / 2, ry + rh / 2 - (showPct ? fs * 0.65 : 0));
+          if (showPct) {
+            const pctStr = (r.pct >= 0 ? '+' : '') + (r.pct * 100).toFixed(1) + '%';
+            ctx.font      = `400 ${Math.max(8, fs - 2)}px Inter,sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.68)';
+            ctx.fillText(pctStr, rx + rw / 2, ry + rh / 2 + fs * 0.75);
+          }
+        }
+      });
+    }
+
+    render();
+
+    canvas.onmousemove = e => {
+      const b  = canvas.getBoundingClientRect();
+      const mx = e.clientX - b.left, my = e.clientY - b.top;
+      const hit = (canvas._rects || []).find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
+      if (hit) {
+        const pctStr = (hit.pct >= 0 ? '+' : '') + (hit.pct * 100).toFixed(2) + '%';
+        const pnlStr = (hit.pnl >= 0 ? '+' : '') + money(hit.pnl);
+        const col    = hit.pct >= 0 ? '#4fa870' : '#d46050';
+        tip.innerHTML = `<strong>${hit.ticker}</strong><br>${money(hit.value)}<br><span style="color:${col}">${pnlStr}&nbsp;(${pctStr})</span>`;
+        tip.style.display = 'block';
+        tip.style.left = (e.clientX + 14) + 'px';
+        tip.style.top  = (e.clientY - 52) + 'px';
+      } else {
+        tip.style.display = 'none';
+      }
+    };
+    canvas.onmouseleave = () => { tip.style.display = 'none'; };
+
+    // Redraw on resize
+    if (!canvas._ro) {
+      canvas._ro = new ResizeObserver(() => { if (wrap.style.display !== 'none') render(); });
+      canvas._ro.observe(canvas);
+    }
+  }
 
   /* ── Start ──────────────────────────────── */
   boot();
