@@ -44,17 +44,17 @@ public class DefaultPortfolioService implements PortfolioService {
   @Override
   @Transactional
   public PortfolioHolding addHolding(String ticker, BigDecimal quantity, BigDecimal pricePerShare) {
-    BigDecimal costContribution = quantity.multiply(pricePerShare);
+    BigDecimal totalBasis = quantity.multiply(pricePerShare);
     PortfolioPositionEntity entity =
         repository
             .findByTicker(ticker)
             .map(
                 existing -> {
-                  existing.setQty(existing.getQty().add(quantity));
-                  existing.setBasis(existing.getBasis().add(costContribution));
+                  existing.setQty(quantity);
+                  existing.setBasis(totalBasis);
                   return existing;
                 })
-            .orElseGet(() -> new PortfolioPositionEntity(ticker, quantity, costContribution));
+            .orElseGet(() -> new PortfolioPositionEntity(ticker, quantity, totalBasis));
     return toHolding(repository.save(entity));
   }
 

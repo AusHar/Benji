@@ -185,7 +185,7 @@ paths:
       tags:
         - Portfolio
       operationId: addPortfolioPosition
-      summary: Add shares to a position using the average cost basis method. Creates the position if it does not exist.
+      summary: Set a position by ticker, replacing any existing holding with the supplied quantity and average price.
       requestBody:
         required: true
         content:
@@ -367,9 +367,9 @@ components:
         price_per_share:
           type: number
           format: double
-          description: Purchase price per share used to compute the cost basis contribution.
+          description: Average cost per share; total cost basis is set to quantity × price_per_share.
           minimum: 0.000001
-          example: 180.00
+          example: 163.42
     PortfolioPosition:
       type: object
       required:
