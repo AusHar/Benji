@@ -301,8 +301,7 @@
       font-family: Georgia, serif;
     }
     .daily-quote-text {
-      font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.5;
       color: rgba(255,255,255,.78);
       font-style: italic;
     }
@@ -1933,10 +1932,39 @@
     "The most important thing to do if you find yourself in a hole is to stop digging.",
   ];
 
+  function fitQuoteText() {
+    const container = document.getElementById('dailyQuote');
+    const textEl    = document.getElementById('dailyQuoteText');
+    if (!textEl || !container || container.clientHeight === 0) return;
+
+    const style  = getComputedStyle(container);
+    const padV   = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const attrEl = textEl.nextElementSibling;
+    const attrH  = attrEl ? attrEl.offsetHeight + parseFloat(getComputedStyle(attrEl).marginTop) : 0;
+    const avail  = container.clientHeight - padV - attrH;
+
+    textEl.style.fontSize = '8px';
+    let lo = 8, hi = 72, best = 8;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      textEl.style.fontSize = mid + 'px';
+      if (textEl.scrollHeight <= avail) { best = mid; lo = mid + 1; }
+      else hi = mid - 1;
+    }
+    textEl.style.fontSize = best + 'px';
+  }
+
   function initDailyQuote() {
     const day = Math.floor(Date.now() / 86_400_000);
     const quote = BUFFETT_QUOTES[day % BUFFETT_QUOTES.length];
     document.getElementById('dailyQuoteText').textContent = quote;
+    requestAnimationFrame(fitQuoteText);
+
+    const container = document.getElementById('dailyQuote');
+    if (!container._ro) {
+      container._ro = new ResizeObserver(fitQuoteText);
+      container._ro.observe(container);
+    }
   }
 
   /* ── Ticker bar ─────────────────────────── */
