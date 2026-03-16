@@ -37,7 +37,7 @@ class DefaultQuoteServiceTest {
   @Test
   void getCachedInvokesProviderOnlyOnceForRepeatedSymbol() {
     cacheProperties.getQuotes().setTtl(Duration.ofMinutes(5));
-    Quote quote = new Quote("AAPL", BigDecimal.ONE, Instant.parse("2024-01-01T00:00:00Z"));
+    Quote quote = new Quote("AAPL", BigDecimal.ONE, null, Instant.parse("2024-01-01T00:00:00Z"));
     when(provider.getQuote("AAPL")).thenReturn(quote);
 
     Quote first = quoteService.getCached("AAPL");
@@ -51,7 +51,7 @@ class DefaultQuoteServiceTest {
   @Test
   void returnsCachedQuoteWhenRateLimitedDuringRefresh() {
     cacheProperties.getQuotes().setTtl(Duration.ZERO);
-    Quote quote = new Quote("MSFT", BigDecimal.TEN, Instant.parse("2024-02-01T00:00:00Z"));
+    Quote quote = new Quote("MSFT", BigDecimal.TEN, null, Instant.parse("2024-02-01T00:00:00Z"));
     when(provider.getQuote("MSFT"))
         .thenReturn(quote)
         .thenThrow(new MarketDataRateLimitException("Rate limited"));

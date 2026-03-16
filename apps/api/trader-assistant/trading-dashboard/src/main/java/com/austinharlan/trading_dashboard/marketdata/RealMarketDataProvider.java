@@ -253,7 +253,13 @@ public class RealMarketDataProvider implements MarketDataProvider {
     long epochSeconds = root.path("t").asLong(0);
     Instant timestamp = epochSeconds > 0 ? Instant.ofEpochSecond(epochSeconds) : Instant.now();
 
-    return new Quote(symbol, BigDecimal.valueOf(price), timestamp);
+    JsonNode dpNode = root.path("dp");
+    BigDecimal changePercent =
+        (!dpNode.isMissingNode() && !dpNode.isNull())
+            ? BigDecimal.valueOf(dpNode.asDouble())
+            : null;
+
+    return new Quote(symbol, BigDecimal.valueOf(price), changePercent, timestamp);
   }
 
   // ── Overview parsing ───────────────────────────────────────────────────────

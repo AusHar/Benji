@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class FakeMarketDataProvider implements MarketDataProvider {
   @Override
   public Quote getQuote(String symbol) {
-    return new Quote(symbol, BigDecimal.valueOf(100.00), Instant.now());
+    return new Quote(symbol, BigDecimal.valueOf(100.00), BigDecimal.valueOf(1.23), Instant.now());
   }
 
   @Override

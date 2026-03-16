@@ -324,6 +324,12 @@ components:
           type: string
           description: ISO 4217 currency code for the quote.
           example: USD
+        change_pct:
+          type: number
+          format: double
+          description: Percentage change from the previous close.
+          example: 1.25
+          nullable: true
         as_of:
           type: string
           format: date-time

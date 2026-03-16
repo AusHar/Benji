@@ -168,6 +168,49 @@
     /* ── Main ────────────────────────────────── */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
+    /* ── Ticker bar ──────────────────────────── */
+    .ticker-bar {
+      height: 32px;
+      background: var(--forest-deep);
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .ticker-track {
+      display: flex;
+      white-space: nowrap;
+      animation: ticker-scroll 30s linear infinite;
+      gap: 0;
+    }
+    .ticker-bar:hover .ticker-track { animation-play-state: paused; }
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 22px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: rgba(255,255,255,.75);
+      letter-spacing: .2px;
+      border-right: 1px solid rgba(255,255,255,.07);
+    }
+    .ticker-label {
+      color: rgba(255,255,255,.45);
+      font-size: 10.5px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    .ticker-price { color: rgba(255,255,255,.9); }
+    .ticker-chg.pos { color: #5ecb8a; }
+    .ticker-chg.neg { color: #e07060; }
+    .ticker-chg.neu { color: rgba(255,255,255,.45); }
+
     .topbar {
       height: 54px;
       padding: 0 28px;
@@ -881,6 +924,12 @@
 
   <!-- Main -->
   <div class="main">
+
+    <!-- Ticker bar -->
+    <div class="ticker-bar" id="tickerBar" style="display:none">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
     <div class="topbar">
       <div class="topbar-title" id="pageTitle">Dashboard</div>
       <div class="topbar-date" id="pageDate"></div>
@@ -1031,6 +1080,7 @@
     document.getElementById('app').style.display     = 'flex';
     document.getElementById('pageDate').textContent  = today();
     go('dashboard');
+    startTicker();
   }
 
   document.getElementById('unlockBtn').addEventListener('click', tryKey);
@@ -1784,6 +1834,64 @@
       canvas._ro = new ResizeObserver(() => { if (wrap.style.display !== 'none') render(); });
       canvas._ro.observe(canvas);
     }
+  }
+
+  /* ── Ticker bar ─────────────────────────── */
+  const TICKER_SYMBOLS = [
+    { symbol: 'SPY',             label: 'S&P 500' },
+    { symbol: 'DIA',             label: 'DOW'     },
+    { symbol: 'IWM',             label: 'RUSS 2K' },
+    { symbol: 'QQQ',             label: 'NASDAQ'  },
+    { symbol: 'BINANCE:BTCUSDT', label: 'BTC'     },
+    { symbol: 'BINANCE:ETHUSDT', label: 'ETH'     },
+  ];
+
+  let _tickerTimer = null;
+
+  function fmtTickerPrice(price) {
+    if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (price >= 1)    return price.toFixed(2);
+    return price.toPrecision(4);
+  }
+
+  function buildTickerItems(quotes) {
+    return quotes.map(({ label, price, changePct }) => {
+      const sign    = changePct == null ? '' : changePct >= 0 ? '+' : '';
+      const chgText = changePct == null ? '' : `${sign}${changePct.toFixed(2)}%`;
+      const chgCls  = changePct == null ? 'neu' : changePct > 0 ? 'pos' : changePct < 0 ? 'neg' : 'neu';
+      return `<span class="ticker-item">
+        <span class="ticker-label">${label}</span>
+        <span class="ticker-price">$${fmtTickerPrice(price)}</span>
+        ${chgText ? `<span class="ticker-chg ${chgCls}">${chgText}</span>` : ''}
+      </span>`;
+    }).join('');
+  }
+
+  async function loadTicker() {
+    const results = await Promise.allSettled(
+      TICKER_SYMBOLS.map(t => get('/api/quotes/' + encodeURIComponent(t.symbol)))
+    );
+    const quotes = [];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value) {
+        quotes.push({ label: TICKER_SYMBOLS[i].label, price: r.value.price, changePct: r.value.change_pct ?? null });
+      }
+    });
+    if (quotes.length === 0) return;
+
+    const track = document.getElementById('tickerTrack');
+    const html  = buildTickerItems(quotes);
+    track.innerHTML = html + html; // duplicate for seamless loop
+    document.getElementById('tickerBar').style.display = 'flex';
+
+    // Adjust animation speed proportionally to number of items
+    const duration = Math.max(20, quotes.length * 6);
+    track.style.animationDuration = duration + 's';
+  }
+
+  function startTicker() {
+    loadTicker();
+    _tickerTimer = setInterval(loadTicker, 60_000);
   }
 
   /* ── Start ──────────────────────────────── */

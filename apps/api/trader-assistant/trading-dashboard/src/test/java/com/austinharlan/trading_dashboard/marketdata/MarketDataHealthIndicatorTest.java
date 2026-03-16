@@ -112,7 +112,7 @@ class MarketDataHealthIndicatorTest {
     MarketDataProvider provider =
         symbol -> {
           calls.incrementAndGet();
-          return new Quote(symbol, BigDecimal.ONE, Instant.parse("2024-10-01T00:00:00Z"));
+          return new Quote(symbol, BigDecimal.ONE, null, Instant.parse("2024-10-01T00:00:00Z"));
         };
 
     MarketDataHealthIndicator indicator = new MarketDataHealthIndicator(properties, provider);

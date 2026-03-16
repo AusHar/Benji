@@ -31,7 +31,7 @@ class QuoteControllerTest {
   void getQuoteReturnsQuoteResponse() throws Exception {
     Instant asOf = Instant.parse("2024-01-01T00:00:00Z");
     when(quoteService.getCached("AAPL"))
-        .thenReturn(new Quote("AAPL", BigDecimal.valueOf(123.45), asOf));
+        .thenReturn(new Quote("AAPL", BigDecimal.valueOf(123.45), null, asOf));
 
     mockMvc
         .perform(get("/api/quotes/aapl"))

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class QuoteController implements QuotesApi {
-  private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Za-z0-9.]{1,12}$");
+  private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Za-z0-9.:_-]{1,20}$");
   private final QuoteService quoteService;
   private final Optional<MarketDataQuotaTracker> quotaTracker;
 
@@ -67,6 +67,7 @@ public class QuoteController implements QuotesApi {
         new QuoteResponse()
             .symbol(quote.symbol())
             .price(quote.price().doubleValue())
+            .changePct(toDouble(quote.changePercent()))
             .currency("USD")
             .asOf(OffsetDateTime.ofInstant(quote.timestamp(), ZoneOffset.UTC));
     return ResponseEntity.ok(response);
@@ -147,7 +148,7 @@ public class QuoteController implements QuotesApi {
     }
 
     if (!SYMBOL_PATTERN.matcher(candidate).matches()) {
-      throw new InvalidTickerException("Ticker symbol must be 1-12 characters (A-Z, 0-9, .)");
+      throw new InvalidTickerException("Ticker symbol must be 1-20 characters (A-Z, 0-9, . : _ -)");
     }
 
     return candidate.toUpperCase(Locale.US);
