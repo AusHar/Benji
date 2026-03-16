@@ -6,9 +6,9 @@ trading:
     allow-credentials: false
     max-age: 3600
   marketdata:
-    base-url: https://www.alphavantage.co
+    base-url: https://finnhub.io/api/v1
     # PROD-REQUIRED: set MARKETDATA_API_KEY to a real secret before deployment.
-    api-key: ${MARKETDATA_API_KEY:${ALPHA_VANTAGE_API_KEY}}
+    api-key: ${MARKETDATA_API_KEY:${FINNHUB_API_KEY}}
     health-symbol: ${MARKETDATA_HEALTH_SYMBOL:SPY}
     health-cache-ttl: ${MARKETDATA_HEALTH_CACHE_TTL:PT1M}
     connect-timeout: 2s

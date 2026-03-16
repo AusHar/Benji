@@ -65,7 +65,7 @@ class ProdSecretsValidatorTest {
 
   private static MarketDataProperties marketDataProperties(String apiKey) {
     MarketDataProperties properties = new MarketDataProperties();
-    properties.setBaseUrl("https://www.alphavantage.co");
+    properties.setBaseUrl("https://finnhub.io/api/v1");
     properties.setApiKey(apiKey);
     return properties;
   }

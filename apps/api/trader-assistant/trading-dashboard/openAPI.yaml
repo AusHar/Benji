@@ -128,7 +128,7 @@ paths:
       tags:
         - Quotes
       operationId: getMarketDataQuota
-      summary: Return today's AlphaVantage API usage against the daily limit.
+      summary: Return Finnhub API usage in the current minute against the per-minute limit.
       responses:
         '200':
           description: Quota usage for today.
@@ -257,7 +257,7 @@ components:
         source:
           type: string
           description: Market data provider that supplied the quote.
-          example: AlphaVantage
+          example: Finnhub
     PortfolioPositionsResponse:
       type: object
       required:
@@ -403,13 +403,13 @@ components:
         used:
           type: integer
           format: int32
-          description: Number of AlphaVantage API calls made today.
+          description: Number of Finnhub API calls made in the current minute.
           example: 7
         daily_limit:
           type: integer
           format: int32
-          description: Maximum calls allowed per day on the current plan.
-          example: 25
+          description: Maximum calls allowed per minute on the current plan.
+          example: 60
     CompanyOverviewResponse:
       type: object
       required:
