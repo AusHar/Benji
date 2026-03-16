@@ -316,6 +316,25 @@
       font-style: normal;
     }
 
+    .port-top-row {
+      display: flex;
+      gap: 14px;
+      align-items: stretch;
+      margin-bottom: 28px;
+    }
+    .port-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(160px, 1fr));
+      align-content: start;
+      flex-shrink: 0;
+      margin-bottom: 0;
+    }
+    .port-top-row .daily-quote {
+      flex: 1;
+      min-width: 0;
+      margin-bottom: 0;
+    }
+
     /* ── Section label ───────────────────────── */
     .section-head {
       display: flex;
@@ -972,13 +991,6 @@
 
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
-        <div class="daily-quote" id="dailyQuote">
-          <div class="daily-quote-mark">&ldquo;</div>
-          <div>
-            <div class="daily-quote-text" id="dailyQuoteText"></div>
-            <div class="daily-quote-attr">Warren Buffett</div>
-          </div>
-        </div>
         <div class="stat-grid" id="dash-stats">
           <div class="state-box"><span class="spinner"></span></div>
         </div>
@@ -1009,7 +1021,16 @@
 
       <!-- Portfolio -->
       <div class="page" id="page-portfolio">
-        <div class="stat-grid" id="port-stats"></div>
+        <div class="port-top-row">
+          <div class="stat-grid port-stat-grid" id="port-stats"></div>
+          <div class="daily-quote" id="dailyQuote">
+            <div class="daily-quote-mark">&ldquo;</div>
+            <div>
+              <div class="daily-quote-text" id="dailyQuoteText"></div>
+              <div class="daily-quote-attr">Warren Buffett</div>
+            </div>
+          </div>
+        </div>
         <div class="chart-wrap" id="port-treemap-wrap" style="display:none">
           <div class="chart-title">Allocation by Market Value</div>
           <canvas id="portTreemap"></canvas>
