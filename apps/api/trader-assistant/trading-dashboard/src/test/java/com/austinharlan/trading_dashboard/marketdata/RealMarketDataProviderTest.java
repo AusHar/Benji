@@ -52,11 +52,14 @@ class RealMarketDataProviderTest {
             .setBody(
                 """
                 {
-                  "Global Quote": {
-                    "01. symbol": "AAPL",
-                    "05. price": "123.45",
-                    "07. latest trading day": "2024-09-15"
-                  }
+                  "c": 123.45,
+                  "d": 1.23,
+                  "dp": 1.01,
+                  "h": 124.00,
+                  "l": 122.50,
+                  "o": 122.80,
+                  "pc": 122.22,
+                  "t": 1726358400
                 }
                 """));
 
@@ -66,7 +69,7 @@ class RealMarketDataProviderTest {
 
     assertThat(quote.symbol()).isEqualTo("AAPL");
     assertThat(quote.price()).isEqualByComparingTo(new BigDecimal("123.45"));
-    assertThat(quote.timestamp()).isEqualTo(Instant.parse("2024-09-15T00:00:00Z"));
+    assertThat(quote.timestamp()).isEqualTo(Instant.ofEpochSecond(1726358400L));
   }
 
   @Test
@@ -81,20 +84,33 @@ class RealMarketDataProviderTest {
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
         .isInstanceOf(MarketDataClientException.class)
-        .hasMessageContaining("AlphaVantage error");
+        .hasMessageContaining("Finnhub error");
   }
 
   @Test
-  void shouldThrowWhenResponseMissingGlobalQuote() {
+  void shouldThrowWhenQuotePriceIsZero() {
+    // Finnhub returns c=0 for unknown or unresolvable symbols
     server.enqueue(
         new MockResponse()
             .setResponseCode(200)
             .addHeader("Content-Type", "application/json")
-            .setBody("{\"message\":\"Invalid\"}"));
+            .setBody(
+                """
+                {
+                  "c": 0,
+                  "d": 0,
+                  "dp": 0,
+                  "h": 0,
+                  "l": 0,
+                  "o": 0,
+                  "pc": 0,
+                  "t": 0
+                }
+                """));
 
     RealMarketDataProvider provider = provider();
 
-    assertThatThrownBy(() -> provider.getQuote("AAPL"))
+    assertThatThrownBy(() -> provider.getQuote("INVALID"))
         .isInstanceOf(QuoteNotFoundException.class)
         .hasMessageContaining("Quote was not found");
   }
@@ -105,34 +121,13 @@ class RealMarketDataProviderTest {
         new MockResponse()
             .setResponseCode(429)
             .addHeader("Content-Type", "application/json")
-            .setBody("{\"message\":\"Too many requests\"}"));
+            .setBody("{\"error\":\"API limit reached.\"}"));
 
     RealMarketDataProvider provider = provider();
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
         .isInstanceOf(MarketDataRateLimitException.class)
         .hasMessageContaining("rate limit");
-  }
-
-  @Test
-  void shouldSurfaceRateLimitWhenNoteInPayload() {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "Note": "Thank you for using Alpha Vantage! ... API call frequency is 5 per minute.",
-                  "Global Quote": {}
-                }
-                """));
-
-    RealMarketDataProvider provider = provider();
-
-    assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataRateLimitException.class)
-        .hasMessageContaining("API call frequency");
   }
 
   @Test
@@ -147,11 +142,14 @@ class RealMarketDataProviderTest {
             .setBody(
                 """
                 {
-                  "Global Quote": {
-                    "01. symbol": "AAPL",
-                    "05. price": "123.45",
-                    "07. latest trading day": "2024-09-15"
-                  }
+                  "c": 123.45,
+                  "d": 1.23,
+                  "dp": 1.01,
+                  "h": 124.00,
+                  "l": 122.50,
+                  "o": 122.80,
+                  "pc": 122.22,
+                  "t": 1726358400
                 }
                 """));
 
@@ -190,8 +188,102 @@ class RealMarketDataProviderTest {
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
         .isInstanceOf(MarketDataClientException.class)
-        .hasMessageContaining("AlphaVantage error");
+        .hasMessageContaining("Finnhub error");
     assertThat(server.getRequestCount()).isEqualTo(3);
+  }
+
+  @Test
+  void shouldReturnHistoryWhenCandleApiResponds() {
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody(
+                """
+                {
+                  "c": [150.10, 152.50],
+                  "h": [151.00, 153.00],
+                  "l": [149.00, 151.50],
+                  "o": [149.50, 151.00],
+                  "s": "ok",
+                  "t": [1690848000, 1690934400],
+                  "v": [34000000, 28000000]
+                }
+                """));
+
+    RealMarketDataProvider provider = provider();
+
+    java.util.List<DailyBar> bars = provider.getDailyHistory("AAPL");
+
+    assertThat(bars).hasSize(2);
+    assertThat(bars.get(0).close()).isEqualByComparingTo(new BigDecimal("150.1"));
+    assertThat(bars.get(1).close()).isEqualByComparingTo(new BigDecimal("152.5"));
+    assertThat(bars.get(0).date()).isBefore(bars.get(1).date());
+  }
+
+  @Test
+  void shouldThrowWhenCandleStatusIsNoData() {
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody("{\"s\":\"no_data\"}"));
+
+    RealMarketDataProvider provider = provider();
+
+    assertThatThrownBy(() -> provider.getDailyHistory("INVALID"))
+        .isInstanceOf(QuoteNotFoundException.class)
+        .hasMessageContaining("History was not found");
+  }
+
+  @Test
+  void shouldReturnOverviewFromProfileAndMetrics() {
+    // profile2 response
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody(
+                """
+                {
+                  "name": "Apple Inc",
+                  "finnhubIndustry": "Technology",
+                  "marketCapitalization": 3032893.0,
+                  "ticker": "AAPL",
+                  "country": "US"
+                }
+                """));
+    // metric response
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody(
+                """
+                {
+                  "metric": {
+                    "52WeekHigh": 199.62,
+                    "52WeekLow": 124.17,
+                    "beta": 1.2,
+                    "dividendYieldIndicatedAnnual": 0.0055,
+                    "epsInclExtraItemsTTM": 6.26,
+                    "peTTM": 29.48
+                  }
+                }
+                """));
+
+    RealMarketDataProvider provider = provider();
+
+    CompanyOverview overview = provider.getOverview("AAPL");
+
+    assertThat(overview.symbol()).isEqualTo("AAPL");
+    assertThat(overview.name()).isEqualTo("Apple Inc");
+    assertThat(overview.sector()).isEqualTo("Technology");
+    // marketCap is marketCapitalization (millions) * 1_000_000
+    assertThat(overview.marketCap())
+        .isEqualByComparingTo(new BigDecimal("3032893000000.0"));
+    assertThat(overview.pe()).isEqualByComparingTo(new BigDecimal("29.48"));
+    assertThat(overview.beta()).isEqualByComparingTo(new BigDecimal("1.2"));
   }
 
   private RealMarketDataProvider provider(String... activeProfiles) {
