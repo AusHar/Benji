@@ -8,8 +8,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -238,39 +240,48 @@ class RealMarketDataProviderTest {
 
   @Test
   void shouldReturnOverviewFromProfileAndMetrics() {
-    // profile2 response
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "name": "Apple Inc",
-                  "finnhubIndustry": "Technology",
-                  "marketCapitalization": 3032893.0,
-                  "ticker": "AAPL",
-                  "country": "US"
-                }
-                """));
-    // metric response
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "metric": {
-                    "52WeekHigh": 199.62,
-                    "52WeekLow": 124.17,
-                    "beta": 1.2,
-                    "dividendYieldIndicatedAnnual": 0.0055,
-                    "epsInclExtraItemsTTM": 6.26,
-                    "peTTM": 29.48
-                  }
-                }
-                """));
+    // Use a dispatcher so concurrent profile2 + metric requests are routed correctly
+    // regardless of which arrives first (Mono.zip fires them in parallel).
+    server.setDispatcher(
+        new Dispatcher() {
+          @Override
+          public MockResponse dispatch(RecordedRequest request) {
+            String path = request.getPath();
+            if (path != null && path.contains("/stock/profile2")) {
+              return new MockResponse()
+                  .setResponseCode(200)
+                  .addHeader("Content-Type", "application/json")
+                  .setBody(
+                      """
+                      {
+                        "name": "Apple Inc",
+                        "finnhubIndustry": "Technology",
+                        "marketCapitalization": 3032893.0,
+                        "ticker": "AAPL",
+                        "country": "US"
+                      }
+                      """);
+            } else if (path != null && path.contains("/stock/metric")) {
+              return new MockResponse()
+                  .setResponseCode(200)
+                  .addHeader("Content-Type", "application/json")
+                  .setBody(
+                      """
+                      {
+                        "metric": {
+                          "52WeekHigh": 199.62,
+                          "52WeekLow": 124.17,
+                          "beta": 1.2,
+                          "dividendYieldIndicatedAnnual": 0.0055,
+                          "epsInclExtraItemsTTM": 6.26,
+                          "peTTM": 29.48
+                        }
+                      }
+                      """);
+            }
+            return new MockResponse().setResponseCode(404);
+          }
+        });
 
     RealMarketDataProvider provider = provider();
 
