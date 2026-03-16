@@ -282,6 +282,40 @@
       margin-bottom: 28px;
     }
 
+    /* ── Daily quote ─────────────────────────── */
+    .daily-quote {
+      background: var(--forest-deep);
+      border-radius: var(--radius-md);
+      padding: 18px 22px 16px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .daily-quote-mark {
+      font-size: 38px;
+      line-height: 1;
+      color: var(--forest-soft);
+      flex-shrink: 0;
+      margin-top: -4px;
+      font-family: Georgia, serif;
+    }
+    .daily-quote-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255,255,255,.78);
+      font-style: italic;
+    }
+    .daily-quote-attr {
+      margin-top: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--sage);
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      font-style: normal;
+    }
+
     /* ── Section label ───────────────────────── */
     .section-head {
       display: flex;
@@ -938,6 +972,13 @@
 
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
+        <div class="daily-quote" id="dailyQuote">
+          <div class="daily-quote-mark">&ldquo;</div>
+          <div>
+            <div class="daily-quote-text" id="dailyQuoteText"></div>
+            <div class="daily-quote-attr">Warren Buffett</div>
+          </div>
+        </div>
         <div class="stat-grid" id="dash-stats">
           <div class="state-box"><span class="spinner"></span></div>
         </div>
@@ -1080,6 +1121,7 @@
     document.getElementById('app').style.display     = 'flex';
     document.getElementById('pageDate').textContent  = today();
     go('dashboard');
+    initDailyQuote();
     startTicker();
   }
 
@@ -1834,6 +1876,46 @@
       canvas._ro = new ResizeObserver(() => { if (wrap.style.display !== 'none') render(); });
       canvas._ro.observe(canvas);
     }
+  }
+
+  /* ── Daily Buffett quote ─────────────────── */
+  const BUFFETT_QUOTES = [
+    "Rule No. 1: Never lose money. Rule No. 2: Never forget Rule No. 1.",
+    "Price is what you pay. Value is what you get.",
+    "It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",
+    "The stock market is a device for transferring money from the impatient to the patient.",
+    "Risk comes from not knowing what you're doing.",
+    "Be fearful when others are greedy and greedy when others are fearful.",
+    "Our favorite holding period is forever.",
+    "Someone's sitting in the shade today because someone planted a tree a long time ago.",
+    "The best investment you can make is in yourself.",
+    "It takes 20 years to build a reputation and five minutes to ruin it.",
+    "I never attempt to make money on the stock market. I buy on the assumption that they could close the market the next day and not reopen it for five years.",
+    "Wide diversification is only required when investors do not understand what they are doing.",
+    "Only buy something that you'd be perfectly happy to hold if the market shut down for ten years.",
+    "In the short run, the market is a voting machine. In the long run, it is a weighing machine.",
+    "The most important quality for an investor is temperament, not intellect.",
+    "Time is the friend of the wonderful company, the enemy of the mediocre.",
+    "If you aren't willing to own a stock for ten years, don't even think about owning it for ten minutes.",
+    "Opportunities come infrequently. When it rains gold, put out the bucket, not the thimble.",
+    "The difference between successful people and really successful people is that really successful people say no to almost everything.",
+    "I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.",
+    "Chains of habit are too light to be felt until they are too heavy to be broken.",
+    "You only have to do a very few things right in your life so long as you don't do too many things wrong.",
+    "It's not necessary to do extraordinary things to get extraordinary results.",
+    "We don't have to be smarter than the rest; we have to be more disciplined than the rest.",
+    "The investor of today does not profit from yesterday's growth.",
+    "Never invest in a business you cannot understand.",
+    "Forecasts may tell you a great deal about the forecaster; they tell you nothing about the future.",
+    "You do things when the opportunities come along. I've had periods in my life when I've had a bundle of ideas come along, and I've had long dry spells.",
+    "Diversification is a protection against ignorance. It makes little sense for those who know what they're doing.",
+    "The most important thing to do if you find yourself in a hole is to stop digging.",
+  ];
+
+  function initDailyQuote() {
+    const day = Math.floor(Date.now() / 86_400_000);
+    const quote = BUFFETT_QUOTES[day % BUFFETT_QUOTES.length];
+    document.getElementById('dailyQuoteText').textContent = quote;
   }
 
   /* ── Ticker bar ─────────────────────────── */
