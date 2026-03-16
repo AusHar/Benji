@@ -1,11 +1,17 @@
 package com.austinharlan.trading_dashboard.controllers;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
+import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioSnapshot;
 import com.austinharlan.trading_dashboard.service.PortfolioService;
 import java.math.BigDecimal;
@@ -17,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = PortfolioController.class)
@@ -74,5 +81,44 @@ class PortfolioControllerTest {
     when(portfolioService.summarize()).thenReturn(Optional.empty());
 
     mockMvc.perform(get("/api/portfolio/summary")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void addPortfolioPositionCreatesAndReturns201() throws Exception {
+    PortfolioHolding holding =
+        new PortfolioHolding("AAPL", new BigDecimal("10.5"), new BigDecimal("1890.00"));
+    when(portfolioService.addHolding(any(), any(), any())).thenReturn(holding);
+
+    mockMvc
+        .perform(
+            post("/api/portfolio/positions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"ticker":"AAPL","quantity":10.5,"price_per_share":180.00}
+                    """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.ticker").value("AAPL"))
+        .andExpect(jsonPath("$.quantity").value(10.5))
+        .andExpect(jsonPath("$.cost_basis").value(1890.00));
+  }
+
+  @Test
+  void deletePortfolioPositionReturns204() throws Exception {
+    doNothing().when(portfolioService).deleteHolding("AAPL");
+
+    mockMvc.perform(delete("/api/portfolio/positions/AAPL")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void deletePortfolioPositionReturns404WhenNotFound() throws Exception {
+    doThrow(new PortfolioPositionNotFoundException("AAPL"))
+        .when(portfolioService)
+        .deleteHolding("AAPL");
+
+    mockMvc
+        .perform(delete("/api/portfolio/positions/AAPL"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("POSITION_NOT_FOUND"));
   }
 }

@@ -4,9 +4,11 @@ import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioSnapshot;
 import com.austinharlan.trading_dashboard.service.PortfolioService;
 import com.austinharlan.tradingdashboard.api.PortfolioApi;
+import com.austinharlan.tradingdashboard.dto.AddPositionRequest;
 import com.austinharlan.tradingdashboard.dto.PortfolioPosition;
 import com.austinharlan.tradingdashboard.dto.PortfolioPositionsResponse;
 import com.austinharlan.tradingdashboard.dto.PortfolioSummary;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -42,6 +44,22 @@ public class PortfolioController implements PortfolioApi {
         .map(this::toDto)
         .map(ResponseEntity::ok)
         .orElseGet(() -> ResponseEntity.noContent().build());
+  }
+
+  @Override
+  public ResponseEntity<PortfolioPosition> addPortfolioPosition(AddPositionRequest request) {
+    PortfolioHolding holding =
+        portfolioService.addHolding(
+            request.getTicker().toUpperCase().strip(),
+            BigDecimal.valueOf(request.getQuantity()),
+            BigDecimal.valueOf(request.getPricePerShare()));
+    return ResponseEntity.status(201).body(toDto(holding));
+  }
+
+  @Override
+  public ResponseEntity<Void> deletePortfolioPosition(String ticker) {
+    portfolioService.deleteHolding(ticker.toUpperCase().strip());
+    return ResponseEntity.noContent().build();
   }
 
   private PortfolioPosition toDto(PortfolioHolding holding) {

@@ -181,6 +181,51 @@ paths:
                 $ref: '#/components/schemas/PortfolioPositionsResponse'
         '204':
           description: No portfolio positions available.
+    post:
+      tags:
+        - Portfolio
+      operationId: addPortfolioPosition
+      summary: Add shares to a position using the average cost basis method. Creates the position if it does not exist.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPositionRequest'
+      responses:
+        '201':
+          description: Position created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioPosition'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/portfolio/positions/{ticker}:
+    delete:
+      tags:
+        - Portfolio
+      operationId: deletePortfolioPosition
+      summary: Remove a position entirely from the portfolio.
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Position deleted.
+        '404':
+          description: Position not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/portfolio/summary:
     get:
       tags:
@@ -302,6 +347,29 @@ components:
           description: Portfolio positions persisted by the ingestion pipeline.
           items:
             $ref: '#/components/schemas/PortfolioPosition'
+    AddPositionRequest:
+      type: object
+      required:
+        - ticker
+        - quantity
+        - price_per_share
+      properties:
+        ticker:
+          type: string
+          description: Ticker symbol to add shares for.
+          example: AAPL
+        quantity:
+          type: number
+          format: double
+          description: Number of shares to add.
+          minimum: 0.000001
+          example: 10.5
+        price_per_share:
+          type: number
+          format: double
+          description: Purchase price per share used to compute the cost basis contribution.
+          minimum: 0.000001
+          example: 180.00
     PortfolioPosition:
       type: object
       required:

@@ -3,6 +3,7 @@ package com.austinharlan.trading_dashboard.controllers;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.QuoteNotFoundException;
+import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.tradingdashboard.dto.ErrorResponse;
 import java.util.Arrays;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,12 @@ class ApiExceptionHandler {
   @ExceptionHandler(QuoteNotFoundException.class)
   ResponseEntity<ErrorResponse> handleQuoteNotFound(QuoteNotFoundException ex) {
     return build(HttpStatus.NOT_FOUND, "QUOTE_NOT_FOUND", ex.getMessage());
+  }
+
+  @ExceptionHandler(PortfolioPositionNotFoundException.class)
+  ResponseEntity<ErrorResponse> handlePortfolioPositionNotFound(
+      PortfolioPositionNotFoundException ex) {
+    return build(HttpStatus.NOT_FOUND, "POSITION_NOT_FOUND", ex.getMessage());
   }
 
   @ExceptionHandler(MarketDataClientException.class)

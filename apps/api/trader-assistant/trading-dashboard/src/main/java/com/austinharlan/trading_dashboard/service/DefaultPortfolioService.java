@@ -3,6 +3,7 @@ package com.austinharlan.trading_dashboard.service;
 import com.austinharlan.trading_dashboard.persistence.PortfolioPositionEntity;
 import com.austinharlan.trading_dashboard.persistence.PortfolioPositionRepository;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
+import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioSnapshot;
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,33 @@ public class DefaultPortfolioService implements PortfolioService {
         holdings.stream().map(PortfolioHolding::costBasis).reduce(BigDecimal.ZERO, BigDecimal::add);
 
     return Optional.of(new PortfolioSnapshot(holdings.size(), totalQuantity, totalCostBasis));
+  }
+
+  @Override
+  @Transactional
+  public PortfolioHolding addHolding(String ticker, BigDecimal quantity, BigDecimal pricePerShare) {
+    BigDecimal costContribution = quantity.multiply(pricePerShare);
+    PortfolioPositionEntity entity =
+        repository
+            .findByTicker(ticker)
+            .map(
+                existing -> {
+                  existing.setQty(existing.getQty().add(quantity));
+                  existing.setBasis(existing.getBasis().add(costContribution));
+                  return existing;
+                })
+            .orElseGet(() -> new PortfolioPositionEntity(ticker, quantity, costContribution));
+    return toHolding(repository.save(entity));
+  }
+
+  @Override
+  @Transactional
+  public void deleteHolding(String ticker) {
+    PortfolioPositionEntity entity =
+        repository
+            .findByTicker(ticker)
+            .orElseThrow(() -> new PortfolioPositionNotFoundException(ticker));
+    repository.delete(entity);
   }
 
   private PortfolioHolding toHolding(PortfolioPositionEntity entity) {

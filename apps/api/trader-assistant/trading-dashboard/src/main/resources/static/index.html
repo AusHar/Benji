@@ -666,6 +666,71 @@
       box-shadow: var(--shadow-md);
     }
 
+    /* ── Modal ───────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(19,31,23,.45);
+      z-index: 8000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-lg);
+      padding: 28px 30px 24px;
+      width: 340px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .modal h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 20px;
+    }
+
+    .modal .field-group { display: flex; flex-direction: column; gap: 14px; }
+
+    .modal .field-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 5px;
+    }
+
+    .modal .field {
+      width: 100%;
+      padding: 8px 11px;
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      background: var(--cream);
+      color: var(--text-dark);
+    }
+
+    .modal .field:focus { outline: none; border-color: var(--forest-body); }
+
+    .modal-err {
+      font-size: 12px;
+      color: var(--negative);
+      min-height: 16px;
+      margin-top: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 22px;
+    }
+
     /* ── Watchlist tile controls ─────────────── */
     .quote-tile { position: relative; }
 
@@ -861,6 +926,7 @@
         </div>
         <div class="section-head" style="margin-bottom:14px;margin-top:22px">
           <span class="section-title">Positions</span>
+          <button class="btn btn-primary btn-sm" onclick="openAddPosition()">+ Add Position</button>
         </div>
         <div class="table-wrap" id="port-table">
           <div class="state-box"><span class="spinner"></span></div>
@@ -891,6 +957,31 @@
 </div>
 
 <div id="treemap-tip"></div>
+
+<div class="modal-backdrop" id="addPositionModal">
+  <div class="modal">
+    <h3>Add Position</h3>
+    <div class="field-group">
+      <div>
+        <div class="field-label">Ticker</div>
+        <input class="field" id="ap-ticker" type="text" placeholder="e.g. AAPL" autocomplete="off" style="text-transform:uppercase">
+      </div>
+      <div>
+        <div class="field-label">Shares</div>
+        <input class="field" id="ap-qty" type="number" placeholder="10.5" min="0.000001" step="any">
+      </div>
+      <div>
+        <div class="field-label">Price Per Share ($)</div>
+        <input class="field" id="ap-price" type="number" placeholder="180.00" min="0.000001" step="any">
+      </div>
+    </div>
+    <div class="modal-err" id="ap-err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="closeAddPosition()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="ap-submit" onclick="submitAddPosition()">Add</button>
+    </div>
+  </div>
+</div>
 
 <script>
   let KEY = '';
@@ -1390,7 +1481,7 @@
       `<table>
         <thead><tr>
           <th>Ticker</th><th>Shares</th><th>Avg Cost</th>
-          <th>Price</th><th>Mkt Value</th><th>P&L</th><th>%</th>
+          <th>Price</th><th>Mkt Value</th><th>P&L</th><th>%</th><th></th>
         </tr></thead>
         <tbody>
           ${positions.map(x => {
@@ -1407,6 +1498,7 @@
               <td>${mktVal != null ? money(mktVal) : '--'}</td>
               <td class="${cls}">${pnl != null ? (pnl >= 0 ? '+' : '') + money(pnl) : '--'}</td>
               <td class="${cls}">${pct != null ? (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%' : '--'}</td>
+              <td><button class="btn btn-sm" style="color:var(--negative);padding:2px 8px;font-size:12px" onclick="deletePosition('${x.ticker}')">Remove</button></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1469,6 +1561,78 @@
 
   document.getElementById('filterBtn').addEventListener('click', () => {
     loadFinance(document.getElementById('catFilter').value || undefined);
+  });
+
+  /* ── Add / Delete Position ──────────────── */
+  function openAddPosition() {
+    document.getElementById('ap-ticker').value = '';
+    document.getElementById('ap-qty').value    = '';
+    document.getElementById('ap-price').value  = '';
+    document.getElementById('ap-err').textContent = '';
+    document.getElementById('addPositionModal').classList.add('open');
+    document.getElementById('ap-ticker').focus();
+  }
+
+  function closeAddPosition() {
+    document.getElementById('addPositionModal').classList.remove('open');
+  }
+
+  async function submitAddPosition() {
+    const ticker = document.getElementById('ap-ticker').value.trim().toUpperCase();
+    const qty    = parseFloat(document.getElementById('ap-qty').value);
+    const price  = parseFloat(document.getElementById('ap-price').value);
+    const errEl  = document.getElementById('ap-err');
+    const btn    = document.getElementById('ap-submit');
+
+    if (!ticker)          { errEl.textContent = 'Ticker is required.'; return; }
+    if (!(qty > 0))       { errEl.textContent = 'Shares must be greater than 0.'; return; }
+    if (!(price > 0))     { errEl.textContent = 'Price must be greater than 0.'; return; }
+
+    btn.disabled = true;
+    errEl.textContent = '';
+    try {
+      const r = await fetch('/api/portfolio/positions', {
+        method: 'POST',
+        headers: { 'X-API-KEY': KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, quantity: qty, price_per_share: price }),
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        errEl.textContent = body.message || 'Failed to add position.';
+        return;
+      }
+      closeAddPosition();
+      loadPortfolio();
+    } catch {
+      errEl.textContent = 'Network error.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function deletePosition(ticker) {
+    if (!confirm(`Remove ${ticker} from your portfolio?`)) return;
+    try {
+      const r = await fetch('/api/portfolio/positions/' + encodeURIComponent(ticker), {
+        method: 'DELETE',
+        headers: { 'X-API-KEY': KEY },
+      });
+      if (r.ok || r.status === 204) loadPortfolio();
+    } catch { /* ignore */ }
+  }
+
+  document.getElementById('addPositionModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAddPosition();
+  });
+
+  document.getElementById('ap-ticker').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('ap-qty').focus();
+  });
+  document.getElementById('ap-qty').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('ap-price').focus();
+  });
+  document.getElementById('ap-price').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitAddPosition();
   });
 
   /* ── Treemap ────────────────────────────── */
