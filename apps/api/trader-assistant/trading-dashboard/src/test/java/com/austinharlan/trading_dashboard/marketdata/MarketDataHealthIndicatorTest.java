@@ -70,11 +70,12 @@ class MarketDataHealthIndicatorTest {
             .setBody(
                 """
                 {
-                  "Global Quote": {
-                    "01. symbol": "AAPL",
-                    "05. price": "123.45",
-                    "07. latest trading day": "2024-10-01"
-                  }
+                  "c": 123.45,
+                  "h": 124.00,
+                  "l": 122.00,
+                  "o": 122.50,
+                  "pc": 122.22,
+                  "t": 1727740800
                 }
                 """));
 

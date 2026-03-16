@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Tracks the number of Finnhub API calls made in the current one-minute window. Thread-safe,
- * resets whenever a full minute has elapsed since the window started.
+ * Tracks the number of Finnhub API calls made in the current one-minute window. Thread-safe, resets
+ * whenever a full minute has elapsed since the window started.
  */
 @Component
 @Profile("!dev")

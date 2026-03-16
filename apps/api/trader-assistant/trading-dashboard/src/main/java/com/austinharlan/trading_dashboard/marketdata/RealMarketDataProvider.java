@@ -39,8 +39,7 @@ import reactor.util.retry.RetryBackoffSpec;
 @Component
 @Profile("!dev")
 public class RealMarketDataProvider implements MarketDataProvider {
-  private static final Set<String> NULL_MARKERS =
-      Set.of("none", "-", "null", "");
+  private static final Set<String> NULL_MARKERS = Set.of("none", "-", "null", "");
 
   private static final Logger log = LoggerFactory.getLogger(RealMarketDataProvider.class);
 
@@ -117,8 +116,7 @@ public class RealMarketDataProvider implements MarketDataProvider {
     quotaTracker.increment();
     quotaTracker.increment();
     Mono<JsonNode> profileMono = retrieveEndpoint("/stock/profile2", symbol, Map.of());
-    Mono<JsonNode> metricMono =
-        retrieveEndpoint("/stock/metric", symbol, Map.of("metric", "all"));
+    Mono<JsonNode> metricMono = retrieveEndpoint("/stock/metric", symbol, Map.of("metric", "all"));
     return Mono.zip(profileMono, metricMono)
         .map(tuple -> toOverview(symbol, tuple.getT1(), tuple.getT2()))
         .block(properties.getReadTimeout());
@@ -183,16 +181,11 @@ public class RealMarketDataProvider implements MarketDataProvider {
                                         .formatted(clientResponse.statusCode(), body))))
             .bodyToMono(JsonNode.class)
             .doOnSubscribe(sub -> log.debug("Requesting Finnhub {} for {}", path, symbol))
-            .doOnSuccess(
-                body -> log.debug("Received Finnhub {} payload for {}", path, symbol))
+            .doOnSuccess(body -> log.debug("Received Finnhub {} payload for {}", path, symbol))
             .doOnError(
                 ex ->
                     log.warn(
-                        "Finnhub {} request for {} failed: {}",
-                        path,
-                        symbol,
-                        ex.getMessage(),
-                        ex))
+                        "Finnhub {} request for {} failed: {}", path, symbol, ex.getMessage(), ex))
             .onErrorMap(
                 WebClientResponseException.class,
                 ex ->
@@ -268,9 +261,8 @@ public class RealMarketDataProvider implements MarketDataProvider {
             ? marketCapMillions.multiply(BigDecimal.valueOf(1_000_000))
             : null;
 
-    JsonNode metric = (metricRoot != null && !metricRoot.isMissingNode())
-        ? metricRoot.path("metric")
-        : null;
+    JsonNode metric =
+        (metricRoot != null && !metricRoot.isMissingNode()) ? metricRoot.path("metric") : null;
 
     BigDecimal pe = metric != null ? safeBigDecimal(metric, "peTTM") : null;
     BigDecimal eps = metric != null ? safeBigDecimal(metric, "epsInclExtraItemsTTM") : null;
@@ -280,8 +272,8 @@ public class RealMarketDataProvider implements MarketDataProvider {
     BigDecimal high52 = metric != null ? safeBigDecimal(metric, "52WeekHigh") : null;
     BigDecimal low52 = metric != null ? safeBigDecimal(metric, "52WeekLow") : null;
 
-    return new CompanyOverview(symbol, name, sector, null, marketCap, pe, eps, dividendYield,
-        beta, high52, low52);
+    return new CompanyOverview(
+        symbol, name, sector, null, marketCap, pe, eps, dividendYield, beta, high52, low52);
   }
 
   // ── History parsing ────────────────────────────────────────────────────────
@@ -311,9 +303,7 @@ public class RealMarketDataProvider implements MarketDataProvider {
     for (int i = 0; i < closes.size(); i++) {
       try {
         LocalDate date =
-            Instant.ofEpochSecond(timestamps.get(i).asLong())
-                .atZone(ZoneOffset.UTC)
-                .toLocalDate();
+            Instant.ofEpochSecond(timestamps.get(i).asLong()).atZone(ZoneOffset.UTC).toLocalDate();
         bars.add(
             new DailyBar(
                 date,
