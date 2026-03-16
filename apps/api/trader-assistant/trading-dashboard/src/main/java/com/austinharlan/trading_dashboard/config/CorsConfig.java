@@ -25,7 +25,7 @@ class CorsConfig {
         && !corsProperties.getAllowedOrigins().isEmpty()) {
       configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
     } else {
-      configuration.setAllowedOrigins(List.of());
+      configuration.setAllowedOrigins(List.of("*"));
     }
 
     configuration.setAllowedMethods(
