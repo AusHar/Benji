@@ -329,7 +329,6 @@ components:
           format: double
           description: Percentage change from the previous close.
           example: 1.25
-          nullable: true
         as_of:
           type: string
           format: date-time
