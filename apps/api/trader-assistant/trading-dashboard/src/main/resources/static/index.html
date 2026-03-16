@@ -1598,13 +1598,16 @@
       });
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
-        errEl.textContent = body.message || 'Failed to add position.';
+        console.error('Add position failed', r.status, body);
+        const details = body.details?.length ? ' (' + body.details.join('; ') + ')' : '';
+        errEl.textContent = (body.message || 'Failed to add position.') + details;
         return;
       }
       closeAddPosition();
       loadPortfolio();
-    } catch {
-      errEl.textContent = 'Network error.';
+    } catch (err) {
+      console.error('Add position network error', err);
+      errEl.textContent = 'Network error — check your connection.';
     } finally {
       btn.disabled = false;
     }
@@ -1617,8 +1620,17 @@
         method: 'DELETE',
         headers: { 'X-API-KEY': KEY },
       });
-      if (r.ok || r.status === 204) loadPortfolio();
-    } catch { /* ignore */ }
+      if (r.ok || r.status === 204) {
+        loadPortfolio();
+      } else {
+        const body = await r.json().catch(() => ({}));
+        console.error('Delete position failed', r.status, body);
+        alert(body.message || 'Failed to remove position (' + r.status + ').');
+      }
+    } catch (err) {
+      console.error('Delete position network error', err);
+      alert('Network error — could not remove position.');
+    }
   }
 
   document.getElementById('addPositionModal').addEventListener('click', e => {

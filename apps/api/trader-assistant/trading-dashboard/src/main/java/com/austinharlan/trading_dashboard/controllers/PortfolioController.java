@@ -8,12 +8,14 @@ import com.austinharlan.tradingdashboard.dto.AddPositionRequest;
 import com.austinharlan.tradingdashboard.dto.PortfolioPosition;
 import com.austinharlan.tradingdashboard.dto.PortfolioPositionsResponse;
 import com.austinharlan.tradingdashboard.dto.PortfolioSummary;
+import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -47,7 +49,8 @@ public class PortfolioController implements PortfolioApi {
   }
 
   @Override
-  public ResponseEntity<PortfolioPosition> addPortfolioPosition(AddPositionRequest request) {
+  public ResponseEntity<PortfolioPosition> addPortfolioPosition(
+      @Valid @RequestBody AddPositionRequest request) {
     PortfolioHolding holding =
         portfolioService.addHolding(
             request.getTicker().toUpperCase().strip(),

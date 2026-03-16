@@ -6,13 +6,21 @@ import com.austinharlan.trading_dashboard.marketdata.QuoteNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.tradingdashboard.dto.ErrorResponse;
 import java.util.Arrays;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 class ApiExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
   @ExceptionHandler(MarketDataRateLimitException.class)
   ResponseEntity<ErrorResponse> handleMarketDataRateLimitException(
@@ -39,6 +47,37 @@ class ApiExceptionHandler {
   @ExceptionHandler(MarketDataClientException.class)
   ResponseEntity<ErrorResponse> handleMarketDataClientException(MarketDataClientException ex) {
     return build(HttpStatus.BAD_GATEWAY, "PROVIDER_ERROR", ex.getMessage());
+  }
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+    List<String> fieldErrors =
+        ex.getBindingResult().getAllErrors().stream()
+            .map(
+                err -> {
+                  if (err instanceof FieldError fe) {
+                    return fe.getField() + ": " + fe.getDefaultMessage();
+                  }
+                  return err.getDefaultMessage();
+                })
+            .toList();
+    String summary =
+        fieldErrors.isEmpty() ? "Request validation failed." : String.join("; ", fieldErrors);
+    return build(
+        HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", summary, fieldErrors.toArray(new String[0]));
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+    return build(
+        HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Request body is missing or not valid JSON.");
+  }
+
+  @ExceptionHandler(Exception.class)
+  ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
+    log.error("Unhandled exception", ex);
+    return build(
+        HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred.");
   }
 
   private ResponseEntity<ErrorResponse> build(
