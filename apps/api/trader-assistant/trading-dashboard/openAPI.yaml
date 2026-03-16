@@ -123,6 +123,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/quotes/{symbol}/news:
+    get:
+      tags:
+        - Quotes
+      operationId: getQuoteNews
+      summary: Retrieve recent company news for a ticker symbol.
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Equity or ETF ticker symbol (case insensitive).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 12
+      responses:
+        '200':
+          description: Recent news articles for the symbol.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsResponse'
+        '204':
+          description: No news available for the symbol.
+        '400':
+          description: Invalid ticker was provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/marketdata/quota:
     get:
       tags:
@@ -535,6 +565,55 @@ components:
           description: Additional detail strings.
           items:
             type: string
+    NewsResponse:
+      type: object
+      required:
+        - symbol
+        - articles
+      properties:
+        symbol:
+          type: string
+          description: Requested ticker symbol.
+          example: AAPL
+        articles:
+          type: array
+          description: Recent news articles ordered newest first.
+          items:
+            $ref: '#/components/schemas/NewsArticle'
+    NewsArticle:
+      type: object
+      required:
+        - id
+        - headline
+        - source
+        - url
+        - published_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique article identifier.
+        headline:
+          type: string
+          description: Article headline.
+          example: Apple reports record quarterly earnings
+        summary:
+          type: string
+          description: Brief article summary.
+        source:
+          type: string
+          description: News source name.
+          example: Reuters
+        url:
+          type: string
+          description: Link to the full article.
+        image:
+          type: string
+          description: Thumbnail image URL.
+        published_at:
+          type: string
+          format: date-time
+          description: Publication timestamp.
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

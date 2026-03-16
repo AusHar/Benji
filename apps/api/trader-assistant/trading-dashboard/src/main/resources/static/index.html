@@ -581,6 +581,48 @@
     .rate-limit-banner .rl-title { font-size: 14px; font-weight: 600; color: var(--negative); margin-bottom: 4px; }
     .rate-limit-banner .rl-sub   { font-size: 12.5px; color: var(--text-muted); }
 
+    /* ── News ───────────────────────────────── */
+    .news-list { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+
+    .news-item {
+      background: var(--cream-card);
+      border: 1px solid var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      text-decoration: none;
+      transition: background .12s;
+    }
+
+    .news-item:hover { background: var(--cream); }
+
+    .news-thumb {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--cream-border);
+    }
+
+    .news-body { flex: 1; min-width: 0; }
+
+    .news-headline {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dark);
+      line-height: 1.45;
+      margin-bottom: 5px;
+    }
+
+    .news-meta {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
     /* ── Chart ──────────────────────────────── */
     .chart-wrap {
       background: var(--cream-card);
@@ -605,6 +647,68 @@
       letter-spacing: .5px;
       margin-bottom: 12px;
     }
+
+    /* ── Watchlist tile controls ─────────────── */
+    .quote-tile { position: relative; }
+
+    .qt-remove {
+      position: absolute;
+      top: 6px; right: 7px;
+      width: 16px; height: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: color .12s, background .12s;
+    }
+
+    .qt-remove:hover { color: var(--negative); background: rgba(122,48,32,.08); }
+    .watchlist-editing .qt-remove { display: flex; }
+
+    .qt-add-tile {
+      background: var(--cream-card);
+      border: 1px dashed var(--cream-border);
+      border-radius: var(--radius-md);
+      padding: 15px 16px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .watchlist-editing .qt-add-tile { display: flex; }
+
+    .qt-add-tile input {
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-dark);
+      outline: none;
+      width: 70px;
+      text-transform: uppercase;
+    }
+
+    .qt-add-tile input::placeholder { color: var(--text-muted); text-transform: none; }
+
+    .qt-add-tile button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--sage);
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .qt-add-tile button:hover { color: var(--forest-body); }
 
     /* ── Scrollbar ───────────────────────────── */
     ::-webkit-scrollbar { width: 5px; }
@@ -706,7 +810,10 @@
         </div>
         <div class="section-head">
           <span class="section-title">Watchlist</span>
-          <span class="section-hint">Live quotes</span>
+          <span style="display:flex;align-items:center;gap:10px">
+            <span class="section-hint">Live quotes</span>
+            <button class="btn btn-sm" id="editWatchlistBtn" onclick="toggleWatchlistEdit()">Edit</button>
+          </span>
         </div>
         <div class="quote-grid" id="dash-watchlist">
           <div class="state-box" style="padding:20px"><span class="spinner"></span></div>
@@ -740,6 +847,10 @@
       <!-- Finance -->
       <div class="page" id="page-finance">
         <div class="stat-grid" id="fin-stats"></div>
+        <div class="chart-wrap" id="fin-chart-wrap" style="margin-bottom:24px;display:none">
+          <div class="chart-title">Spending by Category</div>
+          <canvas id="catChart" style="width:100%"></canvas>
+        </div>
         <div class="section-head" style="margin-bottom:10px">
           <span class="section-title">Transactions</span>
         </div>
@@ -843,12 +954,77 @@
        <div class="state-sub">${sub}</div>
      </div>`;
 
-  /* ── Dashboard ──────────────────────────── */
-  const WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
+  /* ── Watchlist storage ──────────────────── */
+  const DEFAULT_WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
+  let watchlistEditing = false;
 
+  function getWatchlist() {
+    try { const s = localStorage.getItem('benji_watchlist'); if (s) return JSON.parse(s); } catch {}
+    return [...DEFAULT_WATCHLIST];
+  }
+
+  function saveWatchlist(list) { localStorage.setItem('benji_watchlist', JSON.stringify(list)); }
+
+  function toggleWatchlistEdit() {
+    watchlistEditing = !watchlistEditing;
+    document.getElementById('dash-watchlist').classList.toggle('watchlist-editing', watchlistEditing);
+    document.getElementById('editWatchlistBtn').textContent = watchlistEditing ? 'Done' : 'Edit';
+  }
+
+  function removeFromWatchlist(symbol) {
+    const list = getWatchlist().filter(s => s !== symbol);
+    saveWatchlist(list);
+    renderWatchlistTiles(list, []);
+    loadWatchlistPrices(list);
+  }
+
+  function addToWatchlist() {
+    const input = document.getElementById('watchlistAddInput');
+    const sym = input.value.trim().toUpperCase();
+    if (!sym) return;
+    const list = getWatchlist();
+    if (!list.includes(sym)) { list.push(sym); saveWatchlist(list); }
+    input.value = '';
+    renderWatchlistTiles(list, []);
+    loadWatchlistPrices(list);
+  }
+
+  function renderWatchlistTiles(list, quotes) {
+    const priceMap = {};
+    quotes.forEach(q => { if (q) priceMap[q.symbol] = q; });
+
+    const tiles = list.map(sym => {
+      const q = priceMap[sym];
+      return `<div class="quote-tile">
+        <button class="qt-remove" onclick="removeFromWatchlist('${sym}')" title="Remove">×</button>
+        <div class="qt-symbol">${sym}</div>
+        <div class="qt-price">${q ? money(q.price) : '<span class="spinner"></span>'}</div>
+        ${q ? `<div class="qt-ts">${ts(q.as_of)}</div>` : ''}
+      </div>`;
+    });
+
+    tiles.push(`<div class="qt-add-tile">
+      <input id="watchlistAddInput" type="text" placeholder="Add ticker…" maxlength="12"
+             onkeydown="if(event.key==='Enter')addToWatchlist()">
+      <button onclick="addToWatchlist()" title="Add">+</button>
+    </div>`);
+
+    const grid = document.getElementById('dash-watchlist');
+    grid.innerHTML = tiles.join('');
+    grid.classList.toggle('watchlist-editing', watchlistEditing);
+  }
+
+  async function loadWatchlistPrices(list) {
+    const results = await Promise.allSettled(list.map(s => get('/api/quotes/' + s)));
+    const quotes = results.map(r => r.status === 'fulfilled' ? r.value : null);
+    renderWatchlistTiles(list, quotes);
+  }
+
+  /* ── Dashboard ──────────────────────────── */
   async function loadDashboard() {
     document.getElementById('dash-stats').innerHTML = '<div class="state-box" style="padding:16px"><span class="spinner"></span></div>';
-    document.getElementById('dash-watchlist').innerHTML = '<div class="state-box" style="padding:16px"><span class="spinner"></span></div>';
+    const list = getWatchlist();
+    renderWatchlistTiles(list, []);
 
     const [portRes, finRes] = await Promise.allSettled([
       get('/api/portfolio/summary'),
@@ -860,12 +1036,12 @@
 
     const cards = [];
     if (p) {
-      cards.push(statCard('Positions',   p.positions_count,              '',      ''));
-      cards.push(statCard('Cost Basis',  money(p.total_cost_basis),      'amber', p.as_of ? 'As of ' + dt(p.as_of) : ''));
+      cards.push(statCard('Positions',   p.positions_count,                  '',      ''));
+      cards.push(statCard('Cost Basis',  money(p.total_cost_basis),          'amber', p.as_of ? 'As of ' + dt(p.as_of) : ''));
     }
     if (f) {
-      cards.push(statCard('MTD Spend',   money(f.month_to_date_spend),   'amber', 'Month to date'));
-      cards.push(statCard('Daily Avg',   money(f.average_daily_spend),   '',      ''));
+      cards.push(statCard('MTD Spend',   money(f.month_to_date_spend),       'amber', 'Month to date'));
+      cards.push(statCard('Daily Avg',   money(f.average_daily_spend),       '',      ''));
       cards.push(statCard('Projected',   money(f.projected_month_end_spend), 'amber', 'End of month'));
     }
 
@@ -873,21 +1049,7 @@
       ? cards.join('')
       : empty('🌱', 'No data yet', 'Add portfolio positions and finance transactions to get started.');
 
-    // Watchlist
-    const results = await Promise.allSettled(WATCHLIST.map(s => get('/api/quotes/' + s)));
-    const tiles = results.map(r => {
-      if (r.status !== 'fulfilled' || !r.value) return '';
-      const q = r.value;
-      return `<div class="quote-tile">
-        <div class="qt-symbol">${q.symbol}</div>
-        <div class="qt-price">${money(q.price)}</div>
-        <div class="qt-ts">${ts(q.as_of)}</div>
-      </div>`;
-    }).filter(Boolean);
-
-    document.getElementById('dash-watchlist').innerHTML = tiles.length
-      ? tiles.join('')
-      : empty('📡', 'Quotes unavailable', 'Could not load watchlist at this time.');
+    loadWatchlistPrices(list);
   }
 
   /* ── Quota ──────────────────────────────── */
@@ -902,7 +1064,7 @@
       const bar = document.getElementById('quotaBar');
       fill.style.width = pct + '%';
       fill.className = 'quota-fill ' + (pct >= 90 ? 'danger' : pct >= 60 ? 'warn' : 'ok');
-      label.textContent = used + ' / ' + daily_limit + ' queries today';
+      label.textContent = used + ' / ' + daily_limit + ' this minute';
       bar.style.display = 'flex';
     } catch { /* quota endpoint optional — fail silently */ }
   }
@@ -1001,23 +1163,70 @@
     ctx.stroke();
   }
 
+  function drawCategoryChart(canvasId, transactions) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const catMap = {};
+    transactions.forEach(t => {
+      if (t.amount < 0) catMap[t.category] = (catMap[t.category] || 0) + Math.abs(t.amount);
+    });
+    const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (!entries.length) return;
+
+    const barH = 22, gap = 10, labelW = 120, pad = { top: 8, right: 70, bottom: 8 };
+    const totalH = pad.top + entries.length * (barH + gap) - gap + pad.bottom;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.height = totalH + 'px';
+    canvas.width  = canvas.offsetWidth * dpr;
+    canvas.height = totalH * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const W = canvas.offsetWidth;
+    const barAreaW = W - labelW - pad.right;
+    const maxVal = entries[0][1];
+
+    ctx.font = '11px Inter, sans-serif';
+    entries.forEach(([cat, val], i) => {
+      const y = pad.top + i * (barH + gap);
+      const barW = Math.max(2, (val / maxVal) * barAreaW);
+
+      ctx.fillStyle = '#647d6e';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cat.charAt(0).toUpperCase() + cat.slice(1), labelW - 8, y + barH / 2);
+
+      ctx.fillStyle = '#254d36';
+      ctx.beginPath();
+      ctx.roundRect(labelW, y, barW, barH, 3);
+      ctx.fill();
+
+      ctx.fillStyle = '#3a5444';
+      ctx.textAlign = 'left';
+      ctx.fillText('$' + val.toFixed(0), labelW + barW + 7, y + barH / 2);
+    });
+
+    document.getElementById('fin-chart-wrap').style.display = 'block';
+  }
+
   async function fetchQuote() {
     const sym = document.getElementById('quoteInput').value.trim().toUpperCase();
     if (!sym) return;
     const el = document.getElementById('quoteResult');
     el.innerHTML = '<div class="state-box" style="padding:20px"><span class="spinner"></span> Fetching…</div>';
 
-    const [qRes, oRes, hRes] = await Promise.allSettled([
+    const [qRes, oRes, hRes, nRes] = await Promise.allSettled([
       get('/api/quotes/' + sym),
       get('/api/quotes/' + sym + '/overview'),
       get('/api/quotes/' + sym + '/history'),
+      get('/api/quotes/' + sym + '/news'),
     ]);
 
     // Refresh quota counter after calls complete
     loadQuota();
 
     let html = '';
-    const rateLimited = [qRes, oRes, hRes].some(r => r.reason === 429);
+    const rateLimited = [qRes, oRes, hRes, nRes].some(r => r.reason === 429);
 
     // Price card
     if (qRes.status === 'fulfilled' && qRes.value) {
@@ -1031,7 +1240,7 @@
       el.innerHTML = `<div class="rate-limit-banner">
         <div class="rl-icon">⏳</div>
         <div class="rl-title">Daily query limit reached</div>
-        <div class="rl-sub">AlphaVantage free tier allows 25 requests per day. Quota resets at midnight UTC — check back then.</div>
+        <div class="rl-sub">Finnhub rate limit reached. Quota resets each minute — try again shortly.</div>
       </div>`;
       return;
     } else {
@@ -1067,6 +1276,26 @@
     if (!rateLimited && hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
       requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
     }
+
+    // News
+    if (!rateLimited && nRes.status === 'fulfilled' && nRes.value?.articles?.length) {
+      const articles = nRes.value.articles;
+      html += `<div class="section-head" style="margin-top:22px;margin-bottom:10px">
+        <span class="section-title">Recent News</span>
+        <span class="section-hint">${articles.length} article${articles.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="news-list">
+        ${articles.map(a => `
+          <a class="news-item" href="${a.url}" target="_blank" rel="noopener">
+            ${a.image ? `<img class="news-thumb" src="${a.image}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
+            <div class="news-body">
+              <div class="news-headline">${a.headline}</div>
+              <div class="news-meta">${a.source || ''}${a.source && a.published_at ? ' · ' : ''}${a.published_at ? ts(a.published_at) : ''}</div>
+            </div>
+          </a>`).join('')}
+      </div>`;
+      el.innerHTML = html;
+    }
   }
 
   document.getElementById('quoteBtn').addEventListener('click', fetchQuote);
@@ -1082,31 +1311,75 @@
       get('/api/portfolio/positions'),
     ]);
 
-    const s = sRes.status === 'fulfilled' ? sRes.value : null;
-    if (s) {
-      document.getElementById('port-stats').innerHTML = [
-        statCard('Positions',    s.positions_count,          '',      ''),
-        statCard('Total Shares', num(s.total_quantity),      '',      ''),
-        statCard('Cost Basis',   money(s.total_cost_basis),  'amber', s.as_of ? 'As of ' + dt(s.as_of) : ''),
-      ].join('');
+    const positions = (pRes.status === 'fulfilled' && pRes.value?.positions?.length)
+      ? pRes.value.positions : null;
+
+    // Fetch live prices for every position in parallel
+    const priceMap = {};
+    if (positions) {
+      const priceResults = await Promise.allSettled(
+        positions.map(pos => get('/api/quotes/' + pos.ticker))
+      );
+      positions.forEach((pos, i) => {
+        const r = priceResults[i];
+        if (r.status === 'fulfilled' && r.value) priceMap[pos.ticker] = r.value.price;
+      });
     }
 
-    const p = pRes.status === 'fulfilled' ? pRes.value : null;
-    if (!p?.positions?.length) {
+    // Aggregate totals
+    const s = sRes.status === 'fulfilled' ? sRes.value : null;
+    const totalCost = s?.total_cost_basis ?? 0;
+    let totalMktVal = 0, hasPrices = false;
+    (positions || []).forEach(pos => {
+      if (priceMap[pos.ticker] != null) { totalMktVal += pos.quantity * priceMap[pos.ticker]; hasPrices = true; }
+    });
+    const totalPnl    = hasPrices ? totalMktVal - totalCost : null;
+    const totalPnlPct = (totalPnl != null && totalCost > 0) ? totalPnl / totalCost : null;
+
+    // Summary stat cards
+    const pnlCls = totalPnl != null ? (totalPnl >= 0 ? 'positive' : 'negative') : '';
+    const pnlVal = totalPnl != null
+      ? (totalPnl >= 0 ? '+' : '') + money(totalPnl)
+        + (totalPnlPct != null ? ' (' + (totalPnlPct >= 0 ? '+' : '') + (totalPnlPct * 100).toFixed(2) + '%)' : '')
+      : '--';
+
+    const cards = [];
+    if (s) {
+      cards.push(statCard('Positions',      s.positions_count,         '',      ''));
+      if (hasPrices) cards.push(statCard('Market Value',  money(totalMktVal),  'green', ''));
+      cards.push(statCard('Cost Basis',     money(totalCost), 'amber', s.as_of ? 'As of ' + dt(s.as_of) : ''));
+      if (hasPrices) cards.push(statCard('Unrealized P&L', pnlVal, pnlCls, ''));
+    }
+    document.getElementById('port-stats').innerHTML = cards.join('');
+
+    if (!positions?.length) {
       document.getElementById('port-table').innerHTML = empty('📊', 'No positions yet', 'Portfolio positions will appear here once added.');
       return;
     }
 
     document.getElementById('port-table').innerHTML =
       `<table>
-        <thead><tr><th>Ticker</th><th>Shares</th><th>Cost Basis</th><th>Avg Cost / Share</th></tr></thead>
+        <thead><tr>
+          <th>Ticker</th><th>Shares</th><th>Avg Cost</th>
+          <th>Price</th><th>Mkt Value</th><th>P&L</th><th>%</th>
+        </tr></thead>
         <tbody>
-          ${p.positions.map(x => `<tr>
-            <td><strong>${x.ticker}</strong></td>
-            <td>${num(x.quantity)}</td>
-            <td class="amber">${money(x.cost_basis)}</td>
-            <td class="amber">${money(x.cost_basis / x.quantity)}</td>
-          </tr>`).join('')}
+          ${positions.map(x => {
+            const price  = priceMap[x.ticker];
+            const mktVal = price != null ? x.quantity * price : null;
+            const pnl    = mktVal != null ? mktVal - x.cost_basis : null;
+            const pct    = (pnl != null && x.cost_basis > 0) ? pnl / x.cost_basis : null;
+            const cls    = pnl != null ? (pnl >= 0 ? 'positive' : 'negative') : '';
+            return `<tr>
+              <td><strong>${x.ticker}</strong></td>
+              <td>${num(x.quantity)}</td>
+              <td class="amber">${money(x.cost_basis / x.quantity)}</td>
+              <td>${price != null ? money(price) : '--'}</td>
+              <td>${mktVal != null ? money(mktVal) : '--'}</td>
+              <td class="${cls}">${pnl != null ? (pnl >= 0 ? '+' : '') + money(pnl) : '--'}</td>
+              <td class="${cls}">${pct != null ? (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%' : '--'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>`;
   }
@@ -1115,6 +1388,7 @@
   async function loadFinance(cat) {
     document.getElementById('fin-stats').innerHTML = '';
     document.getElementById('fin-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+    document.getElementById('fin-chart-wrap').style.display = 'none';
 
     const qs = cat ? '?category=' + encodeURIComponent(cat) : '';
     const [sRes, tRes] = await Promise.allSettled([
@@ -1136,6 +1410,8 @@
       document.getElementById('fin-table').innerHTML = empty('🧾', 'No transactions', 'Finance transactions will appear here once imported.');
       return;
     }
+
+    requestAnimationFrame(() => drawCategoryChart('catChart', t.transactions));
 
     // Populate category dropdown once
     const sel = document.getElementById('catFilter');

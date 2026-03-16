@@ -12,4 +12,8 @@ public interface MarketDataProvider {
   default List<DailyBar> getDailyHistory(String symbol) {
     throw new UnsupportedOperationException("getDailyHistory not implemented");
   }
+
+  default List<NewsArticle> getNews(String symbol) {
+    return List.of();
+  }
 }

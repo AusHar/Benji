@@ -28,6 +28,9 @@ trading:
     history:
       ttl: ${TRADING_CACHE_HISTORY_TTL:PT1H}
       maximum-size: ${TRADING_CACHE_HISTORY_MAXIMUM_SIZE:256}
+    news:
+      ttl: ${TRADING_CACHE_NEWS_TTL:PT15M}
+      maximum-size: ${TRADING_CACHE_NEWS_MAXIMUM_SIZE:256}
   api:
     # PROD-REQUIRED: set TRADING_API_KEY to a real secret before deployment.
     key: ${TRADING_API_KEY:}

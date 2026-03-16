@@ -9,6 +9,8 @@ import com.austinharlan.tradingdashboard.api.QuotesApi;
 import com.austinharlan.tradingdashboard.dto.CompanyOverviewResponse;
 import com.austinharlan.tradingdashboard.dto.DailyBarDto;
 import com.austinharlan.tradingdashboard.dto.MarketDataQuota;
+import com.austinharlan.tradingdashboard.dto.NewsArticle;
+import com.austinharlan.tradingdashboard.dto.NewsResponse;
 import com.austinharlan.tradingdashboard.dto.PriceHistoryResponse;
 import com.austinharlan.tradingdashboard.dto.QuoteResponse;
 import com.austinharlan.tradingdashboard.dto.QuotesIndex;
@@ -42,6 +44,7 @@ public class QuoteController implements QuotesApi {
                     "/api/quotes/{symbol}",
                     "/api/quotes/{symbol}/overview",
                     "/api/quotes/{symbol}/history",
+                    "/api/quotes/{symbol}/news",
                     "/api/marketdata/quota"));
     return ResponseEntity.ok(index);
   }
@@ -107,6 +110,30 @@ public class QuoteController implements QuotesApi {
             .toList();
     PriceHistoryResponse response = new PriceHistoryResponse().symbol(normalizedSymbol).bars(dtos);
     return ResponseEntity.ok(response);
+  }
+
+  @Override
+  public ResponseEntity<NewsResponse> getQuoteNews(String symbol) {
+    String normalizedSymbol = normalize(symbol);
+    List<com.austinharlan.trading_dashboard.marketdata.NewsArticle> articles =
+        quoteService.getCachedNews(normalizedSymbol);
+    if (articles.isEmpty()) {
+      return ResponseEntity.noContent().build();
+    }
+    List<NewsArticle> dtos =
+        articles.stream()
+            .map(
+                a ->
+                    new NewsArticle()
+                        .id(a.id())
+                        .headline(a.headline())
+                        .summary(a.summary())
+                        .source(a.source())
+                        .url(a.url())
+                        .image(a.image())
+                        .publishedAt(OffsetDateTime.ofInstant(a.publishedAt(), ZoneOffset.UTC)))
+            .toList();
+    return ResponseEntity.ok(new NewsResponse().symbol(normalizedSymbol).articles(dtos));
   }
 
   private String normalize(String symbol) {

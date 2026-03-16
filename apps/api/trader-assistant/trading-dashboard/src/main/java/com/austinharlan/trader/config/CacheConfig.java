@@ -35,7 +35,11 @@ public class CacheConfig {
             buildCache(
                 "history",
                 cacheProperties.getHistory().getTtl(),
-                cacheProperties.getHistory().getMaximumSize())));
+                cacheProperties.getHistory().getMaximumSize()),
+            buildCache(
+                "news",
+                cacheProperties.getNews().getTtl(),
+                cacheProperties.getNews().getMaximumSize())));
     return manager;
   }
 

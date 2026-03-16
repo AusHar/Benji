@@ -9,6 +9,7 @@ public class CacheProperties {
   private final Quotes quotes = new Quotes();
   private final Overview overview = new Overview();
   private final History history = new History();
+  private final News news = new News();
 
   public Quotes getQuotes() {
     return quotes;
@@ -20,6 +21,10 @@ public class CacheProperties {
 
   public History getHistory() {
     return history;
+  }
+
+  public News getNews() {
+    return news;
   }
 
   public static class Quotes {
@@ -74,6 +79,27 @@ public class CacheProperties {
 
     public void setTtl(Duration ttl) {
       this.ttl = ttl == null ? Duration.ofHours(1) : ttl;
+    }
+
+    public long getMaximumSize() {
+      return maximumSize;
+    }
+
+    public void setMaximumSize(long maximumSize) {
+      this.maximumSize = maximumSize > 0 ? maximumSize : 256;
+    }
+  }
+
+  public static class News {
+    private Duration ttl = Duration.ofMinutes(15);
+    private long maximumSize = 256;
+
+    public Duration getTtl() {
+      return ttl;
+    }
+
+    public void setTtl(Duration ttl) {
+      this.ttl = ttl == null ? Duration.ofMinutes(15) : ttl;
     }
 
     public long getMaximumSize() {

@@ -5,6 +5,7 @@ import com.austinharlan.trading_dashboard.marketdata.CompanyOverview;
 import com.austinharlan.trading_dashboard.marketdata.DailyBar;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataProvider;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
+import com.austinharlan.trading_dashboard.marketdata.NewsArticle;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,6 +23,7 @@ public class DefaultQuoteService implements QuoteService {
   private final Cache quotesCache;
   private final Cache overviewsCache;
   private final Cache historyCache;
+  private final Cache newsCache;
   private final Map<String, Instant> cacheTimestamps = new ConcurrentHashMap<>();
 
   public DefaultQuoteService(
@@ -31,6 +33,7 @@ public class DefaultQuoteService implements QuoteService {
     this.quotesCache = cacheManager != null ? cacheManager.getCache("quotes") : null;
     this.overviewsCache = cacheManager != null ? cacheManager.getCache("overviews") : null;
     this.historyCache = cacheManager != null ? cacheManager.getCache("history") : null;
+    this.newsCache = cacheManager != null ? cacheManager.getCache("news") : null;
   }
 
   @Override
@@ -71,6 +74,29 @@ public class DefaultQuoteService implements QuoteService {
       return fresh;
     } catch (MarketDataRateLimitException ex) {
       List<DailyBar> fallback = getCachedValue(historyCache, cacheKey, List.class);
+      if (fallback != null) {
+        return fallback;
+      }
+      throw ex;
+    }
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<NewsArticle> getCachedNews(String symbol) {
+    String cacheKey = "news:" + symbol;
+    List<NewsArticle> cached = getCachedValue(newsCache, cacheKey, List.class);
+    Duration ttl = cacheProperties.getNews().getTtl();
+    if (cached != null && !isStale(cacheKey, ttl)) {
+      return cached;
+    }
+
+    try {
+      List<NewsArticle> fresh = provider.getNews(symbol);
+      putCache(newsCache, cacheKey, fresh);
+      return fresh;
+    } catch (MarketDataRateLimitException ex) {
+      List<NewsArticle> fallback = getCachedValue(newsCache, cacheKey, List.class);
       if (fallback != null) {
         return fallback;
       }

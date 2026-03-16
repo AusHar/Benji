@@ -137,6 +137,19 @@ public class RealMarketDataProvider implements MarketDataProvider {
     return toHistory(symbol, response);
   }
 
+  @Override
+  public List<NewsArticle> getNews(String symbol) {
+    requireSymbol(symbol);
+    quotaTracker.increment();
+    java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+    java.time.LocalDate from = today.minusDays(7);
+    JsonNode response =
+        retrieveEndpoint(
+                "/company-news", symbol, Map.of("from", from.toString(), "to", today.toString()))
+            .block(properties.getReadTimeout());
+    return toNews(response);
+  }
+
   public MarketDataQuotaTracker getQuotaTracker() {
     return quotaTracker;
   }
@@ -319,6 +332,37 @@ public class RealMarketDataProvider implements MarketDataProvider {
 
     bars.sort(Comparator.comparing(DailyBar::date));
     return bars;
+  }
+
+  // ── News parsing ───────────────────────────────────────────────────────────
+
+  private List<NewsArticle> toNews(JsonNode root) {
+    if (root == null || !root.isArray()) {
+      return List.of();
+    }
+    List<NewsArticle> articles = new ArrayList<>();
+    for (JsonNode item : root) {
+      try {
+        long id = item.path("id").asLong(0);
+        String headline = safeText(item, "headline");
+        String summary = safeText(item, "summary");
+        String source = safeText(item, "source");
+        String url = safeText(item, "url");
+        String image = safeText(item, "image");
+        long epochSeconds = item.path("datetime").asLong(0);
+        Instant publishedAt =
+            epochSeconds > 0 ? Instant.ofEpochSecond(epochSeconds) : Instant.now();
+        if (headline != null && url != null) {
+          articles.add(new NewsArticle(id, headline, summary, source, url, image, publishedAt));
+        }
+      } catch (Exception ex) {
+        log.warn("Skipping malformed news article", ex);
+      }
+    }
+    return articles.stream()
+        .sorted(java.util.Comparator.comparing(NewsArticle::publishedAt).reversed())
+        .limit(10)
+        .toList();
   }
 
   // ── Shared helpers ─────────────────────────────────────────────────────────
