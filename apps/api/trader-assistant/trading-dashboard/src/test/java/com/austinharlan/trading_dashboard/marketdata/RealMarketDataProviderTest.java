@@ -280,8 +280,7 @@ class RealMarketDataProviderTest {
     assertThat(overview.name()).isEqualTo("Apple Inc");
     assertThat(overview.sector()).isEqualTo("Technology");
     // marketCap is marketCapitalization (millions) * 1_000_000
-    assertThat(overview.marketCap())
-        .isEqualByComparingTo(new BigDecimal("3032893000000.0"));
+    assertThat(overview.marketCap()).isEqualByComparingTo(new BigDecimal("3032893000000.0"));
     assertThat(overview.pe()).isEqualByComparingTo(new BigDecimal("29.48"));
     assertThat(overview.beta()).isEqualByComparingTo(new BigDecimal("1.2"));
   }
