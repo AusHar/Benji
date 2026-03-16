@@ -13,7 +13,7 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 - **Service Layer:** `com.austinharlan.trading_dashboard.service`
   - Orchestrates flows, caching, validation, rate limiting.
 - **Providers (Market Data):** `com.austinharlan.trading_dashboard.marketdata`
-  - `MarketDataProvider` interface with `FakeMarketDataProvider` (dev) and future real adapters (e.g., IEX/AlphaVantage).
+  - `MarketDataProvider` interface with `FakeMarketDataProvider` (dev) and `RealMarketDataProvider` (non-dev, Finnhub-backed).
 - **Persistence (optional v0):** `com.austinharlan.trading_dashboard.persistence`
   - Spring Data JPA repositories + Flyway migrations (`src/main/resources/db/migration`).
 - **Config:** `com.austinharlan.trading_dashboard.config`
@@ -38,8 +38,8 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 - **Logging:** JSON logs (later), correlation IDs for external API calls.
 
 ## Caching & Limits
-- **Cache:** Caffeine caches hot quotes (short TTL).
-- **Rate Limits (later):** Bucket4j at controller filter or service boundary to protect provider quotas.
+- **Cache:** Caffeine with per-cache TTLs: quotes (30s), overviews (4h), history (1h), news (15m).
+- **Rate Limits:** `MarketDataQuotaTracker` tracks Finnhub calls in a per-minute rolling window (60 calls/min free tier). Usage exposed at `/api/marketdata/quota`. Health indicator returns `UNKNOWN` (HTTP 200) instead of `DOWN` when the quota is exhausted.
 
 ## Security (phased)
 - v0: No secrets in code; use env/direnv.  

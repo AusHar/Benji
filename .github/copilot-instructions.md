@@ -8,12 +8,12 @@ Keep these priorities in mind: correctness → tests → clarity → performance
 ## Where to start
 - Read the PRD: `docs/PRD.md` and architecture: `docs/ARCHITECTURE.md` for scope and boundaries.
 - Open the service root and use the wrapper: `cd apps/api/trader-assistant/trading-dashboard && ./gradlew bootRun` to run locally.
-- Codegen: if you change `docs/openapi.yaml`, run `./gradlew openApiGenerate` from the same directory.
+- Codegen: if you change `openAPI.yaml` (in the service root), run `./gradlew openApiGenerate` from the same directory.
 
 ## Important files and paths
 - API & app code: `apps/api/trader-assistant/trading-dashboard/src/main/java/...` (packages under `com.austinharlan.trading_dashboard`).
 - Config & migrations: `src/main/resources/application.properties|application.yml` and `src/main/resources/db/migration` (Flyway).
-- OpenAPI spec: `docs/openapi.yaml` (source of DTOs and generated interfaces).
+- OpenAPI spec: `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` (source of DTOs and generated interfaces).
 - Examples: `http/` (curl-like `.http` files) — update samples when you add/change endpoints.
 - Docs that govern behavior: `docs/AI_README.md`, `docs/AGENTS.md`, and `docs/ARCHITECTURE.md`.
 

@@ -1,84 +1,79 @@
-+# Runbook
-+
-+## 1. Service Overview
-+Benji Trader Assistant is a Spring Boot API deployed to AWS ECS that aggregates market data, portfolio balances, and personal finance signals. It exposes REST endpoints under `/api/*`, uses Postgres for persistence, and integrates with external market-data providers (AlphaVantage primary, fake provider for dev/testing).
-+
-+## 2. Environments
-+- **Local (dev):** Run via `./gradlew bootRun` with the `dev` profile; uses fake market data and in-memory/H2 storage unless Postgres variables are set.
-+- **Test (CI):** `./gradlew test` with Testcontainers-managed Postgres; executed in GitHub Actions.
-+- **Staging/Prod:** Docker image pushed to ECR and deployed to ECS using the `prod` profile, real providers, and managed Postgres.
-+
-+## 3. Access & Credentials
-+| Secret | Location | Notes |
-+| --- | --- | --- |
-+| `trading.api.key` | AWS SSM Parameter / Secrets Manager | Required for prod API key filter. Map to `TRADING_API_KEY` env var. |
-+| `SPRING_DATASOURCE_URL`, `USERNAME`, `PASSWORD` | AWS SSM/Secrets Manager | JDBC connection for Postgres. |
-+| `ALPHAVANTAGE_API_KEY` | AWS SSM/Secrets Manager | External provider key. |
-+| `ACTUATOR_USERNAME` / `ACTUATOR_PASSWORD` | AWS SSM/Secrets Manager | Basic auth for `/actuator/*` endpoints when secured. |
-+
-+Store secrets in the GitHub environment (for CI) as references to AWS via OIDC or pre-populated environment variables in ECS task definitions.
-+Prod startup validates required secrets and rejects placeholder values (e.g., `changeMe`, `changeme`, `demo`, `replace_me`).
-+
-+## 4. Operations Dashboard
-+- **Health checks:**
-+  - Application: `GET https://<service-domain>/actuator/health`
-+  - Liveness/Readiness can be mapped to ECS health checks via ALB.
-+- **Metrics:** `GET https://<service-domain>/actuator/metrics` (requires actuator credentials).
-+- **Logs:** CloudWatch log group from ECS task definition; ensure retention is at least 30 days.
-+
-+## 5. Deployment Procedure
-+1. Ensure `main` branch is green (tests passing) and version bump applied if needed.
-+2. Tag the release (`git tag vX.Y.Z && git push --tags`) or trigger the `ci.yml` workflow manually.
-+3. GitHub Actions job `deploy` will:
-+   - Build the Gradle project (`./gradlew build`).
-+   - Build/push Docker image to `${ECR_REPOSITORY}`.
-+   - Update ECS service via AWS CLI using IAM role `${ACTIONS_ROLE_ARN}`.
-+4. Monitor GitHub Actions logs for success and ECS events for task rollout.
-+5. Validate `/actuator/health` and run smoke tests (quote retrieval, portfolio summary) post-deploy.
-+
-+## 6. Rollback Procedure
-+- **Preferred:** Re-deploy the previous known-good tag using the same workflow (`git tag vX.Y.Z --force` not recommended; instead trigger workflow with prior tag).
-+- **Manual fallback:** Update ECS service to point to prior image in ECR via AWS console/CLI (`aws ecs update-service --force-new-deployment --task-definition <previous>`).
-+- Verify health, then retroactively tag the reverted state for traceability.
-+
-+## 7. Monitoring & Alerting
-+- Set CloudWatch alarms on:
-+  - ECS service `CPUUtilization` and `MemoryUtilization` thresholds.
-+  - Actuator health check failures (ALB 5xx or health-check alarm).
-+  - Error log patterns (e.g., provider failure spikes).
-+- Integrate alarms with SNS/Slack/Email.
-+- Track business metrics (quote latency, portfolio ingestion success) via custom Micrometer timers/counters once implemented.
-+
-+## 8. Troubleshooting
-+
-+### 8.1 Application fails to start
-+- Check ECS task logs for Spring profile misconfiguration or missing env vars.
-+- Common issues:
-+  - `UnsatisfiedDependencyException` → Verify secrets for provider keys and datasource.
-+  - `FlywayException` → Ensure database reachable and schema permissions correct.
-+
-+### 8.2 Quote endpoint returning stale data
-+1. Inspect application logs for provider errors or rate limits.
-+2. Validate cache configuration (`trading.cache.ttl`).
-+3. Manually clear cache via application restart (future enhancement: actuator endpoint for cache eviction).
-+
-+### 8.3 External provider outages
-+- System should fall back to cached data; confirm provider error handling logs.
-+- Temporarily reduce quote requests or switch to secondary provider configuration if available.
-+
-+### 8.4 Database connectivity issues
-+- Confirm RDS/managed Postgres availability and security groups.
-+- Rotate credentials in Secrets Manager and re-deploy.
-+- Run Flyway repair/migrate if schema drift detected.
-+
-+## 9. Onboarding Checklist
-+- Install Java 21, Docker, and Gradle wrapper available.
-+- Copy `apps/api/trader-assistant/trading-dashboard/ENV.example` and populate environment variables.
-+- Run `./gradlew clean build` from the API module to validate setup.
-+- Review `docs/ARCHITECTURE.md` and `docs/TEST_PLAN.md` for deeper context.
-+
-+## 10. Incident Response
-+- Declare severity based on impact (quote outage vs. full API downtime).
-+- Create incident log (timestamp, symptoms, actions taken).
-+- Mitigate (scale ECS tasks, rollback, patch configuration).
-+- Post-incident: document root cause, update runbook/automation, add tests to prevent regression.
+# Runbook
+
+## 1. Service Overview
+Benji Trader Assistant is a Spring Boot API deployed to AWS Lightsail (Ubuntu 22.04) that aggregates
+market data, portfolio balances, and personal finance signals. It exposes REST endpoints under `/api/*`,
+uses Postgres for persistence, and integrates with Finnhub for market data. A single-file SPA is served
+from the JAR at the root path.
+
+## 2. Environments
+- **Local (dev):** Run via `./gradlew bootRun` with the `dev` profile; uses fake market data and in-memory H2 storage.
+- **Test (CI):** `./gradlew test` with Testcontainers-managed Postgres; executed in GitHub Actions.
+- **Prod:** JAR deployed to Lightsail via rsync in CI, running as the `benji` systemd service with the `prod` profile, real Finnhub provider, and Postgres.
+
+## 3. Access & Credentials
+| Secret | Location | Notes |
+| --- | --- | --- |
+| `TRADING_API_KEY` | `/etc/systemd/system/benji.service` | Required for prod API key filter. |
+| `MARKETDATA_API_KEY` | `/etc/systemd/system/benji.service` | Finnhub API key. |
+| `SPRING_DATASOURCE_PASSWORD` | `/etc/systemd/system/benji.service` | Postgres password. |
+| `MANAGEMENT_PASSWORD` | `/etc/systemd/system/benji.service` | Basic auth for `/actuator/*`. |
+| `LIGHTSAIL_SSH_KEY` | GitHub Actions secret | Base64-encoded PEM for deploy SSH access. |
+
+Prod startup validates required secrets and rejects placeholder values (e.g., `changeMe`, `demo`, `replace_me`).
+
+## 4. Operations
+- **Health check:** `GET https://port.adhdquants.com/actuator/health`
+  - Returns `{"status":"UP"}` when healthy.
+  - Returns `{"status":"UNKNOWN"}` when the Finnhub per-minute quota is exhausted (this is normal, not an outage).
+  - Returns `{"status":"DOWN"}` only when the Finnhub API itself is unreachable.
+- **Quota usage:** `GET https://port.adhdquants.com/api/marketdata/quota` (requires `X-API-KEY` header)
+- **Logs:** `sudo journalctl -u benji -f` on the Lightsail instance.
+
+## 5. Deployment Procedure
+Pushes to `main` auto-deploy via GitHub Actions (`ci.yml`):
+1. Gradle builds and tests the JAR (`spotlessCheck build --no-daemon`).
+2. JAR is rsynced to `ubuntu@107.22.236.28:/opt/benji/benji.jar`.
+3. `sudo systemctl restart benji` is run over SSH.
+4. CI polls `https://port.adhdquants.com/actuator/health` for up to ~130 seconds (30s sleep + 10 retries × 10s).
+
+To deploy manually:
+```bash
+ssh -i ~/.ssh/benji-lightsail.pem ubuntu@107.22.236.28
+sudo systemctl restart benji
+sudo journalctl -u benji -f
+```
+
+## 6. Rollback Procedure
+- Revert the commit on `main` and push — CI will redeploy the previous JAR.
+- Or SSH in and replace `/opt/benji/benji.jar` with the prior JAR, then `sudo systemctl restart benji`.
+
+## 7. Troubleshooting
+
+### Application fails to start
+- `sudo journalctl -u benji --since "5 min ago"` — look for Spring Boot startup errors.
+- Common causes: missing env var (`MANAGEMENT_PASSWORD` has no default), Postgres unreachable, Flyway migration failure.
+
+### Health check returns 503 after deploy
+- App may still be starting; wait 30s and retry.
+- If persistent: check journal for startup exceptions.
+
+### Health check returns UNKNOWN
+- Normal — Finnhub per-minute quota was exhausted at the time of the health probe. The service is operational.
+
+### Quote endpoint returning stale data
+- Check Finnhub quota at `/api/marketdata/quota`.
+- Cache TTLs: quotes 30s, overviews 4h, history 1h, news 15m. Restart to flush.
+
+### Updating a secret (e.g., rotating the Finnhub API key)
+```bash
+ssh -i ~/.ssh/benji-lightsail.pem ubuntu@107.22.236.28
+sudo sed -i 's/MARKETDATA_API_KEY=.*/MARKETDATA_API_KEY=new_key_here/' /etc/systemd/system/benji.service
+sudo systemctl daemon-reload && sudo systemctl restart benji
+```
+
+## 8. Onboarding Checklist
+- Install Java 21, copy `ENV.example` and populate variables.
+- Set `FINNHUB_API_KEY` (or `MARKETDATA_API_KEY`) with a key from https://finnhub.io (free tier: 60 calls/min).
+- Run `./gradlew clean build` from `apps/api/trader-assistant/trading-dashboard`.
+- Review `docs/ARCHITECTURE.md` for architectural context.

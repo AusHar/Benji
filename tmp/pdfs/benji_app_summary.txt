@@ -1,0 +1,53 @@
+BENJI APP SUMMARY (Repo-based)
+
+WHAT IT IS
+Benji ("trading-dashboard") is a Spring Boot 3 API in a monorepo that exposes quote, portfolio,
+and personal-finance endpoints. It is backend-first: the repo provides the API contract, services,
+persistence, CI/CD, and AWS deployment. A single-file SPA (index.html) is served as a static
+resource from the JAR.
+
+WHO IT'S FOR
+Primary persona: the project owner as a power user, analyst, and administrator (docs/PRD.md).
+
+WHAT IT DOES
+- Serves quote endpoints (/api/quotes/{symbol}) with ticker validation, live price, company
+  fundamentals (P/E, EPS, market cap, 52-week range, dividend yield, beta), 100-day price chart,
+  and recent company news (last 7 days, up to 10 articles).
+- Uses provider abstraction for market data: fake provider in dev profile, Finnhub-backed provider
+  outside dev. Finnhub free tier: 60 calls/minute.
+- Caches quote, overview, history, and news lookups with configurable TTLs using Caffeine; falls
+  back to stale cached data on provider rate limits.
+- Tracks Finnhub API calls in a per-minute rolling window (MarketDataQuotaTracker); exposes usage
+  via /api/marketdata/quota. Quota bar displayed in the Quotes page UI.
+- Exposes portfolio endpoints for positions and summary from persisted holdings. Portfolio page
+  fetches live prices per position and shows market value, unrealized P&L ($/%),  and total return.
+- Exposes finance endpoints for monthly spend summary and transaction listing/filtering. Finance
+  page renders a horizontal bar chart of top-8 spending categories.
+- Dashboard shows portfolio and finance summary stats plus a customizable watchlist (persisted in
+  localStorage) with live Finnhub prices.
+- Persists portfolio and finance records via Spring Data JPA + Flyway migrations (H2 for dev;
+  Postgres for prod).
+- Includes health/security controls: actuator health (returns UNKNOWN instead of DOWN when Finnhub
+  quota is exhausted), API-key auth (non-dev), and prod secret placeholder validation.
+
+HOW IT WORKS (ARCHITECTURE)
+- Controllers (Quotes/Portfolio/Finance) implement OpenAPI-generated interfaces and call
+  service-layer interfaces.
+- Services orchestrate domain logic; QuoteService routes to MarketDataProvider and cache,
+  portfolio/finance services use repositories.
+- Persistence uses JPA entities/repositories backed by Flyway SQL migrations
+  (portfolio_position, finance_transaction).
+- External flow: client -> /api/* controller -> service -> (cache and/or repository/provider) -> JSON
+
+HOW TO RUN (MINIMAL)
+1. cd apps/api/trader-assistant/trading-dashboard
+2. Set FINNHUB_API_KEY (or MARKETDATA_API_KEY) env var with your Finnhub API key.
+3. ./gradlew bootRun
+4. Optional checks: ./gradlew test; API listens on port 8080 by default.
+
+DEPLOYMENT (CURRENT)
+- Deployed to AWS Lightsail (Ubuntu 22.04, 107.22.236.28) as a systemd service (benji.service).
+- nginx reverse-proxies to port 8080 with Let's Encrypt TLS at https://port.adhdquants.com.
+- CI (ci.yml) builds the JAR, rsyncs to server via SSH, restarts the benji systemd unit, and
+  verifies health at /actuator/health. Pushes to main auto-deploy.
+- Finnhub API key is stored in /etc/systemd/system/benji.service as MARKETDATA_API_KEY.

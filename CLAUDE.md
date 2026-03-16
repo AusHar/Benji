@@ -32,7 +32,7 @@ CI runs `./gradlew spotlessCheck build --no-daemon`. OWASP dependency scanning r
 **Packages under `com.austinharlan.trading_dashboard`:**
 - `controllers/` — thin adapters implementing generated interfaces; no business logic
 - `service/` — all domain/business logic; `DefaultQuoteService`, `DefaultFinanceInsightsService`
-- `marketdata/` — `MarketDataProvider` interface with `RealMarketDataProvider` (Alpha Vantage) and `FakeMarketDataProvider` (dev/test)
+- `marketdata/` — `MarketDataProvider` interface with `RealMarketDataProvider` (Finnhub) and `FakeMarketDataProvider` (dev/test); `MarketDataQuotaTracker` tracks per-minute API usage
 - `persistence/` — JPA repositories and entities; Flyway migrations in `src/main/resources/db/migration/`
 - `finance/` and `portfolio/` — domain record types
 - `config/` — Spring Security, CORS, API key filter, properties bindings, `ProdSecretsValidator`
