@@ -64,117 +64,111 @@
     /* ── Sidebar ─────────────────────────────── */
     .sidebar {
       width: var(--sidebar-w);
-      background: var(--forest-deep);
+      background: var(--bg-mid);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
+      transition: width .3s cubic-bezier(.4,0,.2,1);
+      overflow: hidden;
+      z-index: 10;
     }
-
+    .sidebar.collapsed { width: var(--sidebar-col); }
     .sidebar-brand {
-      padding: 22px 20px 18px;
-      border-bottom: 1px solid rgba(255,255,255,.05);
-    }
-
-    .brand {
+      height: 78px;
       display: flex;
-      align-items: center;
-      gap: 11px;
-    }
-
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      background: var(--forest-body);
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: center;
-      font-size: 17px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
     }
-
-    .brand-name {
-      font-size: 17px;
-      font-weight: 600;
+    .brand-mark {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 21px;
+      font-weight: 300;
       color: #fff;
-      letter-spacing: -.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-optical-sizing: auto;
     }
-
+    .brand-mark .icon { font-size: 18px; flex-shrink: 0; }
+    .brand-mark .name { transition: opacity .2s; }
+    .sidebar.collapsed .brand-mark .name { opacity: 0; }
     .brand-sub {
-      font-size: 11px;
-      color: var(--sage);
-      letter-spacing: .2px;
-      margin-top: 1px;
+      font-size: 8px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 3px;
+      padding-left: 28px;
+      white-space: nowrap;
+      transition: opacity .2s;
     }
-
+    .sidebar.collapsed .brand-sub { opacity: 0; }
     .sidebar-nav {
       flex: 1;
-      padding: 14px 10px;
+      padding: 10px 8px;
       display: flex;
       flex-direction: column;
       gap: 1px;
-      overflow-y: auto;
+      overflow: hidden;
     }
-
-    .nav-group-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--sage);
-      letter-spacing: .8px;
+    .nav-group {
+      font-size: 7.5px;
+      font-weight: 500;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
-      padding: 14px 10px 5px;
+      color: var(--text-muted);
+      padding: 10px 8px 4px;
+      white-space: nowrap;
+      transition: opacity .15s;
     }
-
+    .sidebar.collapsed .nav-group { opacity: 0; }
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 9px;
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      color: var(--sage-light);
+      gap: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      color: var(--text-dim);
       cursor: pointer;
-      font-size: 13.5px;
-      font-weight: 400;
-      transition: background .12s, color .12s;
-      user-select: none;
+      transition: background .15s, color .15s, box-shadow .2s;
+      white-space: nowrap;
+      overflow: hidden;
+      border: 1px solid transparent;
     }
-
-    .nav-item:hover { background: rgba(255,255,255,.06); color: #e8efe9; }
-    .nav-item.active { background: var(--forest-body); color: #fff; font-weight: 500; }
-
-    .nav-item svg { opacity: .75; flex-shrink: 0; }
+    .nav-item:hover { background: rgba(78,221,138,.06); color: var(--text-mid); border-color: rgba(78,221,138,.12); box-shadow: var(--glow-sm); }
+    .nav-item.active { background: rgba(78,221,138,.1); color: var(--green); border-color: rgba(78,221,138,.2); box-shadow: var(--glow-sm); }
+    .nav-item svg { flex-shrink: 0; opacity: .8; }
     .nav-item.active svg { opacity: 1; }
-
-    .sidebar-footer {
-      padding: 14px;
-      border-top: 1px solid rgba(255,255,255,.05);
-    }
-
-    .key-badge {
+    .nav-label { font-size: 11px; transition: opacity .15s; }
+    .sidebar.collapsed .nav-label { opacity: 0; }
+    .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .conn-badge {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      background: rgba(255,255,255,.04);
-      cursor: pointer;
-      transition: background .12s;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: var(--green-faint);
+      border: 1px solid rgba(78,221,138,.14);
+      white-space: nowrap;
+      box-shadow: var(--glow-sm);
     }
-
-    .key-badge:hover { background: rgba(255,255,255,.08); }
-
-    .key-dot {
+    .conn-dot {
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: var(--sage);
+      background: var(--green);
       flex-shrink: 0;
+      animation: hum 2.5s ease-in-out infinite;
     }
-
-    .key-label {
-      font-size: 12px;
-      color: var(--sage-light);
-      flex: 1;
-    }
+    .conn-label { font-size: 10px; color: var(--green-dim); transition: opacity .15s; }
+    .sidebar.collapsed .conn-label { opacity: 0; }
 
     /* ── Main ────────────────────────────────── */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -929,58 +923,48 @@
 <div class="layout" id="app" style="display:none">
 
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <div class="brand">
-        <div class="brand-icon">🌲</div>
-        <div>
-          <div class="brand-name">Benji</div>
-          <div class="brand-sub">Financial Assistant</div>
-        </div>
+      <div class="brand-mark">
+        <span class="icon">🌲</span>
+        <span class="name">Benji</span>
       </div>
+      <div class="brand-sub">Financial assistant</div>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-group-label">Overview</div>
+      <div class="nav-group">Overview</div>
       <div class="nav-item active" data-page="dashboard">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1" y="1" width="5.5" height="5.5" rx="1"/>
-          <rect x="8.5" y="1" width="5.5" height="5.5" rx="1"/>
-          <rect x="1" y="8.5" width="5.5" height="5.5" rx="1"/>
-          <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/>
+          <rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/>
         </svg>
-        Dashboard
+        <span class="nav-label">Dashboard</span>
       </div>
-      <div class="nav-group-label">Markets</div>
+      <div class="nav-group">Markets</div>
       <div class="nav-item" data-page="quotes">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-          <polyline points="1,10 4.5,6.5 7.5,8.5 14,2.5"/>
-          <polyline points="10,2.5 14,2.5 14,6.5"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+          <polyline points="1,10 4,6 7,8 13,2"/><polyline points="9,2 13,2 13,6"/>
         </svg>
-        Quotes
+        <span class="nav-label">Quotes</span>
       </div>
       <div class="nav-item" data-page="portfolio">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1" y="4.5" width="13" height="9" rx="1.5"/>
-          <path d="M5 4.5V3.5a2.5 2 0 0 1 5 0v1"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1" y="4" width="12" height="9" rx="1.5"/><path d="M5 4V3a2 2 0 0 1 4 0v1"/>
         </svg>
-        Portfolio
+        <span class="nav-label">Portfolio</span>
       </div>
-      <div class="nav-group-label">Personal</div>
+      <div class="nav-group">Personal</div>
       <div class="nav-item" data-page="finance">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="1" y="2" width="13" height="11" rx="1.5"/>
-          <path d="M1 6h13M5 2v4"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1" y="2" width="12" height="10" rx="1.5"/><path d="M1 5.5h12M5 2v3.5"/>
         </svg>
-        Finance
+        <span class="nav-label">Finance</span>
       </div>
     </nav>
     <div class="sidebar-footer">
-      <div class="key-badge" id="keyBadge" title="Click to sign out">
-        <div class="key-dot"></div>
-        <div class="key-label">Connected</div>
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.35;flex-shrink:0">
-          <path d="M1 10l3.5-3.5m0 0L8 3l2 2-3.5 3.5m-1-1L7 9"/>
-        </svg>
+      <div class="conn-badge" id="keyBadge" title="Click to sign out">
+        <div class="conn-dot"></div>
+        <span class="conn-label">Connected</span>
       </div>
     </div>
   </aside>
@@ -2036,6 +2020,17 @@
     loadTicker();
     _tickerTimer = setInterval(loadTicker, 60_000);
   }
+
+  /* ── Sidebar collapse ───────────────────────── */
+  const _sb = document.getElementById('sidebar');
+  let _sbTimer = null;
+  function _sbStartCollapse() {
+    clearTimeout(_sbTimer);
+    _sbTimer = setTimeout(() => _sb.classList.add('collapsed'), 4000);
+  }
+  _sb.addEventListener('mouseenter', () => { clearTimeout(_sbTimer); _sb.classList.remove('collapsed'); });
+  _sb.addEventListener('mouseleave', _sbStartCollapse);
+  _sbStartCollapse(); // start timer immediately on page load
 
   /* ── Start ──────────────────────────────── */
   boot();
