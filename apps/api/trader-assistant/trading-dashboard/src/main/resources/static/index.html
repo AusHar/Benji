@@ -1410,6 +1410,58 @@
     // Sparkline path swap will be wired in when real data is available
   }
 
+  async function loadTileDetails(sym) {
+    const [overviewRes, historyRes] = await Promise.allSettled([
+      get('/api/quotes/' + sym + '/overview'),
+      get('/api/quotes/' + sym + '/history'),
+    ]);
+
+    const ov   = overviewRes.status  === 'fulfilled' ? overviewRes.value  : null;
+    const hist = historyRes.status   === 'fulfilled' ? historyRes.value   : null;
+    const bar  = hist?.bars?.length  ? hist.bars[hist.bars.length - 1]    : null;
+
+    // Format large numbers (market cap, etc.)
+    const fmtLarge = n => {
+      if (n == null) return '—';
+      if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+      if (n >= 1e9)  return '$' + (n / 1e9).toFixed(2)  + 'B';
+      if (n >= 1e6)  return '$' + (n / 1e6).toFixed(2)  + 'M';
+      return '$' + Number(n).toLocaleString();
+    };
+
+    // Sixth metric: market cap for most tickers; P/E if no market cap; beta as fallback
+    const sixthLabel = ov?.market_cap != null ? 'Mkt Cap' : ov?.pe_ratio != null ? 'P/E' : 'Beta';
+    const sixthValue = ov?.market_cap != null
+      ? fmtLarge(ov.market_cap)
+      : ov?.pe_ratio != null
+      ? ov.pe_ratio.toFixed(1) + 'x'
+      : ov?.beta != null ? ov.beta.toFixed(2) : '—';
+
+    const cells = [
+      { l: 'Open',     v: bar?.open      != null ? money(bar.open)      : '—', c: '' },
+      { l: 'High',     v: bar?.high      != null ? money(bar.high)      : '—', c: 'green' },
+      { l: 'Low',      v: bar?.low       != null ? money(bar.low)       : '—', c: 'red' },
+      { l: 'Prev Cls', v: bar?.close     != null ? money(bar.close)     : '—', c: '' },
+      { l: 'Volume',   v: bar?.volume    != null ? num(bar.volume)      : '—', c: '' },
+      { l: sixthLabel, v: sixthValue,                                           c: 'amber' },
+    ];
+
+    const fundsEl = document.getElementById('exp-funds-' + sym);
+    if (fundsEl) {
+      fundsEl.innerHTML = cells.map(c => `
+        <div class="exp-fund">
+          <div class="exp-fund-label">${c.l}</div>
+          <div class="exp-fund-val ${c.c}">${c.v}</div>
+        </div>`).join('');
+    }
+
+    // News: not yet available via API
+    const newsEl = document.getElementById('exp-news-' + sym);
+    if (newsEl) {
+      newsEl.innerHTML = `<div style="font-size:9px;color:var(--text-muted);padding:4px 0">No news available.</div>`;
+    }
+  }
+
   function renderWatchlistTiles(list, quotes) {
     const priceMap = {};
     quotes.forEach(q => { if (q) priceMap[q.symbol] = q; });
