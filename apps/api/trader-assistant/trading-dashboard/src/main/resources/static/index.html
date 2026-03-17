@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,300&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -680,6 +683,124 @@
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+
+    /* ── Journal ─────────────────────────────────────────── */
+
+    .j-layout { display: grid; grid-template-columns: 60fr 40fr; gap: 16px; align-items: start; }
+    .j-feed { display: flex; flex-direction: column; gap: 12px; }
+    .j-sidebar { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
+
+    /* Entry card */
+    .j-card { background: var(--bg-card); border: 1px solid rgba(78,221,138,.22); border-radius: 8px; overflow: hidden; }
+    .j-card.today { border-color: rgba(78,221,138,.30); }
+    .j-card-head { padding: 10px 14px 0; display: flex; justify-content: space-between; align-items: center; }
+    .j-card-date { font-size: 10px; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); }
+    .j-editor {
+      background: #000;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 300;
+      line-height: 2.0;
+      color: #c8c0b0;
+      padding: 16px;
+      min-height: 140px;
+      outline: none;
+      border: none;
+    }
+    .j-editor:empty::before {
+      content: attr(data-placeholder);
+      color: rgba(200,192,176,.18);
+      pointer-events: none;
+    }
+    .j-card-foot { padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .j-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .j-pill { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: rgba(78,221,138,.08); color: var(--green); }
+    .j-save-btn { font-size: 11px; padding: 4px 12px; background: rgba(78,221,138,.12); border: 1px solid rgba(78,221,138,.22); border-radius: 4px; color: var(--green); cursor: pointer; letter-spacing: .4px; }
+    .j-save-btn:hover { background: rgba(78,221,138,.2); }
+
+    /* Past entry dimming */
+    .j-card.age-1 { opacity: .55; }
+    .j-card.age-2 { opacity: .28; }
+    .j-card.age-old { opacity: .18; }
+
+    /* Neon tokens */
+    .neon-t-0  { color: #4edd8a; text-shadow: 0 0 8px rgba(78,221,138,.6); }
+    .neon-t-1  { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,.6); }
+    .neon-t-2  { color: #ff7b35; text-shadow: 0 0 8px rgba(255,123,53,.6); }
+    .neon-t-3  { color: #b8ff3e; text-shadow: 0 0 8px rgba(184,255,62,.6); }
+    .neon-t-4  { color: #ff3864; text-shadow: 0 0 8px rgba(255,56,100,.6); }
+    .neon-t-5  { color: #a78bfa; text-shadow: 0 0 8px rgba(167,139,250,.6); }
+    .neon-t-6  { color: #ff2d9e; text-shadow: 0 0 8px rgba(255,45,158,.6); }
+    .neon-t-7  { color: #ffd23f; text-shadow: 0 0 8px rgba(255,210,63,.6); }
+    .neon-t-8  { color: #b060ff; text-shadow: 0 0 8px rgba(176,96,255,.6); }
+    .neon-t-9  { color: #f4b84a; text-shadow: 0 0 8px rgba(244,184,74,.6); }
+
+    /* Filter banner */
+    .j-filter-banner { background: rgba(78,221,138,.08); border: 1px solid rgba(78,221,138,.2); border-radius: 6px; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--green); }
+    .j-filter-clear { cursor: pointer; opacity: .6; }
+    .j-filter-clear:hover { opacity: 1; }
+
+    /* Sidebar widgets */
+    .j-widget { background: var(--bg-card); border: 1px solid rgba(78,221,138,.22); border-radius: 8px; padding: 12px 14px; }
+    .j-widget-title { font-size: 8px; font-weight: 500; letter-spacing: .9px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+
+    /* Calendar */
+    .j-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .j-cal-head { font-size: 8px; color: var(--text-dim); text-align: center; padding-bottom: 4px; }
+    .j-cal-day { aspect-ratio: 1; border-radius: 3px; cursor: default; }
+    .j-cal-empty { background: transparent; }
+    .j-cal-none { background: rgba(78,221,138,.06); }
+    .j-cal-entry { background: rgba(78,221,138,.45); cursor: pointer; }
+    .j-cal-rich { background: #4edd8a; box-shadow: 0 0 6px rgba(78,221,138,.5); cursor: pointer; }
+    .j-cal-today { outline: 1px solid rgba(78,221,138,.6); outline-offset: 1px; }
+
+    /* Stats row */
+    .j-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .j-stat { background: var(--bg-card); border: 1px solid rgba(78,221,138,.22); border-radius: 6px; padding: 8px 10px; text-align: center; }
+    .j-stat-val { font-size: 18px; font-weight: 300; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .j-stat-lbl { font-size: 8px; letter-spacing: .7px; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; }
+
+    /* Goal progress bars */
+    .j-goal { margin-bottom: 10px; }
+    .j-goal:last-child { margin-bottom: 0; }
+    .j-goal-label { font-size: 11px; color: var(--text-mid); margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .j-goal-track { height: 4px; background: rgba(78,221,138,.1); border-radius: 2px; overflow: hidden; }
+    .j-goal-bar { height: 100%; border-radius: 2px; transition: width .4s; }
+    .j-goal-bar.milestone { background: #ffd23f; box-shadow: 0 0 4px rgba(255,210,63,.4); }
+    .j-goal-bar.habit    { background: #4edd8a; box-shadow: 0 0 4px rgba(78,221,138,.4); }
+
+    /* Most written bar chart */
+    .j-mw-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+    .j-mw-row:last-child { margin-bottom: 0; }
+    .j-mw-token { min-width: 60px; cursor: pointer; }
+    .j-mw-bar-wrap { flex: 1; height: 4px; background: rgba(78,221,138,.1); border-radius: 2px; overflow: hidden; }
+    .j-mw-bar { height: 100%; background: rgba(78,221,138,.5); border-radius: 2px; }
+    .j-mw-count { font-size: 10px; color: var(--text-dim); min-width: 20px; text-align: right; }
+
+    /* Movers */
+    .j-mover-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+    .j-mover-row:last-child { margin-bottom: 0; }
+    .j-mover-ticker { min-width: 50px; font-variant-numeric: tabular-nums; cursor: pointer; }
+    .j-mover-pct { flex: 1; font-variant-numeric: tabular-nums; }
+    .j-mover-pct.up { color: var(--green); }
+    .j-mover-pct.down { color: #ff3864; }
+    .j-mover-count { font-size: 10px; color: var(--text-dim); }
+
+    /* Goals edit mode */
+    .j-goals-editbtn { font-size: 10px; padding: 2px 8px; background: transparent; border: 1px solid rgba(78,221,138,.22); border-radius: 4px; color: var(--text-dim); cursor: pointer; margin-left: auto; display: block; margin-bottom: 10px; }
+    .j-goals-editbtn:hover { color: var(--green); border-color: rgba(78,221,138,.4); }
+    .j-goal-inputs { display: none; margin-top: 8px; gap: 6px; }
+    .j-goal-inputs.visible { display: flex; flex-wrap: wrap; }
+    .j-goal-input { background: rgba(78,221,138,.06); border: 1px solid rgba(78,221,138,.18); border-radius: 4px; padding: 4px 8px; font-size: 11px; color: var(--text); width: 100%; }
+    .j-goal-input:focus { outline: none; border-color: rgba(78,221,138,.4); }
+    .j-add-goal-btn { font-size: 10px; color: var(--green); background: rgba(78,221,138,.08); border: 1px solid rgba(78,221,138,.2); border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-top: 6px; }
+
+    /* Media embed cards */
+    .j-embed { background: rgba(78,221,138,.04); border: 1px solid rgba(78,221,138,.15); border-radius: 6px; padding: 8px; display: flex; gap: 10px; align-items: center; margin: 4px 0; user-select: none; }
+    .j-embed-thumb { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+    .j-embed-info { font-size: 11px; }
+    .j-embed-source { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -735,6 +856,13 @@
           <rect x="1" y="2" width="12" height="10" rx="1.5"/><path d="M1 5.5h12M5 2v3.5"/>
         </svg>
         <span class="nav-label">Finance</span>
+      </div>
+      <div class="nav-item" data-page="journal">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="2" y="1" width="10" height="12" rx="1.5"/>
+          <path d="M5 4h4M5 7h4M5 10h2"/>
+        </svg>
+        <span class="nav-label">Journal</span>
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -840,6 +968,9 @@
         </div>
       </div>
 
+      <!-- Journal -->
+      <div class="page" id="page-journal"></div>
+
     </div>
   </div>
 </div>
@@ -931,7 +1062,7 @@
   });
 
   /* ── Router ─────────────────────────────── */
-  const TITLES = { dashboard: 'Dashboard', quotes: 'Quotes', portfolio: 'Portfolio', finance: 'Finance' };
+  const TITLES = { dashboard: 'Dashboard', quotes: 'Quotes', portfolio: 'Portfolio', finance: 'Finance', journal: 'Journal' };
 
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => go(el.dataset.page));
@@ -944,6 +1075,7 @@
     if (page === 'dashboard') loadDashboard();
     if (page === 'portfolio') loadPortfolio();
     if (page === 'finance')   loadFinance();
+    if (page === 'journal')   loadJournal();
   }
 
   /* ── Helpers ────────────────────────────── */
@@ -1669,6 +1801,50 @@
   document.getElementById('filterBtn').addEventListener('click', () => {
     loadFinance(document.getElementById('catFilter').value || undefined);
   });
+
+  // ── Journal ───────────────────────────────────────────────────────────────
+
+  const NEON_PALETTE = [
+    '#4edd8a','#00e5ff','#ff7b35','#b8ff3e','#ff3864',
+    '#a78bfa','#ff2d9e','#ffd23f','#b060ff','#f4b84a'
+  ];
+
+  function neonClass(token) {
+    let h = 0;
+    for (let i = 0; i < token.length; i++) h = (Math.imul(31, h) + token.charCodeAt(i)) | 0;
+    return 'neon-t-' + (Math.abs(h) % 10);
+  }
+
+  function neonSpan(token) {
+    const cls = neonClass(token.replace(/^[$#]/, '').toUpperCase());
+    return `<span class="neon-token ${cls}" data-token="${token}">${token}</span>`;
+  }
+
+  let journalTodayId = null;   // null = no entry yet; number = existing entry id
+  let journalFilter = null;    // null = unfiltered; string = active token filter
+  let journalEntries = [];     // cached full list
+
+  async function loadJournal() {
+    const page = document.getElementById('page-journal');
+    page.innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+    try {
+      const [entries, goals, stats] = await Promise.all([
+        get('/api/journal/entries'),
+        get('/api/journal/goals'),
+        get('/api/journal/stats'),
+      ]);
+      journalEntries = entries || [];
+      journalTodayId = null;
+      const today = new Date().toISOString().slice(0, 10);
+      const todayEntry = journalEntries.find(e => e.entry_date === today);
+      if (todayEntry) journalTodayId = todayEntry.id;
+
+      page.innerHTML = renderJournalLayout(todayEntry, journalEntries, goals, stats);
+      attachJournalHandlers(goals, stats);
+    } catch (e) {
+      page.innerHTML = empty('📓', 'Journal unavailable', 'Could not load journal data.');
+    }
+  }
 
   /* ── Add / Delete Position ──────────────── */
   function openAddPosition() {
