@@ -108,12 +108,12 @@ Two-column layout:
 Three mini-stat cards in a row:
 - **Entries** — total journal entries (from `/api/journal/stats`)
 - **Streak** — consecutive days with an entry (from `/api/journal/stats`)
-- **Today** — portfolio P&L today. The frontend fetches this from the existing `/api/portfolio` endpoint (already used by the Portfolio page) and computes the day's unrealized gain/loss percentage client-side. No new endpoint needed.
+- **Today** — portfolio day P&L. Computed client-side: fetch positions from `/api/portfolio/positions`, fetch a quote per ticker from `/api/quotes/{symbol}` (reused for Movers — one set of requests serves both panels). Compute weighted-average `change_pct` across positions weighted by market value (`quantity × price`). No new endpoint needed.
 
 ### Movers in Your Journal
-- The frontend fetches the current portfolio positions from `/api/portfolio` (same data already loaded for the Stats Row). For each position ticker it fetches the quote via the existing `/api/quotes/{symbol}` endpoint (same mechanism as the ticker bar).
+- The frontend fetches positions from `/api/portfolio/positions` and quotes from `/api/quotes/{symbol}` for each (shared with the Stats Row "Today" computation above — one set of fetches serves both panels).
 - Cross-references the resulting quotes against tickers found in journal entries (from the loaded entries list) — only tickers the user has written about are displayed.
-- Sorts by absolute % change, shows: ticker (neon), % change today, entry count.
+- Sorts by absolute `change_pct`, shows: ticker (neon), % change today, entry count.
 - No new backend endpoint required. Scoping to portfolio positions prevents stale tickers from appearing.
 
 ### Goals
@@ -184,13 +184,16 @@ CREATE TABLE journal_goals (
 - `entry_date` is populated server-side at save time. "Today's entry" is the entry whose `entry_date` matches the current server date. The `UNIQUE (entry_date)` constraint enforces one entry per day at the DB level — the service layer `upserts` (load existing entry for today if present, otherwise create).
 - Habit goal progress is derived at query time from `journal_entries` (e.g., count of distinct `entry_date` values in the current month for "Write daily"). `milestone_value` is only meaningful for `goal_type = 'milestone'`.
 
+**Today's entry save flow (frontend):**
+On journal page load the frontend calls `GET /api/journal/entries?entryDate=<today>`. If an entry exists, load it into the editor and retain the `id`. If no entry exists, the editor starts empty with no `id`. On first Save, call `POST /api/journal/entries` and store the returned `id`. All subsequent saves within the same session call `PUT /api/journal/entries/{id}`. This avoids duplicate rows while keeping the API clean.
+
 ### REST Endpoints
 
 All under `/api/journal`, protected by existing `ApiKeyAuthFilter` in non-dev profiles.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/journal/entries` | List all entries, newest first. Optional `?ticker=NVDA` or `?tag=macro` filter. |
+| `GET` | `/api/journal/entries` | List all entries, newest first. Optional `?ticker=NVDA`, `?tag=macro`, or `?entryDate=2026-03-17` filter. |
 | `POST` | `/api/journal/entries` | Create entry. See request body below. |
 | `PUT` | `/api/journal/entries/{id}` | Update entry. See request body below. |
 | `DELETE` | `/api/journal/entries/{id}` | Delete entry |
@@ -233,6 +236,33 @@ Tickers and tags are **not** accepted from the client — the server extracts th
 }
 ```
 `milestoneValue` and `deadline` are optional. For habit goals, `targetValue` is optional (open-ended); `milestoneValue` is ignored.
+
+**GET `/api/journal/goals` response (array of goal objects):**
+```json
+[
+  {
+    "id": 1,
+    "label": "Hit $500K",
+    "goalType": "milestone",
+    "targetValue": 500000,
+    "currentProgress": 372000,
+    "progressPct": 74.4,
+    "deadline": "2026-12-31",
+    "createdAt": "2026-01-01T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "label": "Write daily",
+    "goalType": "habit",
+    "targetValue": 30,
+    "currentProgress": 12,
+    "progressPct": 40.0,
+    "deadline": null,
+    "createdAt": "2026-03-01T00:00:00Z"
+  }
+]
+```
+`currentProgress` is always returned by the service: for `milestone` goals it is `milestone_value` from the DB; for `habit` goals it is computed at query time (count of distinct `entry_date` values in the current calendar month). `progressPct` = `currentProgress / targetValue × 100` (null if `targetValue` is null). DELETE endpoints return `204 No Content`.
 
 **GET `/api/journal/stats` response shape:**
 ```json
