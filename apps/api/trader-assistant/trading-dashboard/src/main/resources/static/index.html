@@ -6,46 +6,57 @@
   <title>Benji</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,300&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --forest-deep:  #131f17;
-      --forest-mid:   #1a3324;
-      --forest-body:  #254d36;
-      --forest-soft:  #3a6e50;
-      --sage:         #6a9678;
-      --sage-light:   #93b5a0;
-      --mist:         #c5d3ca;
-      --cream:        #f3efe4;
-      --cream-card:   #f9f7f1;
-      --cream-border: #e0dbd0;
-      --amber:        #a87830;
-      --amber-light:  #c49040;
-      --text-dark:    #171f1a;
-      --text-mid:     #3a5444;
-      --text-light:   #647d6e;
-      --text-muted:   #96b0a0;
-      --positive:     #2a6644;
-      --negative:     #7a3020;
-      --radius-sm:    6px;
-      --radius-md:    10px;
-      --radius-lg:    16px;
-      --shadow-sm:    0 1px 3px rgba(19,31,23,.07), 0 1px 2px rgba(19,31,23,.04);
-      --shadow-md:    0 4px 16px rgba(19,31,23,.10);
-      --sidebar-w:    224px;
+      --bg:           #050a07;
+      --bg-mid:       #09100b;
+      --bg-card:      #111a13;
+      --bg-card-hi:   #172019;
+      --border:       rgba(78,221,138,.11);
+      --border-mid:   rgba(78,221,138,.22);
+      --border-hi:    rgba(78,221,138,.38);
+      --green:        #4edd8a;
+      --green-dim:    rgba(78,221,138,.65);
+      --green-faint:  rgba(78,221,138,.07);
+      --glow-sm:      0 0 8px rgba(78,221,138,.18), 0 0 2px rgba(78,221,138,.25);
+      --glow-ring:    0 0 0 1px rgba(78,221,138,.3), 0 0 14px rgba(78,221,138,.2), 0 0 30px rgba(78,221,138,.08);
+      --glow-ring-hi: 0 0 0 1px rgba(78,221,138,.45), 0 0 20px rgba(78,221,138,.28), 0 0 44px rgba(78,221,138,.12);
+      --red:          #f07868;
+      --amber:        #e8b45a;
+      --text:         #f2faf4;
+      --text-mid:     #c0d8c8;
+      --text-dim:     #85aa92;
+      --text-muted:   #607a6c;
+      --mono:         'IBM Plex Mono', monospace;
+      --serif:        'Fraunces', Georgia, serif;
+      --sidebar-w:    192px;
+      --sidebar-col:  54px;
     }
 
     html, body {
       height: 100%;
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: var(--cream);
-      color: var(--text-dark);
-      font-size: 14px;
-      line-height: 1.55;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
       -webkit-font-smoothing: antialiased;
+      overflow: hidden;
     }
+
+    @keyframes glowpulse {
+      0%,100% { box-shadow: var(--glow-ring-hi); }
+      50%      { box-shadow: 0 0 0 1px rgba(78,221,138,.5), 0 0 24px rgba(78,221,138,.3), 0 0 50px rgba(78,221,138,.12); }
+    }
+    @keyframes hum {
+      0%,100% { box-shadow: 0 0 4px var(--green), 0 0 8px rgba(78,221,138,.4); }
+      50%      { box-shadow: 0 0 8px var(--green), 0 0 18px rgba(78,221,138,.6), 0 0 28px rgba(78,221,138,.2); }
+    }
+    @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(78,221,138,.18); border-radius: 2px; }
 
     /* ── Layout ──────────────────────────────── */
     .layout { display: flex; height: 100vh; overflow: hidden; }
