@@ -55,8 +55,6 @@
       50%      { box-shadow: 0 0 8px var(--green), 0 0 18px rgba(78,221,138,.6), 0 0 28px rgba(78,221,138,.2); }
     }
     @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: rgba(78,221,138,.18); border-radius: 2px; }
 
     /* ── Sidebar ─────────────────────────────── */
     .sidebar {
@@ -313,6 +311,7 @@
       gap: 10px;
       align-items: start;
     }
+    .watchlist-grid.watchlist-editing #wl-add-tile { display: flex; }
     .wl-tile {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -1060,6 +1059,8 @@
       t.classList.remove('expanded');
       const closeBtn = t.querySelector('.exp-close');
       if (closeBtn) closeBtn.style.display = 'none';
+      const body = t.querySelector('.tile-expanded-body');
+      if (body) body.style.display = 'none';
     });
 
     if (!wasExpanded) {
@@ -1298,7 +1299,7 @@
     ctx.strokeStyle = '#e0dbd0';
     ctx.lineWidth = 0.5;
     ctx.fillStyle = '#96b0a0';
-    ctx.font = '10px Inter, sans-serif';
+    ctx.font = '10px IBM Plex Mono, monospace';
     ctx.textAlign = 'right';
     const gridLines = 5;
     for (let i = 0; i <= gridLines; i++) {
@@ -1363,7 +1364,7 @@
     const barAreaW = W - labelW - pad.right;
     const maxVal = entries[0][1];
 
-    ctx.font = '11px Inter, sans-serif';
+    ctx.font = '11px IBM Plex Mono, monospace';
     entries.forEach(([cat, val], i) => {
       const y = pad.top + i * (barH + gap);
       const barW = Math.max(2, (val / maxVal) * barAreaW);
@@ -1812,11 +1813,11 @@
           ctx.textAlign    = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle    = 'rgba(255,255,255,0.92)';
-          ctx.font         = `600 ${fs}px Inter,sans-serif`;
+          ctx.font         = `600 ${fs}px IBM Plex Mono,monospace`;
           ctx.fillText(r.ticker, rx + rw / 2, ry + rh / 2 - (showPct ? fs * 0.65 : 0));
           if (showPct) {
             const pctStr = (r.pct >= 0 ? '+' : '') + (r.pct * 100).toFixed(1) + '%';
-            ctx.font      = `400 ${Math.max(8, fs - 2)}px Inter,sans-serif`;
+            ctx.font      = `400 ${Math.max(8, fs - 2)}px IBM Plex Mono,monospace`;
             ctx.fillStyle = 'rgba(255,255,255,0.68)';
             ctx.fillText(pctStr, rx + rw / 2, ry + rh / 2 + fs * 0.75);
           }
