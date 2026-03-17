@@ -276,14 +276,13 @@
     .daily-quote:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
     .daily-quote-mark { font-family: var(--serif); font-size: 42px; line-height: 1; color: var(--green-dim); flex-shrink: 0; margin-top: -6px; }
     .daily-quote-text {
-      font-size: clamp(10px, 2.5vw, 18px);
+      font-size: clamp(18px, 2.5vw, 56px);
       font-style: italic;
       color: var(--text-mid);
-      line-height: 1.5;
+      line-height: 1.45;
       font-family: var(--serif);
       font-weight: 300;
       font-optical-sizing: auto;
-      overflow: hidden;
       transition: opacity .25s ease;
     }
     .daily-quote-attr { font-size: 9px; color: var(--text-muted); letter-spacing: .8px; text-transform: uppercase; margin-top: 6px; }
@@ -2000,40 +1999,10 @@
     "The most important thing to do if you find yourself in a hole is to stop digging.",
   ];
 
-  function fitQuoteText() {
-    const container = document.getElementById('dailyQuote');
-    const textEl    = document.getElementById('dailyQuoteText');
-    if (!textEl || !container || container.clientHeight === 0) return;
-
-    const style  = getComputedStyle(container);
-    const padV   = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-    const attrEl = textEl.nextElementSibling;
-    const attrH  = attrEl ? attrEl.offsetHeight + parseFloat(getComputedStyle(attrEl).marginTop) : 0;
-    const avail  = container.clientHeight - padV - attrH;
-
-    textEl.style.fontSize = '8px';
-    let lo = 8, hi = 72, best = 8;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      textEl.style.fontSize = mid + 'px';
-      if (textEl.scrollHeight <= avail) { best = mid; lo = mid + 1; }
-      else hi = mid - 1;
-    }
-    textEl.style.fontSize = best + 'px';
-  }
-
   let _quoteIndex = Math.floor(Date.now() / 86_400_000) % BUFFETT_QUOTES.length;
 
   function initDailyQuote() {
     document.getElementById('dailyQuoteText').textContent = BUFFETT_QUOTES[_quoteIndex];
-    requestAnimationFrame(fitQuoteText);
-
-    const container = document.getElementById('dailyQuote');
-    if (!container._ro) {
-      container._ro = new ResizeObserver(fitQuoteText);
-      container._ro.observe(container);
-    }
-
     document.getElementById('quoteRefreshBtn').addEventListener('click', refreshQuote);
   }
 
@@ -2050,7 +2019,6 @@
       do { next = Math.floor(Math.random() * BUFFETT_QUOTES.length); } while (next === _quoteIndex);
       _quoteIndex = next;
       textEl.textContent = BUFFETT_QUOTES[_quoteIndex];
-      fitQuoteText();
       requestAnimationFrame(() => { textEl.style.opacity = '1'; });
     }, 250);
   }
