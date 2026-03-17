@@ -259,15 +259,9 @@
     .stat-trend.up   { color: var(--green); background: rgba(78,221,138,.1); }
     .stat-trend.down { color: var(--red);   background: rgba(240,120,104,.1); }
 
-    /* ── Portfolio top row & daily quote ─────── */
-    .port-top-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
-      align-items: start;
-    }
+    /* ── Daily quote ─────────────────────────── */
     .daily-quote {
+      position: relative;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -275,7 +269,8 @@
       display: flex;
       gap: 14px;
       align-items: flex-start;
-      min-height: 120px;
+      min-height: 80px;
+      margin-bottom: 24px;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
     .daily-quote:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
@@ -289,8 +284,32 @@
       font-weight: 300;
       font-optical-sizing: auto;
       overflow: hidden;
+      transition: opacity .25s ease;
     }
     .daily-quote-attr { font-size: 9px; color: var(--text-muted); letter-spacing: .8px; text-transform: uppercase; margin-top: 6px; }
+    .quote-refresh-btn {
+      position: absolute; top: 11px; right: 11px;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); padding: 4px; border-radius: 4px; line-height: 0;
+      transition: color .15s;
+    }
+    .quote-refresh-btn:hover { color: var(--green); }
+    @keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .quote-refresh-btn.spinning svg { animation: spin-once .45s ease; }
+
+    /* ── Portfolio sparklines grid ─────────────── */
+    .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .spark-tile {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px 8px; transition: border-color .18s, box-shadow .22s;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
+    }
+    .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .spark-tile canvas { display: block; width: 100%; height: 56px; }
+    .spark-sym  { font-size: 11px; font-weight: 500; color: var(--text-mid); letter-spacing: .5px; }
+    .spark-pct  { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
+    .spark-pct.pos { color: var(--green); }
+    .spark-pct.neg { color: var(--red); }
 
     /* ── Section label ───────────────────────── */
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
@@ -770,19 +789,26 @@
 
       <!-- Portfolio -->
       <div class="page" id="page-portfolio">
-        <div class="port-top-row">
-          <div class="stat-row" id="port-stats"></div>
-          <div class="daily-quote" id="dailyQuote">
-            <div class="daily-quote-mark">&ldquo;</div>
-            <div>
-              <div class="daily-quote-text" id="dailyQuoteText"></div>
-              <div class="daily-quote-attr">Warren Buffett</div>
-            </div>
+        <div class="stat-row" id="port-stats"></div>
+        <div class="daily-quote" id="dailyQuote">
+          <button class="quote-refresh-btn" id="quoteRefreshBtn" title="New quote" aria-label="New quote">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+          <div class="daily-quote-mark">&ldquo;</div>
+          <div>
+            <div class="daily-quote-text" id="dailyQuoteText"></div>
+            <div class="daily-quote-attr">Warren Buffett</div>
           </div>
         </div>
         <div class="chart-wrap" id="port-treemap-wrap" style="display:none">
           <div class="chart-title">Allocation by Market Value</div>
           <canvas id="portTreemap"></canvas>
+        </div>
+        <div class="chart-wrap" id="port-sparks-wrap" style="display:none">
+          <div class="chart-title">3-Month Performance</div>
+          <div class="port-sparks-grid" id="port-sparks-grid"></div>
         </div>
         <div class="section-head" style="margin-bottom:14px;margin-top:22px">
           <span class="section-title">Positions</span>
@@ -1487,6 +1513,7 @@
   async function loadPortfolio() {
     document.getElementById('port-stats').innerHTML = '';
     document.getElementById('port-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+    document.getElementById('port-sparks-wrap').style.display = 'none';
 
     const [sRes, pRes] = await Promise.allSettled([
       get('/api/portfolio/summary'),
@@ -1536,12 +1563,24 @@
 
     if (!positions?.length) {
       document.getElementById('port-treemap-wrap').style.display = 'none';
+      document.getElementById('port-sparks-wrap').style.display = 'none';
       document.getElementById('port-table').innerHTML = empty('📊', 'No positions yet', 'Portfolio positions will appear here once added.');
       return;
     }
 
     // Draw treemap (deferred one frame so canvas has layout width)
     requestAnimationFrame(() => drawTreemap(positions, priceMap));
+
+    // Fetch 3M history for portfolio sparklines (parallel, fault-tolerant)
+    const histResults = await Promise.allSettled(
+      positions.map(p => get('/api/quotes/' + p.ticker + '/history'))
+    );
+    const historyMap = {};
+    positions.forEach((p, i) => {
+      const r = histResults[i];
+      if (r.status === 'fulfilled' && r.value) historyMap[p.ticker] = r.value;
+    });
+    drawPortfolioSparks(positions, historyMap);
 
     document.getElementById('port-table').innerHTML =
       `<table class="data-table">
@@ -1763,6 +1802,81 @@
     }
   }
 
+  function drawPortSpark(canvas, bars) {
+    if (!canvas || !bars || bars.length < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W   = canvas.offsetWidth || 140;
+    const H   = 56;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const closes = bars.map(b => b.close);
+    let min = Math.min(...closes), max = Math.max(...closes);
+    const range = max - min || 1;
+    min -= range * 0.05; max += range * 0.05;
+
+    const xi = i => (i / (closes.length - 1)) * W;
+    const yi = v => H - ((v - min) / (max - min)) * H;
+    const isPos = closes[closes.length - 1] >= closes[0];
+
+    const lineCol  = isPos ? '#4edd8a' : 'rgba(240,120,104,.85)';
+    const fillCol0 = isPos ? 'rgba(78,221,138,.14)' : 'rgba(240,120,104,.10)';
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, fillCol0);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.beginPath();
+    ctx.moveTo(xi(0), yi(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(xi(i), yi(closes[i]));
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(xi(0), yi(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(xi(i), yi(closes[i]));
+    ctx.strokeStyle = lineCol; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  function drawPortfolioSparks(positions, historyMap) {
+    const wrap = document.getElementById('port-sparks-wrap');
+    const grid = document.getElementById('port-sparks-grid');
+
+    const tiles = positions
+      .filter(p => historyMap[p.ticker]?.bars?.length > 1)
+      .map(p => {
+        const bars  = historyMap[p.ticker].bars;
+        const first = bars[0].close;
+        const last  = bars[bars.length - 1].close;
+        const pct   = first > 0 ? (last - first) / first * 100 : 0;
+        const cls   = pct >= 0 ? 'pos' : 'neg';
+        const sign  = pct >= 0 ? '+' : '';
+        return { ticker: p.ticker, bars, pct, cls, sign };
+      });
+
+    if (!tiles.length) { wrap.style.display = 'none'; return; }
+
+    grid.innerHTML = tiles.map(t =>
+      `<div class="spark-tile">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <span class="spark-sym">${t.ticker}</span>
+          <span class="spark-pct ${t.cls}">${t.sign}${t.pct.toFixed(1)}%</span>
+        </div>
+        <canvas id="pspark-${t.ticker}"></canvas>
+      </div>`
+    ).join('');
+
+    wrap.style.display = 'block';
+    requestAnimationFrame(() => {
+      tiles.forEach(t => {
+        const cv = document.getElementById('pspark-' + t.ticker);
+        if (cv) drawPortSpark(cv, t.bars);
+      });
+    });
+  }
+
   function drawTreemap(positions, priceMap) {
     const wrap   = document.getElementById('port-treemap-wrap');
     const canvas = document.getElementById('portTreemap');
@@ -1908,10 +2022,10 @@
     textEl.style.fontSize = best + 'px';
   }
 
+  let _quoteIndex = Math.floor(Date.now() / 86_400_000) % BUFFETT_QUOTES.length;
+
   function initDailyQuote() {
-    const day = Math.floor(Date.now() / 86_400_000);
-    const quote = BUFFETT_QUOTES[day % BUFFETT_QUOTES.length];
-    document.getElementById('dailyQuoteText').textContent = quote;
+    document.getElementById('dailyQuoteText').textContent = BUFFETT_QUOTES[_quoteIndex];
     requestAnimationFrame(fitQuoteText);
 
     const container = document.getElementById('dailyQuote');
@@ -1919,6 +2033,26 @@
       container._ro = new ResizeObserver(fitQuoteText);
       container._ro.observe(container);
     }
+
+    document.getElementById('quoteRefreshBtn').addEventListener('click', refreshQuote);
+  }
+
+  function refreshQuote() {
+    const textEl = document.getElementById('dailyQuoteText');
+    const btn    = document.getElementById('quoteRefreshBtn');
+
+    btn.classList.add('spinning');
+    btn.addEventListener('animationend', () => btn.classList.remove('spinning'), { once: true });
+
+    textEl.style.opacity = '0';
+    setTimeout(() => {
+      let next;
+      do { next = Math.floor(Math.random() * BUFFETT_QUOTES.length); } while (next === _quoteIndex);
+      _quoteIndex = next;
+      textEl.textContent = BUFFETT_QUOTES[_quoteIndex];
+      fitQuoteText();
+      requestAnimationFrame(() => { textEl.style.opacity = '1'; });
+    }, 250);
   }
 
   /* ── Ticker bar ─────────────────────────── */
