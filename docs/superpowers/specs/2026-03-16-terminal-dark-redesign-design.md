@@ -53,9 +53,18 @@ Three levels of neon glow applied via `box-shadow`:
 - `glow-ring`: card/tile hover state
 - `glow-ring-hi`: focused/expanded tile, persistent + animated
 
-A `glowpulse` keyframe animation breathes the expanded tile glow between `glow-ring-hi` and a slightly brighter peak on a 3s loop.
+**`glowpulse` animation** — breathes the expanded tile glow on a 3s ease-in-out loop:
 
-A `hum` keyframe animates the live indicator dot and connection badge dot between a tight and wide glow radius on a 2–2.5s loop.
+```css
+@keyframes glowpulse {
+  0%,100% { box-shadow: var(--glow-ring-hi); }
+  50%      { box-shadow: 0 0 0 1px rgba(78,221,138,.5), 0 0 24px rgba(78,221,138,.3), 0 0 50px rgba(78,221,138,.12); }
+}
+```
+
+**`hum` animation** — pulses the live indicator dot and connection badge dot between a narrow and wide glow radius:
+- Live pill dot: 2s loop
+- Connection badge dot: 2.5s loop
 
 ### 2.3 Typography
 
@@ -65,6 +74,10 @@ A `hum` keyframe animates the live indicator dot and connection badge dot betwee
 | All other text — labels, values, nav, data | IBM Plex Mono | 300 / 400 / 500 | normal |
 
 Font sizes follow a strict scale: 7.5px (nav groups), 8–9px (labels/hints), 10–11px (secondary data), 13px (base body), 18px (tile prices), 21px (topbar title / brand), 22px (stat card values).
+
+### 2.4 Scrollbar
+
+Override webkit scrollbar: 4px width, green-tinted thumb (`rgba(78,221,138,.18)`), rounded. Applied to all scrollable content areas.
 
 ---
 
@@ -88,9 +101,9 @@ Font sizes follow a strict scale: 7.5px (nav groups), 8–9px (labels/hints), 10
 
 - **Expanded:** 192px wide. Shows brand mark, nav group labels, nav item labels, connection badge text.
 - **Collapsed:** 54px wide (icons only). Labels and group headings fade to opacity 0; icons remain.
-- **Behavior:** Auto-collapses to icon-only after 4 seconds of mouse-off. Re-expands immediately on `mouseenter`. Uses CSS `width` transition (cubic-bezier `.4,0,.2,1`, 300ms).
+- **Behavior:** The collapse timer starts immediately on page load (not on first mouse interaction). The sidebar will auto-collapse 4 seconds after the page renders. On `mouseenter`, the timer is cancelled and the sidebar re-expands immediately. On `mouseleave`, the 4-second timer restarts. Uses CSS `width` transition (cubic-bezier `.4,0,.2,1`, 300ms).
 - **Nav items:** Dashboard, Quotes, Portfolio, Finance. Active item highlighted with green tint + `glow-sm`.
-- **Footer:** "Connected" badge with animated dot. Dot uses `hum` animation.
+- **Footer:** "Connected" badge with animated dot. Dot uses `hum` animation at 2.5s.
 
 ### 3.3 Ticker Bar
 
@@ -102,7 +115,7 @@ Font sizes follow a strict scale: 7.5px (nav groups), 8–9px (labels/hints), 10
 
 - Height: 50px. Background: `--bg-mid`.
 - Left: page title in Fraunces italic 21px.
-- Right: date in 11px mono + LIVE pill with animated dot.
+- Right: date in 11px mono + LIVE pill with animated dot (2s `hum`).
 
 ---
 
@@ -110,70 +123,102 @@ Font sizes follow a strict scale: 7.5px (nav groups), 8–9px (labels/hints), 10
 
 ### 4.1 Stat Cards
 
-Four-column grid. Each card: label (uppercase 9px), large value (22px), trend hint.
+Four-column grid. Each card: label (uppercase 9px), large value (22px), hint line with optional trend badge.
 
-| Card | Value color | Trend badge |
-|------|------------|-------------|
-| Portfolio Value | amber | ▲/▼ % vs. yesterday |
-| Today's P&L | green (if positive) | ▲/▼ % today |
-| Unrealized P&L | green (if positive) | ▲/▼ % total return |
-| Positions | default | none (count, not directional) |
+| Card | Value color | Trend badge | Hint text |
+|------|------------|-------------|-----------|
+| Portfolio Value | amber | ▲/▼ % vs. yesterday | "vs. yesterday" |
+| Today's P&L | green (positive) / red (negative) | ▲/▼ % today | "today" |
+| Unrealized P&L | green (positive) / red (negative) | ▲/▼ % total return | "total return" |
+| Positions | `--text` (default) | none | "Across N sectors" (computed from position data) |
 
-Trend badges are small inline pills (▲ green / ▼ red) with a tinted background, rendered inside the hint line.
+Trend badges are small inline pills (▲ green / ▼ red) with a tinted background (`rgba(78,221,138,.1)` / `rgba(240,120,104,.1)`), rendered inline before the hint text.
 
 Cards glow on hover (`glow-ring`).
 
 ### 4.2 Watchlist Tiles
 
-The primary new component. A CSS grid of tiles (`repeat(auto-fill, minmax(160px, 1fr))`), `align-items: start` so tiles don't stretch to match an expanded neighbor.
+The primary new component. A CSS grid of tiles (`repeat(auto-fill, minmax(160px, 1fr))`), `align-items: start` so tiles don't stretch to match an expanded neighbor. `grid-auto-flow: dense` is applied so that when a tile expands to `span 2`, the browser back-fills any gap with remaining tiles rather than leaving an empty cell.
 
-**Tile ordering:** sorted by daily % change descending — biggest winners first, losers last.
+**Tile ordering:** sorted by daily % change descending — biggest winners first, losers last. The sort function must handle both ASCII hyphen (`-`) and Unicode minus (`−` U+2212) in the change string.
+
+#### Tile price colors
+
+The price value uses sentiment-specific colors (not the generic `--text`):
+
+| Sentiment | Price color |
+|-----------|-------------|
+| Positive | `var(--amber)` (`#e8b45a`) |
+| Negative | `rgba(240,120,104,.85)` |
+| Neutral / flat | `rgba(232,180,90,.55)` (dimmed amber) |
 
 #### At-rest tile structure
 
 ```
 [3px left-edge sentiment strip]
-[sym]              [+1.2% badge]
-[$188.32          ]
-[sparkline SVG (36px)]
-[compact news — 2 headlines, clamped to 2 lines each]
+┌──────────────────────────────┐
+│ SYM               [+1.2%]   │
+│ $188.32                      │
+│ [sparkline SVG, 36px tall]   │
+│ · headline one, up to 2 lines│
+│ · headline two, up to 2 lines│
+└──────────────────────────────┘
 ```
 
-- **Sentiment strip:** 3px left border flush with tile edge. Green (`rgba(78,221,138,.5)`) for positive, red (`rgba(240,120,104,.5)`) for negative, near-invisible white for flat.
-- **Sparkline:** 1D intraday path, 36px tall. Color: green for positive, red for negative, faint white for neutral. Gradient fill below the line.
-- **Compact news:** shown only when the ticker has more than 1 available headline. 2 headlines max, each `-webkit-line-clamp: 2`. Hidden when tile is expanded.
-- **Sparkline placeholder:** when no chart data is available, render a flat dashed line at the vertical midpoint (`y=18`) instead of a real path. No additional label needed.
+- **Sentiment strip:** 3px left border, `position: absolute`, flush with left/top/bottom of tile. Green (`rgba(78,221,138,.5)`) for positive, red (`rgba(240,120,104,.5)`) for negative, near-invisible (`rgba(200,200,200,.15)`) for flat. Tile needs `overflow: hidden` to respect border-radius.
+- **Sparkline:** 1D intraday path, 36px tall SVG. Stroke color: green for positive, red for negative, `rgba(255,255,255,.18)` for neutral. Gradient fill below the line. Endpoint dot is not shown in the compact/at-rest state.
+- **Compact news:** shown only when the ticker has **2 or more** headlines available from the API. Shows the first 2 headlines, each clamped to 2 lines (`-webkit-line-clamp: 2`). Hidden when tile is expanded.
+- **Sparkline placeholder:** when no chart data is available, render a flat dashed line at `y=18` (vertical midpoint of the 36px SVG). No text label. The tile height matches data-bearing tiles.
 
 #### Expanded tile (focused state)
 
-Triggered by clicking anywhere on the tile. Only one tile can be expanded at a time.
+Triggered by clicking anywhere on the tile body (not the ✕ button). Only one tile can be expanded at a time — clicking a new tile collapses any currently open tile. Clicking an already-expanded tile collapses it.
 
 ```
-[3px strip]  [sym]  [price]  [chg badge]          [✕]
-[timeframe toggle: 1D | 5D | 3M              ]
-[expanded sparkline SVG (64px)               ]
-  - 3 faint dashed horizontal grid lines (y=16, 32, 48)
-  - gradient fill under the line
-  - glowing endpoint dot at tip of line
-[x-axis labels (5 labels, space-between)     ]
-[fundamentals grid (3×2 cells)               ]
-[─────────────────────────────────────────── ]
-[Related News (full headlines, all items)    ]
+[3px strip]
+┌───────────────────────────────────────────────┐
+│ SYM                              [+1.2%]  [✕] │  ← row 1: symbol left, badge right
+│ $188.32                                       │  ← row 2: price (✕ is position:absolute overlay)
+│                                               │
+│                            [1D] [5D] [3M]    │  ← timeframe toggle, right-aligned
+│ [expanded sparkline SVG, 64px tall          ] │
+│   · 3 faint dashed horizontal grid lines      │
+│   · gradient fill                             │
+│   · glowing endpoint dot at line tip          │
+│ 9:30   11:00   1:00P   3:00P   Close          │  ← x-axis labels
+│                                               │
+│ ┌────────┐ ┌────────┐ ┌────────┐             │
+│ │ Open   │ │ High   │ │ Low    │             │  ← fundamentals grid (3×2)
+│ │ 186.10 │ │ 189.40 │ │ 185.80 │             │
+│ ├────────┤ ├────────┤ ├────────┤             │
+│ │Prev Cls│ │ Volume │ │[extra] │             │
+│ │ 186.07 │ │  52.4M │ │ 2.89T  │             │
+│ └────────┘ └────────┘ └────────┘             │
+│ ─────────────────────────────────────────── │
+│ RELATED NEWS                                  │
+│ · Headline one                     Source · T │
+│ · Headline two                     Source · T │
+└───────────────────────────────────────────────┘
 ```
 
-- **Grid column:** `span 2` — tile doubles in width.
-- **Glow:** `glow-ring-hi` border + `glowpulse` breathing animation.
-- **Timeframe toggle:** `1D | 5D | 3M` buttons. Active button has green tint + `glow-sm`. Switching updates the sparkline path, endpoint dot position, and x-axis labels.
+- **Grid column:** `grid-column: span 2`. With `grid-auto-flow: dense`, the grid will reflow remaining tiles to fill gaps. This is the intended behavior.
+- **Glow:** `glow-ring-hi` border + `glowpulse` breathing animation (defined in section 2.2).
+- **Timeframe toggle:** `1D | 5D | 3M` buttons, right-aligned above the chart. Active button: green tint background + `glow-sm`. Switching updates the sparkline path, endpoint dot position, and x-axis labels simultaneously.
 - **X-axis labels by timeframe:**
   - 1D: `9:30 · 11:00 · 1:00P · 3:00P · Close`
   - 5D: `Mon · Tue · Wed · Thu · Fri`
   - 3M: `Jan · Feb · Mar 1 · Mar 8 · Now`
-- **Endpoint dot:** small filled circle (`r=2.5`) at the terminal coordinate of the current sparkline path. Color matches the line. Rendered with a CSS `drop-shadow` filter for glow. Updates on timeframe switch.
-- **Expanded sparkline placeholder:** when no chart data exists, renders the three grid lines + a flat dashed midline + a centered "chart data unavailable" label. Timeframe toggle remains rendered but inert.
-- **Fundamentals grid:** 3 columns × 2 rows of stat cells (Open, High, Low, Prev Close, Volume, and one ticker-specific metric). Each cell: label (uppercase 7.5px), value (12px mono). Glows on hover.
-- **News section:** all available headlines, each with a source + timestamp line. Items have a subtle left-indent hover animation. Separated from fundamentals by a divider line.
-- **Close:** ✕ button top-right. Clicking collapses tile back to at-rest state.
-- **Default timeframe on open:** always 1D.
+- **Endpoint dot:** filled circle `r=2.5` at the terminal `(x,y)` coordinate of the current path. Color matches the sparkline stroke. CSS `filter: drop-shadow(0 0 4px <color>)` for glow effect. Position updates on timeframe switch.
+- **Expanded sparkline placeholder (no data):** renders the three grid lines + a flat dashed midline (`y=32` in the 64px SVG) + a centered "chart data unavailable" label in `--text-muted`. Timeframe toggle buttons are rendered but non-interactive (`pointer-events: none`, opacity reduced to 40%).
+- **Fundamentals grid:** 3 columns × 2 rows. Fixed fields: Open, High, Low, Prev Close, Volume. Sixth cell is ticker-dependent:
+  - ETFs (e.g. VOO, SPY): YTD return
+  - Indices (e.g. SPX, NDX): Forward P/E
+  - Individual equities: Market Cap if available, otherwise P/E trailing
+  - Crypto: Market Cap
+  - Fallback if no suitable metric is available: omit the cell (leave blank, grid renders 5 cells)
+- **News section:** all available headlines rendered below the fundamentals, separated by a `1px solid var(--border)` divider. Each item: headline (10px, `--text-mid`) + source · time (8.5px, `--text-dim`). Hover nudges item 4px right.
+- **Close button:** `✕`, `position: absolute`, top-right of tile. Collapses tile on click.
+- **Default timeframe on open:** always 1D, regardless of previously selected timeframe.
 
 ---
 
