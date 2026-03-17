@@ -44,6 +44,13 @@ class ApiExceptionHandler {
     return build(HttpStatus.NOT_FOUND, "POSITION_NOT_FOUND", ex.getMessage());
   }
 
+  @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
+  ResponseEntity<ErrorResponse> handleEntityNotFound(
+      jakarta.persistence.EntityNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(new ErrorResponse().code("NOT_FOUND").message(ex.getMessage()));
+  }
+
   @ExceptionHandler(MarketDataClientException.class)
   ResponseEntity<ErrorResponse> handleMarketDataClientException(MarketDataClientException ex) {
     return build(HttpStatus.BAD_GATEWAY, "PROVIDER_ERROR", ex.getMessage());
