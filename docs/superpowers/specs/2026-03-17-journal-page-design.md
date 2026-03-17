@@ -41,27 +41,41 @@ Outer card: site-standard `#111a13` background, `1px solid rgba(78,221,138,.22)`
 
 ## Page Layout
 
-Two-column layout:
+The Journal page is added to the existing single-file SPA using the same structure as Dashboard, Quotes, Portfolio, and Finance. It does **not** introduce its own nav bar or shell — the shared sidebar, topbar, and ticker bar remain unchanged.
+
+**Navigation integration:**
+- Add a `nav-item` under the existing "Personal" nav-group in the sidebar (after Finance), with `data-page="journal"`:
+```html
+<div class="nav-item" data-page="journal">
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="2" y="1" width="10" height="12" rx="1.5"/>
+    <path d="M5 4h4M5 7h4M5 10h2"/>
+  </svg>
+  <span class="nav-label">Journal</span>
+</div>
+```
+- Add `'journal': 'Journal'` to the `TITLES` map.
+- Add `if (page === 'journal') loadJournal();` alongside the existing page-load calls.
+
+**Page content container:** `<div class="page" id="page-journal">` inside `<div class="content">`, identical to other pages.
+
+**Two-column layout inside the content area:**
 
 ```
-┌─────────────────────────────────────┬──────────────────┐
-│  NAV BAR                                               │
-├─────────────────────────────────────┬──────────────────┤
-│                                     │                  │
-│  TODAY'S ENTRY (editor, open)       │  CALENDAR        │
-│                                     │  STATS           │
-│  ─────────────────────────────────  │  MOVERS          │
-│                                     │  GOALS           │
-│  PAST ENTRY (dimmed)                │  MOST WRITTEN    │
-│                                     │                  │
-│  PAST ENTRY (more dimmed)           │                  │
-│                                     │                  │
-└─────────────────────────────────────┴──────────────────┘
+┌──────────────────────────────────┬─────────────────┐
+│  TODAY'S ENTRY (editor, open)    │  CALENDAR       │
+│                                  │  STATS          │
+│  ──────────────────────────────  │  MOVERS         │
+│                                  │  GOALS          │
+│  PAST ENTRY (dimmed)             │  MOST WRITTEN   │
+│                                  │                 │
+│  PAST ENTRY (more dimmed)        │                 │
+└──────────────────────────────────┴─────────────────┘
 ```
 
 - Left column (~60%): Editor + scrollable entry feed
 - Right column (~40%): Persistent dashboard context
-- No page navigation required to start writing
+- No extra click required to start writing
 
 ---
 
@@ -292,7 +306,7 @@ Follows existing patterns: `JournalController` (thin, implements generated inter
 
 ## Frontend
 
-Single-file SPA addition to `src/main/resources/static/index.html`. New `#journal` page section added alongside existing `#dashboard`, `#portfolio` pages. Navigation tab added.
+Single-file SPA addition to `src/main/resources/static/index.html`. The Journal page follows the exact same pattern as existing pages — a `<div class="page" id="page-journal">` container inside `<div class="content">`, a sidebar nav-item under "Personal", an entry in the `TITLES` map, and a `loadJournal()` call in the `go()` function. No new shell, topbar, or layout chrome is introduced.
 
 ### Token Detection (client-side)
 On every `input` event in the `contenteditable` editor:
