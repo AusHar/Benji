@@ -510,26 +510,19 @@
     }
 
     /* ── Empty / Loading ─────────────────────── */
-    .state-box {
-      padding: 52px 24px;
-      text-align: center;
-    }
-
-    .state-icon { font-size: 28px; margin-bottom: 12px; opacity: .45; }
-    .state-title { font-size: 13.5px; font-weight: 500; color: var(--text-light); margin-bottom: 4px; }
-    .state-sub   { font-size: 12.5px; color: var(--text-muted); }
+    .state-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 10px; }
+    .state-icon { font-size: 28px; opacity: .5; }
+    .state-title { font-size: 12px; color: var(--text-dim); }
+    .state-sub { font-size: 10px; color: var(--text-muted); text-align: center; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid var(--mist);
-      border-top-color: var(--sage);
+      display: inline-block; width: 14px; height: 14px;
+      border: 1.5px solid rgba(78,221,138,.2);
+      border-top-color: var(--green);
       border-radius: 50%;
-      animation: spin .65s linear infinite;
-      vertical-align: middle;
-      margin-right: 7px;
+      animation: spin .7s linear infinite;
     }
 
     /* ── Page sections ───────────────────────── */
@@ -538,90 +531,30 @@
 
     /* ── Unlock screen ───────────────────────── */
     .overlay {
-      position: fixed;
-      inset: 0;
-      background: var(--cream);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
     }
-
-    .unlock-card {
-      width: 100%;
-      max-width: 360px;
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-lg);
-      padding: 36px 36px 32px;
-      box-shadow: var(--shadow-md);
+    .lock-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px 40px;
+      width: 340px;
+      box-shadow: var(--glow-ring);
+      display: flex; flex-direction: column; gap: 20px;
     }
-
-    .unlock-brand {
-      display: flex;
-      align-items: center;
-      gap: 13px;
-      margin-bottom: 30px;
+    .lock-title {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--text);
+      font-optical-sizing: auto;
     }
-
-    .unlock-icon {
-      width: 46px; height: 46px;
-      background: var(--forest-deep);
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-    }
-
-    .unlock-name { font-size: 22px; font-weight: 600; color: var(--text-dark); letter-spacing: -.4px; }
-    .unlock-sub  { font-size: 12.5px; color: var(--text-light); margin-top: 1px; }
-
-    .unlock-label { font-size: 12.5px; font-weight: 500; color: var(--text-mid); margin-bottom: 7px; }
-
-    .unlock-input {
-      display: block;
-      width: 100%;
-      padding: 10px 13px;
-      background: var(--cream);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 13.5px;
-      color: var(--text-dark);
-      outline: none;
-      margin-bottom: 12px;
-      transition: border-color .15s;
-      letter-spacing: .4px;
-    }
-
-    .unlock-input:focus { border-color: var(--sage); }
-
-    .unlock-btn {
-      display: block;
-      width: 100%;
-      padding: 11px;
-      background: var(--forest-deep);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background .12s;
-    }
-
-    .unlock-btn:hover { background: var(--forest-mid); }
-    .unlock-btn:disabled { opacity: .6; cursor: not-allowed; }
-
-    .unlock-err {
-      font-size: 12px;
-      color: var(--negative);
-      text-align: center;
-      margin-top: 10px;
-      min-height: 16px;
-    }
+    .lock-sub { font-size: 11px; color: var(--text-dim); }
+    .lock-err { font-size: 10px; color: var(--red); min-height: 14px; }
 
     /* ── Overview grid */
     .overview-grid {
@@ -743,68 +676,24 @@
 
     /* ── Modal ───────────────────────────────── */
     .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(19,31,23,.45);
-      z-index: 8000;
-      align-items: center;
-      justify-content: center;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center; z-index: 500;
     }
     .modal-backdrop.open { display: flex; }
-
     .modal {
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-lg);
-      padding: 28px 30px 24px;
-      width: 340px;
-      box-shadow: var(--shadow-md);
+      background: var(--bg-card);
+      border: 1px solid var(--border-mid);
+      border-radius: 10px;
+      padding: 28px 32px;
+      width: 380px;
+      box-shadow: var(--glow-ring);
     }
-
-    .modal h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-dark);
-      margin-bottom: 20px;
-    }
-
-    .modal .field-group { display: flex; flex-direction: column; gap: 14px; }
-
-    .modal .field-label {
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      margin-bottom: 5px;
-    }
-
-    .modal .field {
-      width: 100%;
-      padding: 8px 11px;
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-sm);
-      font-size: 13.5px;
-      background: var(--cream);
-      color: var(--text-dark);
-    }
-
-    .modal .field:focus { outline: none; border-color: var(--forest-body); }
-
-    .modal-err {
-      font-size: 12px;
-      color: var(--negative);
-      min-height: 16px;
-      margin-top: 10px;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      margin-top: 22px;
-    }
+    .modal h3 { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 20px; }
+    .field-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .field-label { font-size: 9px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+    .modal-err { font-size: 10px; color: var(--red); min-height: 14px; margin-bottom: 8px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
     /* ── Watchlist tile controls ─────────────── */
     .quote-tile { position: relative; }
@@ -878,19 +767,12 @@
 
 <!-- Unlock -->
 <div class="overlay" id="overlay">
-  <div class="unlock-card">
-    <div class="unlock-brand">
-      <div class="unlock-icon">🌲</div>
-      <div>
-        <div class="unlock-name">Benji</div>
-        <div class="unlock-sub">Your personal financial assistant</div>
-      </div>
-    </div>
-    <div class="unlock-label">API Key</div>
-    <input class="unlock-input" id="keyInput" type="password" placeholder="Enter your API key" autocomplete="off">
-    <button class="unlock-btn" id="unlockBtn">Access Dashboard</button>
-    <div class="unlock-err" id="unlockErr"></div>
-    <div style="margin-top:22px;text-align:center;font-size:11.5px;color:var(--text-muted);letter-spacing:.2px;">A Harlan &amp; Co. project</div>
+  <div class="lock-box">
+    <div class="lock-title">Benji</div>
+    <div class="lock-sub">Your personal financial assistant</div>
+    <input class="field" id="keyInput" type="password" placeholder="Enter your API key" autocomplete="off">
+    <button class="btn btn-primary" id="unlockBtn" style="width:100%">Access Dashboard</button>
+    <div class="lock-err" id="unlockErr"></div>
   </div>
 </div>
 
