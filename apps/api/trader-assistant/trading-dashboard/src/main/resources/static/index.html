@@ -235,47 +235,31 @@
     }
     .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
 
-    /* ── Cards ───────────────────────────────── */
-    .card {
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-md);
-      padding: 20px 22px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .card-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      margin-bottom: 7px;
-    }
-
-    .card-value {
-      font-size: 28px;
-      font-weight: 600;
-      letter-spacing: -.6px;
-      color: var(--text-dark);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .card-value.amber  { color: var(--amber); }
-    .card-value.green  { color: var(--positive); }
-
-    .card-hint {
-      font-size: 11.5px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .stat-grid {
+    /* ── Stat cards ──────────────────────────── */
+    .stat-row {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-      gap: 14px;
-      margin-bottom: 28px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
     }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      transition: border-color .18s, box-shadow .22s, background .18s;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
+    }
+    .stat-card:hover { border-color: var(--border-mid); background: var(--bg-card-hi); box-shadow: var(--glow-ring); }
+    .stat-label { font-size: 9px; font-weight: 500; letter-spacing: .9px; text-transform: uppercase; color: var(--text-mid); margin-bottom: 8px; }
+    .stat-value { font-size: 22px; font-weight: 300; letter-spacing: -.5px; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text); }
+    .stat-value.amber { color: var(--amber); }
+    .stat-value.green { color: var(--green); text-shadow: 0 0 20px rgba(78,221,138,.35); }
+    .stat-value.red   { color: var(--red); }
+    .stat-hint { font-size: 9.5px; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+    .stat-trend { font-size: 9px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; padding: 1px 5px; border-radius: 3px; }
+    .stat-trend.up   { color: var(--green); background: rgba(78,221,138,.1); }
+    .stat-trend.down { color: var(--red);   background: rgba(240,120,104,.1); }
 
     /* ── Daily quote ─────────────────────────── */
     .daily-quote {
@@ -316,14 +300,7 @@
       align-items: stretch;
       margin-bottom: 28px;
     }
-    .port-stat-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(160px, 1fr));
-      align-content: start;
-      flex-shrink: 0;
-      margin-bottom: 0;
-    }
-    .port-top-row .daily-quote {
+.port-top-row .daily-quote {
       flex: 1;
       min-width: 0;
       margin-bottom: 0;
@@ -980,7 +957,7 @@
 
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
-        <div class="stat-grid" id="dash-stats">
+        <div class="stat-row" id="dash-stats">
           <div class="state-box"><span class="spinner"></span></div>
         </div>
         <div class="section-head">
@@ -1011,7 +988,7 @@
       <!-- Portfolio -->
       <div class="page" id="page-portfolio">
         <div class="port-top-row">
-          <div class="stat-grid port-stat-grid" id="port-stats"></div>
+          <div class="stat-row" id="port-stats"></div>
           <div class="daily-quote" id="dailyQuote">
             <div class="daily-quote-mark">&ldquo;</div>
             <div>
@@ -1035,7 +1012,7 @@
 
       <!-- Finance -->
       <div class="page" id="page-finance">
-        <div class="stat-grid" id="fin-stats"></div>
+        <div class="stat-row" id="fin-stats"></div>
         <div class="chart-wrap" id="fin-chart-wrap" style="margin-bottom:24px;display:none">
           <div class="chart-title">Spending by Category</div>
           <canvas id="catChart" style="width:100%"></canvas>
@@ -1159,12 +1136,22 @@
   }
 
   /* ── Helpers ────────────────────────────── */
-  const statCard = (label, value, cls, hint) =>
-    `<div class="card">
-       <div class="card-label">${label}</div>
-       <div class="card-value ${cls}">${value}</div>
-       ${hint ? `<div class="card-hint">${hint}</div>` : ''}
-     </div>`;
+  // statCard(label, value, valueCls, hint, trendPct)
+  // trendPct: number|null — positive = up, negative = down, null = no badge
+  const statCard = (label, value, valueCls, hint, trendPct) => {
+    let trendHtml = '';
+    if (trendPct != null) {
+      const cls  = trendPct >= 0 ? 'up' : 'down';
+      const sign = trendPct >= 0 ? '▲' : '▼';
+      const abs  = Math.abs(trendPct).toFixed(2);
+      trendHtml  = `<span class="stat-trend ${cls}">${sign} ${abs}%</span>`;
+    }
+    return `<div class="stat-card">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value ${valueCls}">${value}</div>
+    ${hint || trendHtml ? `<div class="stat-hint">${trendHtml}${hint ? `<span>${hint}</span>` : ''}</div>` : ''}
+  </div>`;
+  };
 
   const empty = (icon, title, sub) =>
     `<div class="state-box">
@@ -1255,13 +1242,13 @@
 
     const cards = [];
     if (p) {
-      cards.push(statCard('Positions',   p.positions_count,                  '',      ''));
-      cards.push(statCard('Cost Basis',  money(p.total_cost_basis),          'amber', p.as_of ? 'As of ' + dt(p.as_of) : ''));
+      cards.push(statCard('Positions',   p.positions_count,                  '',      '', null));
+      cards.push(statCard('Cost Basis',  money(p.total_cost_basis),          'amber', p.as_of ? 'As of ' + dt(p.as_of) : '', null));
     }
     if (f) {
-      cards.push(statCard('MTD Spend',   money(f.month_to_date_spend),       'amber', 'Month to date'));
-      cards.push(statCard('Daily Avg',   money(f.average_daily_spend),       '',      ''));
-      cards.push(statCard('Projected',   money(f.projected_month_end_spend), 'amber', 'End of month'));
+      cards.push(statCard('MTD Spend',   money(f.month_to_date_spend),       'amber', 'Month to date', null));
+      cards.push(statCard('Daily Avg',   money(f.average_daily_spend),       '',      '', null));
+      cards.push(statCard('Projected',   money(f.projected_month_end_spend), 'amber', 'End of month', null));
     }
 
     document.getElementById('dash-stats').innerHTML = cards.length
@@ -1556,7 +1543,7 @@
     const totalPnlPct = (totalPnl != null && totalCost > 0) ? totalPnl / totalCost : null;
 
     // Summary stat cards
-    const pnlCls = totalPnl != null ? (totalPnl >= 0 ? 'positive' : 'negative') : '';
+    const pnlCls = totalPnl != null ? (totalPnl >= 0 ? 'green' : 'red') : '';
     const pnlVal = totalPnl != null
       ? (totalPnl >= 0 ? '+' : '') + money(totalPnl)
         + (totalPnlPct != null ? ' (' + (totalPnlPct >= 0 ? '+' : '') + (totalPnlPct * 100).toFixed(2) + '%)' : '')
@@ -1564,10 +1551,10 @@
 
     const cards = [];
     if (s) {
-      cards.push(statCard('Positions',      s.positions_count,         '',      ''));
-      if (hasPrices) cards.push(statCard('Market Value',  money(totalMktVal),  'green', ''));
-      cards.push(statCard('Cost Basis',     money(totalCost), 'amber', s.as_of ? 'As of ' + dt(s.as_of) : ''));
-      if (hasPrices) cards.push(statCard('Unrealized P&L', pnlVal, pnlCls, ''));
+      cards.push(statCard('Positions',      s.positions_count,         '',      '', null));
+      if (hasPrices) cards.push(statCard('Market Value',  money(totalMktVal),  'green', '', null));
+      cards.push(statCard('Cost Basis',     money(totalCost), 'amber', s.as_of ? 'As of ' + dt(s.as_of) : '', null));
+      if (hasPrices) cards.push(statCard('Unrealized P&L', pnlVal, pnlCls, '', null));
     }
     document.getElementById('port-stats').innerHTML = cards.join('');
 
@@ -1623,9 +1610,9 @@
     const s = sRes.status === 'fulfilled' ? sRes.value : null;
     if (s) {
       document.getElementById('fin-stats').innerHTML = [
-        statCard('MTD Spend',  money(s.month_to_date_spend),         'amber', ''),
-        statCard('Daily Avg',  money(s.average_daily_spend),         '',      ''),
-        statCard('Projected',  money(s.projected_month_end_spend),   'amber', 'End of month'),
+        statCard('MTD Spend',  money(s.month_to_date_spend),         'amber', '', null),
+        statCard('Daily Avg',  money(s.average_daily_spend),         '',      '', null),
+        statCard('Projected',  money(s.projected_month_end_spend),   'amber', 'End of month', null),
       ].join('');
     }
 
