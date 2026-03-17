@@ -106,15 +106,15 @@ Two-column layout:
 
 ### Stats Row
 Three mini-stat cards in a row:
-- **Entries** — total journal entries
-- **Streak** — consecutive days with an entry (derived from calendar)
-- **Today** — portfolio P&L today (reuses existing market data)
+- **Entries** — total journal entries (from `/api/journal/stats`)
+- **Streak** — consecutive days with an entry (from `/api/journal/stats`)
+- **Today** — portfolio P&L today. The frontend fetches this from the existing `/api/portfolio` endpoint (already used by the Portfolio page) and computes the day's unrealized gain/loss percentage client-side. No new endpoint needed.
 
 ### Movers in Your Journal
-- Pulls today's price movers from existing market data (same source as the dashboard ticker bar)
-- Cross-references against **current portfolio positions only** (holdings in the existing portfolio data) that the user has also written about in journal entries
-- Shows: ticker (neon), % change today, entry count
-- Scoping to portfolio positions prevents the panel from showing stale tickers the user mentioned once and no longer holds
+- The frontend fetches the current portfolio positions from `/api/portfolio` (same data already loaded for the Stats Row). For each position ticker it fetches the quote via the existing `/api/quotes/{symbol}` endpoint (same mechanism as the ticker bar).
+- Cross-references the resulting quotes against tickers found in journal entries (from the loaded entries list) — only tickers the user has written about are displayed.
+- Sorts by absolute % change, shows: ticker (neon), % change today, entry count.
+- No new backend endpoint required. Scoping to portfolio positions prevents stale tickers from appearing.
 
 ### Goals
 - List of goals with progress bars
@@ -140,10 +140,11 @@ Migration file: `src/main/resources/db/migration/V3__journal.sql`
 ```sql
 CREATE TABLE journal_entries (
     id          BIGSERIAL PRIMARY KEY,
-    body        TEXT NOT NULL,                              -- HTML content
-    entry_date  DATE NOT NULL DEFAULT CURRENT_DATE,        -- server-local date; used to determine "today's entry"
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    body        TEXT NOT NULL,                                    -- HTML content
+    entry_date  DATE NOT NULL DEFAULT CURRENT_DATE,              -- server-local date; used to determine "today's entry"
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT uq_journal_entries_entry_date UNIQUE (entry_date)
 );
 ```
 
@@ -174,12 +175,13 @@ CREATE TABLE journal_goals (
     target_value     NUMERIC,            -- required for milestone; NULL for open-ended habits
     milestone_value  NUMERIC,            -- stored progress for milestone goals only
     deadline         DATE,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 ```
 
 **Schema notes:**
-- `entry_date` is populated server-side at save time. "Today's entry" is the entry whose `entry_date` matches the current server date. One entry per `entry_date` (enforced at the service layer — if an entry exists for today, the editor loads it for editing rather than creating a new row).
+- `TIMESTAMP WITH TIME ZONE` is used (not `TIMESTAMPTZ` shorthand) for H2 compatibility across dev/test profiles.
+- `entry_date` is populated server-side at save time. "Today's entry" is the entry whose `entry_date` matches the current server date. The `UNIQUE (entry_date)` constraint enforces one entry per day at the DB level — the service layer `upserts` (load existing entry for today if present, otherwise create).
 - Habit goal progress is derived at query time from `journal_entries` (e.g., count of distinct `entry_date` values in the current month for "Write daily"). `milestone_value` is only meaningful for `goal_type = 'milestone'`.
 
 ### REST Endpoints
@@ -206,6 +208,31 @@ All under `/api/journal`, protected by existing `ApiKeyAuthFilter` in non-dev pr
 }
 ```
 Tickers and tags are **not** accepted from the client — the server extracts them from `body` as the authoritative source.
+
+**GET `/api/journal/entries` entry response DTO (single object and list items):**
+```json
+{
+  "id": 47,
+  "body": "<p>$NVDA holding strong...</p>",
+  "entryDate": "2026-03-17",
+  "tickers": ["NVDA", "MSFT"],
+  "tags": ["macro", "growth"],
+  "createdAt": "2026-03-17T14:32:00Z",
+  "updatedAt": "2026-03-17T15:01:00Z"
+}
+```
+
+**POST `/api/journal/goals` request body:**
+```json
+{
+  "label": "Hit $500K",
+  "goalType": "milestone",
+  "targetValue": 500000,
+  "milestoneValue": 372000,
+  "deadline": "2026-12-31"
+}
+```
+`milestoneValue` and `deadline` are optional. For habit goals, `targetValue` is optional (open-ended); `milestoneValue` is ignored.
 
 **GET `/api/journal/stats` response shape:**
 ```json
