@@ -689,7 +689,7 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity
       select distinct e from JournalEntryEntity e
       join e.tickers t
       where t = :ticker
-      order by e.entry_date desc
+      order by e.entryDate desc
       """)
   List<JournalEntryEntity> findByTicker(@Param("ticker") String ticker);
 
@@ -698,12 +698,12 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity
       select distinct e from JournalEntryEntity e
       join e.tags t
       where t = :tag
-      order by e.entry_date desc
+      order by e.entryDate desc
       """)
   List<JournalEntryEntity> findByTag(@Param("tag") String tag);
 
   /** All entry dates ascending — used for streak calculation. */
-  @Query("select e.entry_date from JournalEntryEntity e order by e.entry_date asc")
+  @Query("select e.entryDate from JournalEntryEntity e order by e.entryDate asc")
   List<LocalDate> findAllEntryDatesAsc();
 
   /** Ticker -> count of entries mentioning it. */
@@ -729,8 +729,8 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity
   /** Count of distinct entry_date values in a given calendar month. Used for habit goal progress. */
   @Query(
       """
-      select count(distinct e.entry_date) from JournalEntryEntity e
-      where year(e.entry_date) = :year and month(e.entry_date) = :month
+      select count(distinct e.entryDate) from JournalEntryEntity e
+      where year(e.entryDate) = :year and month(e.entryDate) = :month
       """)
   long countDistinctEntryDatesInMonth(@Param("year") int year, @Param("month") int month);
 }
@@ -1216,12 +1216,12 @@ public class JournalController implements JournalApi {
     JournalStats stats = journalService.getStats();
     Map<String, Integer> calendarMap = stats.calendar().entrySet().stream()
         .collect(Collectors.toMap(e -> e.getKey().toString(), Map.Entry::getValue));
-    List<JournalTokenCount> tokenCounts = stats.most_mentioned().stream()
+    List<JournalTokenCount> tokenCounts = stats.mostMentioned().stream()
         .map(tc -> new JournalTokenCount().token(tc.token()).count(tc.count()))
         .toList();
     JournalStatsResponse response = new JournalStatsResponse()
-        .entryCount(stats.entry_count())
-        .currentStreak(stats.current_streak())
+        .entryCount(stats.entryCount())
+        .currentStreak(stats.currentStreak())
         .calendar(calendarMap)
         .mostMentioned(tokenCounts);
     return ResponseEntity.ok(response);
@@ -1424,7 +1424,7 @@ class DefaultJournalServiceTest {
 
     JournalService.JournalStats stats = service.getStats();
 
-    assertThat(stats.current_streak()).isZero();
+    assertThat(stats.currentStreak()).isZero();
   }
 
   @Test
@@ -1438,7 +1438,7 @@ class DefaultJournalServiceTest {
 
     JournalService.JournalStats stats = service.getStats();
 
-    assertThat(stats.current_streak()).isEqualTo(2);
+    assertThat(stats.currentStreak()).isEqualTo(2);
   }
 
   @Test
@@ -1453,7 +1453,7 @@ class DefaultJournalServiceTest {
     JournalService.JournalStats stats = service.getStats();
 
     // today is present → streak = 1 (gap before today breaks the chain)
-    assertThat(stats.current_streak()).isEqualTo(1);
+    assertThat(stats.currentStreak()).isEqualTo(1);
   }
 
   // ── goal progress ─────────────────────────────────────────────────────────
@@ -2160,7 +2160,7 @@ git commit -m "feat: journal editor with token detection, paste embeds, and save
 
   function renderPastCard(entry, idx) {
     const ageClass = idx === 0 ? 'age-1' : idx === 1 ? 'age-2' : 'age-old';
-    const date = new Date(entry.entryDate + 'T00:00:00');
+    const date = new Date(entry.entry_date + 'T00:00:00');
     const label = date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     const tokens = [...entry.tickers.map(t=>'$'+t), ...entry.tags.map(t=>'#'+t)];
     return `
