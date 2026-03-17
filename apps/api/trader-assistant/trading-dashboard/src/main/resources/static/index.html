@@ -245,10 +245,10 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 14px 16px;
-      transition: border-color .18s, box-shadow .75s, background .18s;
+      transition: border-color .18s, box-shadow 2s ease-out, background .18s;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-    .stat-card:hover { border-color: var(--border-mid); background: var(--bg-card-hi); box-shadow: var(--glow-ring); }
+    .stat-card:hover { border-color: var(--border-mid); background: var(--bg-card-hi); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1), background .18s; }
     .stat-label { font-size: 9px; font-weight: 500; letter-spacing: .9px; text-transform: uppercase; color: var(--text-mid); margin-bottom: 8px; }
     .stat-value { font-size: 22px; font-weight: 300; letter-spacing: -.5px; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text); }
     .stat-value.amber { color: var(--amber); }
@@ -273,8 +273,8 @@
       margin-bottom: 24px;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-    .daily-quote { transition: border-color .18s, box-shadow .75s; }
-    .daily-quote:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .daily-quote { transition: border-color .18s, box-shadow 2s ease-out; }
+    .daily-quote:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
     .daily-quote-mark { font-family: var(--serif); font-size: 42px; line-height: 1; color: var(--green-dim); flex-shrink: 0; margin-top: -6px; }
     .daily-quote-text {
       font-size: clamp(18px, 2.5vw, 56px);
@@ -301,10 +301,10 @@
     .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
     .spark-tile {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-      padding: 10px 12px 8px; transition: border-color .18s, box-shadow .75s;
+      padding: 10px 12px 8px; transition: border-color .18s, box-shadow 2s ease-out;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-    .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
     .spark-tile canvas { display: block; width: 100%; height: 56px; }
     .spark-sym  { font-size: 11px; font-weight: 500; color: var(--text-mid); letter-spacing: .5px; }
     .spark-pct  { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
@@ -337,7 +337,7 @@
       border-radius: 8px;
       padding: 12px 14px 10px;
       cursor: pointer;
-      transition: border-color .18s, background .18s, box-shadow .75s;
+      transition: border-color .18s, background .18s, box-shadow 2s ease-out;
       position: relative;
       overflow: hidden;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.05);
@@ -352,7 +352,7 @@
     .pos-tile { --strip-color: rgba(78,221,138,.5); }
     .neg-tile { --strip-color: rgba(240,120,104,.5); }
     .neu-tile { --strip-color: rgba(200,200,200,.15); }
-    .wl-tile:hover { background: var(--bg-card-hi); border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .wl-tile:hover { background: var(--bg-card-hi); border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, background .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
     .wl-tile.expanded {
       grid-column: span 2;
       background: var(--bg-card-hi);
@@ -460,8 +460,8 @@
       border-radius: 8px; padding: 20px 24px; margin-bottom: 16px;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-    .quote-card { transition: border-color .18s, box-shadow .75s; }
-    .quote-card:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .quote-card { transition: border-color .18s, box-shadow 2s ease-out; }
+    .quote-card:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
     .qc-symbol { font-size: 22px; font-weight: 400; color: var(--text-mid); letter-spacing: .5px; margin-bottom: 4px; }
     .qc-price  { font-size: 36px; font-weight: 300; letter-spacing: -1px; font-variant-numeric: tabular-nums; color: var(--amber); margin-bottom: 6px; }
     .qc-change.pos { color: var(--green); }
@@ -619,8 +619,8 @@
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
       margin-top: 18px;
     }
-    .chart-wrap { transition: border-color .18s, box-shadow .75s; }
-    .chart-wrap:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .chart-wrap { transition: border-color .18s, box-shadow 2s ease-out; }
+    .chart-wrap:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
 
     .chart-wrap canvas {
       width: 100%;
