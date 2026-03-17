@@ -307,23 +307,74 @@
     }
 
     /* ── Section label ───────────────────────── */
-    .section-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 14px;
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { font-size: 9px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
+    .section-action {
+      font-size: 9.5px; color: var(--green-dim); background: none;
+      border: 1px solid transparent; cursor: pointer; font-family: var(--mono);
+      padding: 2px 8px; border-radius: 4px;
+      transition: color .15s, border-color .15s, box-shadow .2s;
     }
+    .section-action:hover { color: var(--green); border-color: rgba(78,221,138,.2); box-shadow: var(--glow-sm); }
 
-    .section-title {
-      font-size: 13.5px;
-      font-weight: 600;
-      color: var(--text-dark);
+    /* ── Watchlist grid ─────────────────────────── */
+    .watchlist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      grid-auto-flow: dense;
+      gap: 10px;
+      align-items: start;
     }
-
-    .section-hint {
-      font-size: 12px;
-      color: var(--text-muted);
+    .wl-tile {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px 10px;
+      cursor: pointer;
+      transition: border-color .18s, background .18s, box-shadow .22s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.05);
     }
+    .wl-tile::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--strip-color, transparent);
+    }
+    .pos-tile { --strip-color: rgba(78,221,138,.5); }
+    .neg-tile { --strip-color: rgba(240,120,104,.5); }
+    .neu-tile { --strip-color: rgba(200,200,200,.15); }
+    .wl-tile:hover { background: var(--bg-card-hi); border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .wl-tile.expanded {
+      grid-column: span 2;
+      background: var(--bg-card-hi);
+      border-color: var(--border-hi);
+      animation: glowpulse 3s ease-in-out infinite;
+    }
+    /* Tile header row */
+    .tile-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+    .tile-sym { font-size: 10.5px; font-weight: 500; color: var(--text-mid); letter-spacing: .5px; }
+    .tile-chg { font-size: 8.5px; font-weight: 500; padding: 2px 6px; border-radius: 3px; }
+    .tile-chg.pos { color: var(--green); background: rgba(78,221,138,.1); }
+    .tile-chg.neg { color: var(--red);   background: rgba(240,120,104,.1); }
+    .tile-chg.neu { color: var(--text-dim); background: rgba(255,255,255,.05); }
+    /* Tile price — sentiment-colored */
+    .tile-price { font-size: 18px; font-weight: 300; letter-spacing: -.4px; font-variant-numeric: tabular-nums; margin-bottom: 8px; line-height: 1.1; }
+    .pos-tile .tile-price { color: var(--amber); }
+    .neg-tile .tile-price { color: rgba(240,120,104,.85); }
+    .neu-tile .tile-price { color: rgba(232,180,90,.55); }
+    /* Sparkline */
+    .tile-spark { display: block; width: 100%; height: 36px; }
+    .wl-tile.expanded .tile-spark { display: none; }
+    /* Compact news */
+    .tile-news-compact { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+    .tnc-item { display: flex; gap: 6px; align-items: baseline; }
+    .tnc-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; margin-top: 4px; }
+    .tnc-headline { font-size: 9px; color: var(--text-dim); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color .15s; }
+    .wl-tile:hover .tnc-headline { color: var(--text-mid); }
+    .wl-tile.expanded .tile-news-compact { display: none; }
 
     /* ── Inputs / Buttons ────────────────────── */
     .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
@@ -962,14 +1013,9 @@
         </div>
         <div class="section-head">
           <span class="section-title">Watchlist</span>
-          <span style="display:flex;align-items:center;gap:10px">
-            <span class="section-hint">Live quotes</span>
-            <button class="btn btn-sm" id="editWatchlistBtn" onclick="toggleWatchlistEdit()">Edit</button>
-          </span>
+          <button class="section-action" id="editWatchlistBtn" onclick="toggleWatchlistEdit()">Edit</button>
         </div>
-        <div class="quote-grid" id="dash-watchlist">
-          <div class="state-box" style="padding:20px"><span class="spinner"></span></div>
-        </div>
+        <div class="watchlist-grid" id="dash-watchlist"></div>
       </div>
 
       <!-- Quotes -->
@@ -1195,28 +1241,83 @@
     loadWatchlistPrices(list);
   }
 
+  /* ── Watchlist helpers ───────────────────── */
+  function parsePct(str) {
+    if (str == null) return 0;
+    return parseFloat(String(str).replace('−', '-').replace('+', ''));
+  }
+
+  function tileClass(chgPct) {
+    if (chgPct == null) return 'neu-tile';
+    if (chgPct > 0)  return 'pos-tile';
+    if (chgPct < 0)  return 'neg-tile';
+    return 'neu-tile';
+  }
+
+  function fmtChg(chgPct) {
+    if (chgPct == null) return { text: '—', cls: 'neu' };
+    const sign = chgPct >= 0 ? '+' : '';
+    const cls  = chgPct > 0 ? 'pos' : chgPct < 0 ? 'neg' : 'neu';
+    return { text: sign + chgPct.toFixed(2) + '%', cls };
+  }
+
+  // Returns SVG string for a placeholder sparkline (no chart data yet)
+  function sparklinePlaceholderSVG() {
+    return `<svg class="tile-spark" viewBox="0 0 120 36" preserveAspectRatio="none">
+    <line x1="0" y1="18" x2="120" y2="18"
+      stroke="rgba(255,255,255,.12)" stroke-width="1" stroke-dasharray="4,5"/>
+  </svg>`;
+  }
+
+  // Returns compact news HTML if >= 2 headlines available, else empty string
+  function compactNewsHTML(headlines) {
+    if (!headlines || headlines.length < 2) return '';
+    return `<div class="tile-news-compact">
+    ${headlines.slice(0, 2).map(h => `
+      <div class="tnc-item">
+        <div class="tnc-dot"></div>
+        <div class="tnc-headline">${h}</div>
+      </div>`).join('')}
+  </div>`;
+  }
+
   function renderWatchlistTiles(list, quotes) {
     const priceMap = {};
     quotes.forEach(q => { if (q) priceMap[q.symbol] = q; });
 
+    // Build tile data, then sort by change_pct descending (winners first)
     const tiles = list.map(sym => {
       const q = priceMap[sym];
-      return `<div class="quote-tile">
-        <button class="qt-remove" onclick="removeFromWatchlist('${sym}')" title="Remove">×</button>
-        <div class="qt-symbol">${sym}</div>
-        <div class="qt-price">${q ? money(q.price) : '<span class="spinner"></span>'}</div>
-        ${q ? `<div class="qt-ts">${ts(q.as_of)}</div>` : ''}
-      </div>`;
+      return { sym, q, chgPct: q ? (q.change_pct ?? null) : null };
+    });
+    tiles.sort((a, b) => parsePct(b.chgPct) - parsePct(a.chgPct));
+
+    const html = tiles.map(({ sym, q, chgPct }) => {
+      const cls  = tileClass(chgPct);
+      const chg  = fmtChg(chgPct);
+      const price = q ? money(q.price) : '—';
+      return `<div class="wl-tile ${cls}" id="wl-${sym}" onclick="toggleTile('${sym}',event)">
+      <button class="exp-close" onclick="toggleTile('${sym}',event)" style="display:none">✕</button>
+      <div class="tile-top">
+        <div class="tile-sym">${sym}</div>
+        <div class="tile-chg ${chg.cls}">${chg.text}</div>
+      </div>
+      <div class="tile-price">${q ? price : '<span class="spinner"></span>'}</div>
+      ${sparklinePlaceholderSVG()}
+      ${compactNewsHTML([])}
+      <div class="tile-expanded-body" style="display:none"></div>
+    </div>`;
     });
 
-    tiles.push(`<div class="qt-add-tile">
-      <input id="watchlistAddInput" type="text" placeholder="Add ticker…" maxlength="12"
-             onkeydown="if(event.key==='Enter')addToWatchlist()">
-      <button onclick="addToWatchlist()" title="Add">+</button>
-    </div>`);
+    // Add-ticker input tile
+    html.push(`<div class="wl-add-tile" id="wl-add-tile" style="display:none">
+    <input id="watchlistAddInput" type="text" placeholder="Add ticker…" maxlength="12"
+           onkeydown="if(event.key==='Enter')addToWatchlist()">
+    <button onclick="addToWatchlist()">+</button>
+  </div>`);
 
     const grid = document.getElementById('dash-watchlist');
-    grid.innerHTML = tiles.join('');
+    grid.innerHTML = html.join('');
     grid.classList.toggle('watchlist-editing', watchlistEditing);
   }
 
