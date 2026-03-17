@@ -286,6 +286,232 @@ paths:
                 $ref: '#/components/schemas/FinanceTransactionsResponse'
         '204':
           description: No transactions matched the query.
+  /api/journal/entries:
+    get:
+      tags:
+        - Journal
+      operationId: listJournalEntries
+      summary: List journal entries, newest first.
+      parameters:
+        - name: ticker
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: entryDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of journal entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalEntryResponse'
+    post:
+      tags:
+        - Journal
+      operationId: createJournalEntry
+      summary: Create a new journal entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalEntryRequest'
+      responses:
+        '201':
+          description: Entry created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntryResponse'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/journal/entries/{id}:
+    put:
+      tags:
+        - Journal
+      operationId: updateJournalEntry
+      summary: Update an existing journal entry body.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalEntryRequest'
+      responses:
+        '200':
+          description: Entry updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalEntryResponse'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Entry not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Journal
+      operationId: deleteJournalEntry
+      summary: Delete a journal entry.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Entry deleted.
+        '404':
+          description: Entry not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/journal/goals:
+    get:
+      tags:
+        - Journal
+      operationId: listJournalGoals
+      summary: List all journal goals with computed progress.
+      responses:
+        '200':
+          description: List of goals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalGoalResponse'
+    post:
+      tags:
+        - Journal
+      operationId: createJournalGoal
+      summary: Create a new journal goal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalGoalRequest'
+      responses:
+        '201':
+          description: Goal created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalGoalResponse'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/journal/goals/{id}:
+    put:
+      tags:
+        - Journal
+      operationId: updateJournalGoal
+      summary: Update an existing journal goal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JournalGoalRequest'
+      responses:
+        '200':
+          description: Goal updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalGoalResponse'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Goal not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Journal
+      operationId: deleteJournalGoal
+      summary: Delete a journal goal.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Goal deleted.
+        '404':
+          description: Goal not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/journal/stats:
+    get:
+      tags:
+        - Journal
+      operationId: getJournalStats
+      summary: Return journal statistics including streak, calendar, and most-mentioned tokens.
+      responses:
+        '200':
+          description: Journal statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalStatsResponse'
 components:
   schemas:
     QuotesIndex:
@@ -687,6 +913,152 @@ components:
           type: string
           format: date-time
           description: Publication timestamp.
+    JournalEntryRequest:
+      type: object
+      required:
+        - body
+        - entry_date
+      properties:
+        body:
+          type: string
+          description: HTML content of the journal entry.
+          example: '<p>$NVDA holding strong today. #macro</p>'
+        entry_date:
+          type: string
+          format: date
+          description: Server-local date for this entry (YYYY-MM-DD).
+          example: '2026-03-17'
+    JournalEntryResponse:
+      type: object
+      required:
+        - id
+        - body
+        - entry_date
+        - tickers
+        - tags
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        body:
+          type: string
+        entry_date:
+          type: string
+          format: date
+        tickers:
+          type: array
+          items:
+            type: string
+          example: ['NVDA', 'MSFT']
+        tags:
+          type: array
+          items:
+            type: string
+          example: ['macro', 'growth']
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    JournalGoalRequest:
+      type: object
+      required:
+        - label
+        - goal_type
+      properties:
+        label:
+          type: string
+          example: 'Hit $500K'
+        goal_type:
+          type: string
+          enum: [milestone, habit]
+        target_value:
+          type: number
+          format: double
+          nullable: true
+        milestone_value:
+          type: number
+          format: double
+          nullable: true
+        deadline:
+          type: string
+          format: date
+          nullable: true
+    JournalGoalResponse:
+      type: object
+      required:
+        - id
+        - label
+        - goal_type
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        label:
+          type: string
+        goal_type:
+          type: string
+          enum: [milestone, habit]
+        target_value:
+          type: number
+          format: double
+          nullable: true
+        current_progress:
+          type: number
+          format: double
+          nullable: true
+        progress_pct:
+          type: number
+          format: double
+          nullable: true
+        deadline:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    JournalStatsResponse:
+      type: object
+      required:
+        - entry_count
+        - current_streak
+        - calendar
+        - most_mentioned
+      properties:
+        entry_count:
+          type: integer
+          format: int64
+        current_streak:
+          type: integer
+        calendar:
+          type: object
+          description: Map of ISO date string to activity level (0=none, 1=entry, 2=rich entry).
+          additionalProperties:
+            type: integer
+          example:
+            '2026-03-01': 0
+            '2026-03-15': 1
+            '2026-03-17': 2
+        most_mentioned:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalTokenCount'
+    JournalTokenCount:
+      type: object
+      required:
+        - token
+        - count
+      properties:
+        token:
+          type: string
+          example: '$NVDA'
+        count:
+          type: integer
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
