@@ -2069,6 +2069,69 @@
     });
   }
 
+  function renderPastEntries(entries) {
+    const today = new Date().toISOString().slice(0, 10);
+    const past = entries.filter(e => e.entry_date !== today);
+    if (past.length === 0) return '';
+    return past.map((e, idx) => renderPastCard(e, idx)).join('');
+  }
+
+  function renderPastCard(entry, idx) {
+    const ageClass = idx === 0 ? 'age-1' : idx === 1 ? 'age-2' : 'age-old';
+    const date = new Date(entry.entry_date + 'T00:00:00');
+    const label = date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const tokens = [...entry.tickers.map(t=>'$'+t), ...entry.tags.map(t=>'#'+t)];
+    return `
+      <div class="j-card ${ageClass}">
+        <div class="j-card-head">
+          <span class="j-card-date">${label}</span>
+        </div>
+        <div class="j-editor" style="pointer-events:none;min-height:auto">${colorizeHtml(entry.body)}</div>
+        <div class="j-card-foot">
+          <div class="j-pills">${renderPills(tokens)}</div>
+        </div>
+      </div>`;
+  }
+
+  function applyJournalFilter(token) {
+    journalFilter = token;
+    const today = new Date().toISOString().slice(0, 10);
+    let filtered, label;
+
+    if (token.startsWith('date:')) {
+      const dateStr = token.slice(5);
+      filtered = journalEntries.filter(e => e.entry_date === dateStr);
+      label = dateStr;
+    } else {
+      const t = token.startsWith('$') ? token.slice(1) : null;
+      const g = token.startsWith('#') ? token.slice(1) : null;
+      filtered = journalEntries.filter(e =>
+        (t && e.tickers.includes(t)) || (g && e.tags.includes(g)));
+      label = token;
+    }
+
+    const safeLabel = label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const banner = `
+      <div class="j-filter-banner" id="j-filter-banner">
+        <span>Viewing: <strong>${safeLabel}</strong> (${filtered.length} entries)</span>
+        <span class="j-filter-clear" onclick="clearJournalFilter()">×</span>
+      </div>`;
+    const feed = document.getElementById('j-feed');
+    const todayEntry = journalEntries.find(e => e.entry_date === today);
+    feed.innerHTML = renderTodayEditor(todayEntry) + banner +
+      filtered.filter(e => e.entry_date !== today).map((e, i) => renderPastCard(e, i)).join('');
+    attachJournalHandlers();
+  }
+
+  function clearJournalFilter() {
+    journalFilter = null;
+    const feed = document.getElementById('j-feed');
+    const today = new Date().toISOString().slice(0, 10);
+    const todayEntry = journalEntries.find(e => e.entry_date === today);
+    feed.innerHTML = renderTodayEditor(todayEntry) + renderPastEntries(journalEntries);
+    attachJournalHandlers();
+  }
+
   /* ── Add / Delete Position ──────────────── */
   function openAddPosition() {
     document.getElementById('ap-ticker').value = '';
