@@ -14,6 +14,7 @@ A dedicated Journal page for the trading dashboard — an investing diary where 
 - Body text color: `#c8c0b0` (warm neutral)
 - Placeholder text: `rgba(200,192,176,.18)`
 - Rich text toolbar: bold, italic, link (minimal)
+- **Note:** Inter is not currently imported in `index.html`. The implementation must add the Google Fonts import (`family=Inter:opsz,wght@14..32,300;14..32,400`). `#c8c0b0` is intentionally warmer than the existing `--text` CSS variable; this divergence is by design for the journal writing surface.
 
 ### Inline Neon Tokens
 As the user types, `$TICKER` and `#tag` patterns are detected and wrapped in styled `<span>` elements. Each token is assigned a color deterministically (hash of the string → index into palette). The palette of 10 neons:
@@ -110,10 +111,10 @@ Three mini-stat cards in a row:
 - **Today** — portfolio P&L today (reuses existing market data)
 
 ### Movers in Your Journal
-- Pulls today's price movers from existing market data
-- Cross-references against tickers mentioned in journal entries
+- Pulls today's price movers from existing market data (same source as the dashboard ticker bar)
+- Cross-references against **current portfolio positions only** (holdings in the existing portfolio data) that the user has also written about in journal entries
 - Shows: ticker (neon), % change today, entry count
-- Only shows tickers the user has written about
+- Scoping to portfolio positions prevents the panel from showing stale tickers the user mentioned once and no longer holds
 
 ### Goals
 - List of goals with progress bars
@@ -131,33 +132,55 @@ Three mini-stat cards in a row:
 
 ## Backend
 
-### Database — Two New Tables
+### Database — Four New Tables
+
+Migration file: `src/main/resources/db/migration/V3__journal.sql`
 
 **`journal_entries`**
 ```sql
 CREATE TABLE journal_entries (
     id          BIGSERIAL PRIMARY KEY,
-    body        TEXT NOT NULL,          -- HTML content
+    body        TEXT NOT NULL,                              -- HTML content
+    entry_date  DATE NOT NULL DEFAULT CURRENT_DATE,        -- server-local date; used to determine "today's entry"
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    tickers     TEXT[] NOT NULL DEFAULT '{}',  -- extracted e.g. ['NVDA','MSFT']
-    tags        TEXT[] NOT NULL DEFAULT '{}'   -- extracted e.g. ['macro','growth']
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**`journal_entry_tickers`** (normalized, H2-compatible — replaces `TEXT[]`)
+```sql
+CREATE TABLE journal_entry_tickers (
+    entry_id    BIGINT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+    ticker      TEXT NOT NULL,
+    PRIMARY KEY (entry_id, ticker)
+);
+```
+
+**`journal_entry_tags`** (normalized, H2-compatible)
+```sql
+CREATE TABLE journal_entry_tags (
+    entry_id    BIGINT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+    tag         TEXT NOT NULL,
+    PRIMARY KEY (entry_id, tag)
 );
 ```
 
 **`journal_goals`**
 ```sql
 CREATE TABLE journal_goals (
-    id              BIGSERIAL PRIMARY KEY,
-    label           TEXT NOT NULL,
-    goal_type       TEXT NOT NULL CHECK (goal_type IN ('milestone','habit')),
-    target_value    NUMERIC,
-    current_value   NUMERIC NOT NULL DEFAULT 0,
-    deadline        DATE,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    id               BIGSERIAL PRIMARY KEY,
+    label            TEXT NOT NULL,
+    goal_type        TEXT NOT NULL CHECK (goal_type IN ('milestone','habit')),
+    target_value     NUMERIC,            -- required for milestone; NULL for open-ended habits
+    milestone_value  NUMERIC,            -- stored progress for milestone goals only
+    deadline         DATE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
-Both tables added via Flyway migration following the existing `V<N>__<desc>.sql` convention.
+**Schema notes:**
+- `entry_date` is populated server-side at save time. "Today's entry" is the entry whose `entry_date` matches the current server date. One entry per `entry_date` (enforced at the service layer — if an entry exists for today, the editor loads it for editing rather than creating a new row).
+- Habit goal progress is derived at query time from `journal_entries` (e.g., count of distinct `entry_date` values in the current month for "Write daily"). `milestone_value` is only meaningful for `goal_type = 'milestone'`.
 
 ### REST Endpoints
 
@@ -166,14 +189,41 @@ All under `/api/journal`, protected by existing `ApiKeyAuthFilter` in non-dev pr
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/journal/entries` | List all entries, newest first. Optional `?ticker=NVDA` or `?tag=macro` filter. |
-| `POST` | `/api/journal/entries` | Create entry. Body: `{ body, tickers[], tags[] }` |
-| `PUT` | `/api/journal/entries/{id}` | Update entry body/tags |
+| `POST` | `/api/journal/entries` | Create entry. See request body below. |
+| `PUT` | `/api/journal/entries/{id}` | Update entry. See request body below. |
 | `DELETE` | `/api/journal/entries/{id}` | Delete entry |
 | `GET` | `/api/journal/goals` | List all goals |
 | `POST` | `/api/journal/goals` | Create goal |
-| `PUT` | `/api/journal/goals/{id}` | Update goal (label, progress, target) |
+| `PUT` | `/api/journal/goals/{id}` | Update goal (label, milestoneValue, targetValue, deadline) |
 | `DELETE` | `/api/journal/goals/{id}` | Delete goal |
-| `GET` | `/api/journal/stats` | Returns: entry count, current streak, calendar data (date → activity level), most-mentioned tickers/tags |
+| `GET` | `/api/journal/stats` | Returns entry count, streak, calendar data, and most-mentioned tokens. See response shape below. |
+
+**POST/PUT entry request body:**
+```json
+{
+  "body": "<p>$NVDA holding strong...</p>",
+  "entryDate": "2026-03-17"
+}
+```
+Tickers and tags are **not** accepted from the client — the server extracts them from `body` as the authoritative source.
+
+**GET `/api/journal/stats` response shape:**
+```json
+{
+  "entryCount": 47,
+  "currentStreak": 12,
+  "calendar": {
+    "2026-03-01": 0,
+    "2026-03-15": 1,
+    "2026-03-17": 2
+  },
+  "mostMentioned": [
+    { "token": "$NVDA", "count": 18 },
+    { "token": "#macro", "count": 9 }
+  ]
+}
+```
+Calendar activity levels: `0` = no entry, `1` = entry written, `2` = entry with media or 3+ tags.
 
 ### Ticker/Tag Extraction
 Extraction happens server-side on `POST`/`PUT` of an entry. Parse the HTML body, find all `$WORD` and `#word` patterns, deduplicate, and store in the arrays. Client-side detection is for real-time visual rendering only — the server is the source of truth.
@@ -202,6 +252,12 @@ On `paste` event:
 3. YouTube card: thumbnail via `img.youtube.com/vi/{id}/mqdefault.jpg`, title placeholder, red play icon
 4. Twitter card: rendered as a styled blockquote with source icon
 
+### Contenteditable and Rich Text Interaction
+- Bold, italic, and link toolbar actions use `document.execCommand` (deprecated but broadly supported) or the `Selection`/`Range` API.
+- The token-wrapping `input` handler must skip nodes that are already `.neon-token` spans — do not re-wrap existing tokens on every keystroke.
+- Non-embed pastes must strip foreign HTML: `paste` handler always calls `preventDefault`, reads `clipboardData.getData('text/plain')`, and inserts sanitized plain text via `document.execCommand('insertText')` (or `insertHTML` with sanitized content).
+- The `body` saved to the server is the `innerHTML` of the editor div, preserving `<b>`, `<i>`, `<a>`, and `<span class="neon-token">` elements. No other tags are permitted.
+
 ### Calendar Rendering
 On journal page load, fetch `/api/journal/stats`. Build the current month grid in JS — no library needed. Each day cell is a `<div>` with color class based on activity level returned from the API.
 
@@ -209,6 +265,7 @@ On journal page load, fetch `/api/journal/stats`. Build the current month grid i
 
 ## Out of Scope
 - Full YouTube/Twitter API integration (embed cards use thumbnail URLs only, no oEmbed)
+- Calendar pagination / month navigation (current month only; future)
 - Search across entry text (future)
 - Entry export (future)
 - Mobile layout (future)
