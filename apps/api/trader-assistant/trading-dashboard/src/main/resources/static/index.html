@@ -1020,6 +1020,22 @@
     return r.json();
   }
 
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-KEY': KEY },
+      body: JSON.stringify(body),
+    }).then(r => r.ok ? r.json() : Promise.reject(r));
+  }
+
+  function put(url, body) {
+    return fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-API-KEY': KEY },
+      body: JSON.stringify(body),
+    }).then(r => r.ok ? r.json() : Promise.reject(r));
+  }
+
   /* ── Auth ───────────────────────────────── */
   function boot() {
     const k = localStorage.getItem('benji_k');
@@ -1844,6 +1860,213 @@
     } catch (e) {
       page.innerHTML = empty('📓', 'Journal unavailable', 'Could not load journal data.');
     }
+  }
+
+  function renderJournalLayout(todayEntry, entries, goals, stats) {
+    return `
+      <div class="j-layout">
+        <div class="j-feed" id="j-feed">
+          ${renderTodayEditor(todayEntry)}
+          ${renderPastEntries(entries)}
+        </div>
+        <div class="j-sidebar">
+          ${renderJStats(stats)}
+          ${renderJCalendar(stats)}
+          ${renderJMovers(entries)}
+          ${renderJGoals(goals)}
+          ${renderJMostWritten(stats)}
+        </div>
+      </div>`;
+  }
+
+  function renderTodayEditor(entry) {
+    const today = new Date();
+    const label = today.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    const content = entry ? colorizeHtml(entry.body) : '';
+    const pills = entry ? renderPills([...entry.tickers.map(t=>'$'+t), ...entry.tags.map(t=>'#'+t)]) : '';
+    return `
+      <div class="j-card today" id="j-today-card">
+        <div class="j-card-head">
+          <span class="j-card-date">${label}</span>
+        </div>
+        <div class="j-editor"
+             id="j-editor"
+             contenteditable="true"
+             data-placeholder="What's on your mind today?">${content}</div>
+        <div class="j-card-foot">
+          <div class="j-pills" id="j-today-pills">${pills}</div>
+          <button class="j-save-btn" id="j-save-btn">Save</button>
+        </div>
+      </div>`;
+  }
+
+  function colorizeHtml(html) {
+    // Replace $TICKER and #tag patterns in text nodes with neon spans
+    return html
+      .replace(/(?<![a-zA-Z0-9])(\$[A-Z]{1,10})(?![a-zA-Z0-9])/g,
+        (_, t) => `<span class="neon-token ${neonClass(t.slice(1).toUpperCase())}" data-token="${t}">${t}</span>`)
+      .replace(/(?<![a-zA-Z0-9])(#[a-zA-Z][a-zA-Z0-9_]*)(?![a-zA-Z0-9=])/g,
+        (_, t) => `<span class="neon-token ${neonClass(t.slice(1).toUpperCase())}" data-token="${t}">${t}</span>`);
+  }
+
+  function renderPills(tokens) {
+    return tokens.map(t => `<span class="j-pill">${t}</span>`).join('');
+  }
+
+  function attachJournalHandlers(goals, stats) {
+    const editor = document.getElementById('j-editor');
+    const saveBtn = document.getElementById('j-save-btn');
+    if (!editor) return;
+
+    // Token detection on input
+    editor.addEventListener('input', () => {
+      wrapTokensInEditor(editor);
+      updateTodayPills(editor);
+    });
+
+    // Paste: strip HTML or detect embed URLs
+    editor.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = e.clipboardData.getData('text/plain').trim();
+      const ytMatch = text.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      const twMatch = text.match(/twitter\.com\/\S+\/status\/(\d+)|x\.com\/\S+\/status\/(\d+)/);
+      if (ytMatch) {
+        const vid = ytMatch[1];
+        const card = `<div class="j-embed" contenteditable="false">` +
+          `<img class="j-embed-thumb" src="https://img.youtube.com/vi/${vid}/mqdefault.jpg" alt="">` +
+          `<div class="j-embed-info"><div>YouTube video</div>` +
+          `<div class="j-embed-source">youtube.com</div></div></div>`;
+        document.execCommand('insertHTML', false, card);
+      } else if (twMatch) {
+        const card = `<div class="j-embed" contenteditable="false">` +
+          `<div class="j-embed-info"><div>𝕏 / Twitter post</div>` +
+          `<div class="j-embed-source">x.com</div></div></div>`;
+        document.execCommand('insertHTML', false, card);
+      } else {
+        document.execCommand('insertText', false, text);
+      }
+    });
+
+    // Save
+    saveBtn.addEventListener('click', () => saveEntry(editor, goals, stats));
+
+    // Token clicks for filter
+    document.getElementById('page-journal').addEventListener('click', e => {
+      const t = e.target.closest('.neon-token');
+      if (t) applyJournalFilter(t.dataset.token);
+    });
+
+    // Goals edit toggle
+    const editGoalsBtn = document.getElementById('j-goals-edit-btn');
+    if (editGoalsBtn) editGoalsBtn.addEventListener('click', toggleGoalsEdit);
+  }
+
+  function wrapTokensInEditor(editor) {
+    // Walk text nodes only; skip existing .neon-token spans
+    const sel = window.getSelection();
+    const anchor = sel.anchorNode;
+    const offset = sel.anchorOffset;
+
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => n.parentElement.classList.contains('neon-token')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT
+    });
+
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    const TOKEN_RE = /(\$[A-Z]{1,10}|#[a-zA-Z][a-zA-Z0-9_]*)/g;
+    textNodes.forEach(node => {
+      const text = node.nodeValue;
+      if (!TOKEN_RE.test(text)) return;
+      TOKEN_RE.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = TOKEN_RE.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const span = document.createElement('span');
+        span.className = `neon-token ${neonClass(m[1].replace(/^[$#]/, '').toUpperCase())}`;
+        span.dataset.token = m[1];
+        span.textContent = m[1];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+
+    // Restore caret
+    try {
+      if (anchor && anchor.isConnected) {
+        const r = document.createRange();
+        r.setStart(anchor, Math.min(offset, anchor.length || 0));
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    } catch (_) {}
+  }
+
+  function updateTodayPills(editor) {
+    const html = editor.innerHTML;
+    const tickers = [...html.matchAll(/\$([A-Z]{1,10})/g)].map(m => '$' + m[1]);
+    const tags = [...html.matchAll(/#([a-zA-Z][a-zA-Z0-9_]*)/g)].map(m => '#' + m[1]);
+    const unique = [...new Set([...tickers, ...tags])];
+    document.getElementById('j-today-pills').innerHTML = renderPills(unique);
+  }
+
+  async function saveEntry(editor, goals, stats) {
+    const body = sanitizeEditorHtml(editor.innerHTML);
+    const entryDate = new Date().toISOString().slice(0, 10);
+    const btn = document.getElementById('j-save-btn');
+    btn.textContent = 'Saving…';
+    try {
+      let saved;
+      if (journalTodayId) {
+        saved = await put(`/api/journal/entries/${journalTodayId}`, { body, entry_date: entryDate });
+      } else {
+        saved = await post('/api/journal/entries', { body, entry_date: entryDate });
+        journalTodayId = saved.id;
+      }
+      btn.textContent = 'Saved ✓';
+      setTimeout(() => { btn.textContent = 'Save'; }, 2000);
+      // Refresh the past entries list
+      journalEntries = await get('/api/journal/entries');
+      document.getElementById('j-feed').innerHTML =
+        renderTodayEditor(saved) + renderPastEntries(journalEntries);
+      attachJournalHandlers(goals, stats);
+    } catch (_) {
+      btn.textContent = 'Error — retry';
+      setTimeout(() => { btn.textContent = 'Save'; }, 3000);
+    }
+  }
+
+  function sanitizeEditorHtml(html) {
+    // Strip all tags except permitted set: <b>, <i>, <a>, <span class="neon-token">, <div class="j-embed">
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    cleanNode(tmp);
+    return tmp.innerHTML;
+  }
+
+  function cleanNode(node) {
+    [...node.childNodes].forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) return;
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const tag = child.tagName.toLowerCase();
+        const allowed = tag === 'b' || tag === 'i' || tag === 'a'
+          || (tag === 'span' && child.classList.contains('neon-token'))
+          || (tag === 'div' && child.classList.contains('j-embed'))
+          || (tag === 'img' && child.classList.contains('j-embed-thumb'));
+        if (!allowed) {
+          while (child.firstChild) child.parentNode.insertBefore(child.firstChild, child);
+          child.parentNode.removeChild(child);
+        } else {
+          cleanNode(child);
+        }
+      }
+    });
   }
 
   /* ── Add / Delete Position ──────────────── */
