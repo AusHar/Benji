@@ -40,7 +40,11 @@ out/
 # Node (if frontends added later)
 node_modules/
 
+# Worktrees
+.worktrees/
+
 # Env / secrets
 *.env
 *.envrc
 apps/api/trader-assistant/trading-dashboard/.envrc
+.superpowers/
