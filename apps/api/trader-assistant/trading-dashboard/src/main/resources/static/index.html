@@ -261,50 +261,38 @@
     .stat-trend.up   { color: var(--green); background: rgba(78,221,138,.1); }
     .stat-trend.down { color: var(--red);   background: rgba(240,120,104,.1); }
 
-    /* ── Daily quote ─────────────────────────── */
-    .daily-quote {
-      background: var(--forest-deep);
-      border-radius: var(--radius-md);
-      padding: 18px 22px 16px;
-      margin-bottom: 28px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-    .daily-quote-mark {
-      font-size: 38px;
-      line-height: 1;
-      color: var(--forest-soft);
-      flex-shrink: 0;
-      margin-top: -4px;
-      font-family: Georgia, serif;
-    }
-    .daily-quote-text {
-      line-height: 1.5;
-      color: rgba(255,255,255,.78);
-      font-style: italic;
-    }
-    .daily-quote-attr {
-      margin-top: 7px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--sage);
-      letter-spacing: .4px;
-      text-transform: uppercase;
-      font-style: normal;
-    }
-
+    /* ── Portfolio top row & daily quote ─────── */
     .port-top-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+      align-items: start;
+    }
+    .daily-quote {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
       display: flex;
       gap: 14px;
-      align-items: stretch;
-      margin-bottom: 28px;
+      align-items: flex-start;
+      min-height: 120px;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-.port-top-row .daily-quote {
-      flex: 1;
-      min-width: 0;
-      margin-bottom: 0;
+    .daily-quote:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .daily-quote-mark { font-family: var(--serif); font-size: 42px; line-height: 1; color: var(--green-dim); flex-shrink: 0; margin-top: -6px; }
+    .daily-quote-text {
+      font-size: clamp(10px, 2.5vw, 18px);
+      font-style: italic;
+      color: var(--text-mid);
+      line-height: 1.5;
+      font-family: var(--serif);
+      font-weight: 300;
+      font-optical-sizing: auto;
+      overflow: hidden;
     }
+    .daily-quote-attr { font-size: 9px; color: var(--text-muted); letter-spacing: .8px; text-transform: uppercase; margin-top: 6px; }
 
     /* ── Section label ───────────────────────── */
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
@@ -500,44 +488,16 @@
     .qc-change.neg { color: var(--red); }
     .qc-meta   { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
 
-    /* ── Table ───────────────────────────────── */
-    .table-wrap {
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      background: var(--cream-card);
-      box-shadow: var(--shadow-sm);
-    }
-
-    table { width: 100%; border-collapse: collapse; }
-
-    thead th {
-      padding: 10px 16px;
-      text-align: left;
-      font-size: 10.5px;
-      font-weight: 600;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      background: var(--cream);
-      border-bottom: 1px solid var(--cream-border);
-      white-space: nowrap;
-    }
-
-    tbody td {
-      padding: 11px 16px;
-      font-size: 13px;
-      color: var(--text-dark);
-      border-bottom: 1px solid var(--cream-border);
-      font-variant-numeric: tabular-nums;
-    }
-
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: rgba(45,90,61,.025); }
-
-    td.amber    { color: var(--amber); font-weight: 500; }
-    td.positive { color: var(--positive); font-weight: 500; }
-    td.negative { color: var(--negative); font-weight: 500; }
+    /* ── Portfolio table ─────────────────────── */
+    .table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .data-table th { padding: 9px 14px; text-align: left; font-size: 8px; font-weight: 500; letter-spacing: .9px; text-transform: uppercase; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+    .data-table td { padding: 10px 14px; border-bottom: 1px solid rgba(78,221,138,.05); color: var(--text-mid); font-variant-numeric: tabular-nums; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(78,221,138,.03); }
+    .td-pos { color: var(--green); }
+    .td-neg { color: var(--red); }
+    .td-amber { color: var(--amber); }
 
     .pill {
       display: inline-block;
@@ -1801,7 +1761,7 @@
     requestAnimationFrame(() => drawTreemap(positions, priceMap));
 
     document.getElementById('port-table').innerHTML =
-      `<table>
+      `<table class="data-table">
         <thead><tr>
           <th>Ticker</th><th>Shares</th><th>Avg Cost</th>
           <th>Price</th><th>Mkt Value</th><th>P&L</th><th>%</th><th></th>
@@ -1812,16 +1772,16 @@
             const mktVal = price != null ? x.quantity * price : null;
             const pnl    = mktVal != null ? mktVal - x.cost_basis : null;
             const pct    = (pnl != null && x.cost_basis > 0) ? pnl / x.cost_basis : null;
-            const cls    = pnl != null ? (pnl >= 0 ? 'positive' : 'negative') : '';
+            const cls    = pnl != null ? (pnl >= 0 ? 'td-pos' : 'td-neg') : '';
             return `<tr>
               <td><strong>${x.ticker}</strong></td>
               <td>${num(x.quantity)}</td>
-              <td class="amber">${money(x.cost_basis / x.quantity)}</td>
+              <td class="td-amber">${money(x.cost_basis / x.quantity)}</td>
               <td>${price != null ? money(price) : '--'}</td>
-              <td>${mktVal != null ? money(mktVal) : '--'}</td>
+              <td class="td-amber">${mktVal != null ? money(mktVal) : '--'}</td>
               <td class="${cls}">${pnl != null ? (pnl >= 0 ? '+' : '') + money(pnl) : '--'}</td>
               <td class="${cls}">${pct != null ? (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%' : '--'}</td>
-              <td><button class="btn btn-sm" style="color:var(--negative);padding:2px 8px;font-size:12px" onclick="deletePosition('${x.ticker}')">Remove</button></td>
+              <td><button class="btn btn-sm" style="color:var(--red);padding:2px 8px;font-size:12px" onclick="deletePosition('${x.ticker}')">Remove</button></td>
             </tr>`;
           }).join('')}
         </tbody>
