@@ -426,43 +426,27 @@
     .exp-close:hover { color: var(--text); border-color: var(--border-mid); box-shadow: var(--glow-sm); }
 
     /* ── Inputs / Buttons ────────────────────── */
-    .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
-
+    .field-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
     .field {
-      padding: 9px 13px;
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 13.5px;
-      color: var(--text-dark);
+      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px 12px; color: var(--text);
+      font-family: var(--mono); font-size: 12px;
+      transition: border-color .18s, box-shadow .18s;
       outline: none;
-      transition: border-color .15s;
     }
-
-    .field:focus { border-color: var(--sage); }
+    .field:focus { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
     .field::placeholder { color: var(--text-muted); }
-    .field.wide { min-width: 240px; }
-
-    select.field { cursor: pointer; }
-
-    .btn {
-      padding: 9px 18px;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-family: inherit;
-      font-size: 13.5px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background .12s, transform .08s;
+    .btn-primary {
+      background: rgba(78,221,138,.12); border: 1px solid rgba(78,221,138,.3);
+      color: var(--green); font-family: var(--mono); font-size: 11px;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      transition: background .15s, box-shadow .18s;
     }
-
-    .btn:active { transform: scale(.98); }
-
-    .btn-primary { background: var(--forest-body); color: #fff; }
-    .btn-primary:hover { background: var(--forest-mid); }
-
-    .btn-sm { padding: 7px 13px; font-size: 12.5px; }
+    .btn-primary:hover { background: rgba(78,221,138,.18); box-shadow: var(--glow-sm); }
+    .btn-primary:disabled { opacity: .4; cursor: default; }
+    /* legacy btn helpers (used on other pages pending their theme pass) */
+    .btn { font-family: var(--mono); cursor: pointer; border-radius: 6px; border: none; }
+    .btn-sm { font-size: 10px; padding: 6px 12px; }
 
     /* ── Quote cards ─────────────────────────── */
     .quote-grid {
@@ -503,19 +487,18 @@
       margin-top: 5px;
     }
 
-    /* ── Quote result ────────────────────────── */
-    .quote-result-card {
-      max-width: 300px;
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-md);
-      padding: 22px 24px;
-      box-shadow: var(--shadow-sm);
+    /* ── Quote result card */
+    .quote-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 20px 24px; margin-bottom: 16px;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-
-    .qr-symbol { font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; letter-spacing: .3px; }
-    .qr-price  { font-size: 38px; font-weight: 600; color: var(--amber); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-    .qr-meta   { font-size: 11.5px; color: var(--text-muted); margin-top: 7px; }
+    .quote-card:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); }
+    .qc-symbol { font-size: 22px; font-weight: 400; color: var(--text-mid); letter-spacing: .5px; margin-bottom: 4px; }
+    .qc-price  { font-size: 36px; font-weight: 300; letter-spacing: -1px; font-variant-numeric: tabular-nums; color: var(--amber); margin-bottom: 6px; }
+    .qc-change.pos { color: var(--green); }
+    .qc-change.neg { color: var(--red); }
+    .qc-meta   { font-size: 9.5px; color: var(--text-muted); margin-top: 4px; }
 
     /* ── Table ───────────────────────────────── */
     .table-wrap {
@@ -680,60 +663,24 @@
       min-height: 16px;
     }
 
-    /* ── Overview grid ───────────────────────── */
+    /* ── Overview grid */
     .overview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 14px;
-      margin: 18px 0 24px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
     }
+    .ov-cell { padding: 8px; border: 1px solid rgba(78,221,138,.06); border-radius: 5px; }
+    .ov-cell:hover { border-color: rgba(78,221,138,.15); box-shadow: var(--glow-sm); }
+    .ov-label { font-size: 7.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
+    .ov-value { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
 
-    .overview-item {
-      background: var(--cream-card);
-      border: 1px solid var(--cream-border);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-    }
-
-    .overview-item .card-label { margin-bottom: 4px; }
-
-    .overview-val {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-dark);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ── Quota badge ─────────────────────────── */
-    .quota-bar {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      margin-bottom: 18px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .quota-track {
-      flex: 1;
-      max-width: 160px;
-      height: 4px;
-      background: var(--cream-border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .quota-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width .4s ease;
-    }
-
-    .quota-fill.ok     { background: var(--sage); }
-    .quota-fill.warn   { background: var(--amber); }
-    .quota-fill.danger { background: var(--negative); }
-
-    .quota-label { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* ── Quota bar */
+    .quota-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .quota-track { flex: 1; height: 3px; background: var(--bg-card); border-radius: 2px; overflow: hidden; }
+    .quota-fill { height: 100%; background: var(--green); transition: width .3s; }
+    .quota-fill.warn { background: var(--amber); }
+    .quota-fill.crit { background: var(--red); }
+    .quota-label { font-size: 9px; color: var(--text-muted); white-space: nowrap; }
 
     /* ── Rate-limit banner ───────────────────── */
     .rate-limit-banner {
@@ -1071,10 +1018,10 @@
       <div class="page" id="page-quotes">
         <div class="field-row">
           <input class="field wide" id="quoteInput" type="text" placeholder="Ticker — AAPL, VOO, MSFT…" maxlength="12" autocomplete="off">
-          <button class="btn btn-primary" id="quoteBtn">Get Quote</button>
+          <button class="btn-primary" id="quoteBtn">Get Quote</button>
         </div>
         <div class="quota-bar" id="quotaBar" style="display:none">
-          <div class="quota-track"><div class="quota-fill ok" id="quotaFill" style="width:0%"></div></div>
+          <div class="quota-track"><div class="quota-fill" id="quotaFill" style="width:0%"></div></div>
           <span class="quota-label" id="quotaLabel"></span>
         </div>
         <div id="quoteResult"></div>
@@ -1551,7 +1498,7 @@
       const label = document.getElementById('quotaLabel');
       const bar = document.getElementById('quotaBar');
       fill.style.width = pct + '%';
-      fill.className = 'quota-fill ' + (pct >= 90 ? 'danger' : pct >= 60 ? 'warn' : 'ok');
+      fill.className = 'quota-fill ' + (pct >= 90 ? 'crit' : pct >= 60 ? 'warn' : '');
       label.textContent = used + ' / ' + daily_limit + ' this minute';
       bar.style.display = 'flex';
     } catch { /* quota endpoint optional — fail silently */ }
@@ -1570,7 +1517,7 @@
 
   function overviewCard(o) {
     const row = (label, value) =>
-      `<div class="overview-item"><div class="card-label">${label}</div><div class="overview-val">${value}</div></div>`;
+      `<div class="ov-cell"><div class="ov-label">${label}</div><div class="ov-value">${value}</div></div>`;
     return `<div class="overview-grid">
       ${row('Sector', o.sector || '--')}
       ${row('Market Cap', largeMoney(o.market_cap))}
@@ -1719,10 +1666,14 @@
     // Price card
     if (qRes.status === 'fulfilled' && qRes.value) {
       const q = qRes.value;
-      html += `<div class="quote-result-card">
-        <div class="qr-symbol">${q.symbol}${q.currency ? ' · ' + q.currency : ''}</div>
-        <div class="qr-price">${money(q.price)}</div>
-        <div class="qr-meta">As of ${ts(q.as_of)}${q.source ? ' · ' + q.source : ''}</div>
+      const chgPct = q.change_pct;
+      const chgCls = chgPct == null ? '' : chgPct >= 0 ? 'pos' : 'neg';
+      const chgStr = chgPct == null ? '' : (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%';
+      html += `<div class="quote-card">
+        <div class="qc-symbol">${q.symbol}${q.currency ? ' · ' + q.currency : ''}</div>
+        <div class="qc-price">${money(q.price)}</div>
+        ${chgStr ? `<div class="qc-change ${chgCls}">${chgStr}</div>` : ''}
+        <div class="qc-meta">As of ${ts(q.as_of)}${q.source ? ' · ' + q.source : ''}</div>
       </div>`;
     } else if (qRes.reason === 429) {
       el.innerHTML = `<div class="rate-limit-banner">
