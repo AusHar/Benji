@@ -376,6 +376,55 @@
     .wl-tile:hover .tnc-headline { color: var(--text-mid); }
     .wl-tile.expanded .tile-news-compact { display: none; }
 
+    /* ── Expanded tile ──────────────────────── */
+    .tile-expanded-body { display: none; flex-direction: column; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-mid); gap: 14px; }
+    .wl-tile.expanded .tile-expanded-body { display: flex; }
+    /* Timeframe toggle */
+    .exp-chart { width: 100%; }
+    .exp-chart-top { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 8px; }
+    .tf-toggle { display: flex; gap: 2px; }
+    .tf-btn {
+      font-family: var(--mono); font-size: 9px; letter-spacing: .5px;
+      padding: 3px 9px; border-radius: 3px;
+      background: none; border: 1px solid var(--border);
+      color: var(--text-dim); cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s, box-shadow .18s;
+    }
+    .tf-btn:hover { border-color: var(--border-mid); color: var(--text-mid); }
+    .tf-btn.active { border-color: rgba(78,221,138,.3); color: var(--green); background: rgba(78,221,138,.08); box-shadow: var(--glow-sm); }
+    /* Expanded sparkline */
+    .exp-spark { display: block; width: 100%; height: 64px; overflow: visible; }
+    .exp-xaxis { display: flex; justify-content: space-between; margin-top: 5px; padding: 0 1px; }
+    .exp-xaxis span { font-size: 8px; color: var(--text-muted); letter-spacing: .3px; }
+    /* Fundamentals grid */
+    .exp-funds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .exp-fund { background: rgba(0,0,0,.25); border: 1px solid rgba(78,221,138,.08); border-radius: 5px; padding: 7px 9px; transition: border-color .15s, box-shadow .18s; }
+    .exp-fund:hover { border-color: rgba(78,221,138,.2); box-shadow: var(--glow-sm); }
+    .exp-fund-label { font-size: 7.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
+    .exp-fund-val { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+    .exp-fund-val.green { color: var(--green); }
+    .exp-fund-val.amber { color: var(--amber); }
+    .exp-fund-val.red   { color: var(--red); }
+    /* News section */
+    .exp-news-section { padding-top: 12px; border-top: 1px solid var(--border); }
+    .exp-news-label { font-size: 8px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .exp-news-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; transition: padding-left .15s; }
+    .exp-news-item:last-child { border-bottom: none; }
+    .exp-news-item:hover { padding-left: 4px; }
+    .exp-news-headline { font-size: 10px; color: var(--text-mid); line-height: 1.5; margin-bottom: 2px; transition: color .15s; }
+    .exp-news-item:hover .exp-news-headline { color: var(--text); }
+    .exp-news-meta { font-size: 8.5px; color: var(--text-dim); }
+    /* Close button */
+    .exp-close {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 11px; cursor: pointer;
+      padding: 2px 6px; border-radius: 3px; font-family: var(--mono);
+      transition: color .15s, box-shadow .18s, border-color .15s;
+      z-index: 1;
+    }
+    .exp-close:hover { color: var(--text); border-color: var(--border-mid); box-shadow: var(--glow-sm); }
+
     /* ── Inputs / Buttons ────────────────────── */
     .field-row { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
 
@@ -1279,6 +1328,86 @@
         <div class="tnc-headline">${h}</div>
       </div>`).join('')}
   </div>`;
+  }
+
+  const TF_LABELS = {
+    '1d': ['9:30','11:00','1:00P','3:00P','Close'],
+    '5d': ['Mon','Tue','Wed','Thu','Fri'],
+    '3m': ['Jan','Feb','Mar 1','Mar 8','Now'],
+  };
+
+  function expandedChartSkeletonHTML(sym) {
+    return `<div class="exp-chart">
+    <div class="exp-chart-top">
+      <div class="tf-toggle">
+        <button class="tf-btn active" onclick="switchTf('${sym}','1d',event)">1D</button>
+        <button class="tf-btn"        onclick="switchTf('${sym}','5d',event)">5D</button>
+        <button class="tf-btn"        onclick="switchTf('${sym}','3m',event)">3M</button>
+      </div>
+    </div>
+    <svg class="exp-spark" id="exp-spark-${sym}" viewBox="0 0 240 64" preserveAspectRatio="none">
+      <line x1="0" y1="16" x2="240" y2="16" stroke="rgba(255,255,255,.04)" stroke-width="1" stroke-dasharray="3,5"/>
+      <line x1="0" y1="32" x2="240" y2="32" stroke="rgba(255,255,255,.04)" stroke-width="1" stroke-dasharray="3,5"/>
+      <line x1="0" y1="48" x2="240" y2="48" stroke="rgba(255,255,255,.04)" stroke-width="1" stroke-dasharray="3,5"/>
+      <line class="spark-midline" x1="0" y1="32" x2="240" y2="32"
+        stroke="rgba(255,255,255,.14)" stroke-width="1" stroke-dasharray="6,6"/>
+    </svg>
+    <div class="exp-xaxis" id="exp-xaxis-${sym}">
+      ${TF_LABELS['1d'].map(l => `<span>${l}</span>`).join('')}
+    </div>
+    <div style="text-align:center;margin-top:4px;font-size:9px;color:var(--text-muted)">— chart data unavailable</div>
+  </div>`;
+  }
+
+  /* ── Tile expand/collapse ───────────────── */
+  function toggleTile(sym, e) {
+    if (e) e.stopPropagation();
+    const tile = document.getElementById('wl-' + sym);
+    if (!tile) return;
+    const wasExpanded = tile.classList.contains('expanded');
+
+    // Collapse all tiles
+    document.querySelectorAll('.wl-tile.expanded').forEach(t => {
+      t.classList.remove('expanded');
+      const closeBtn = t.querySelector('.exp-close');
+      if (closeBtn) closeBtn.style.display = 'none';
+    });
+
+    if (!wasExpanded) {
+      tile.classList.add('expanded');
+      const closeBtn = tile.querySelector('.exp-close');
+      if (closeBtn) closeBtn.style.display = 'block';
+
+      // Populate expanded body if not already done
+      const body = tile.querySelector('.tile-expanded-body');
+      if (body && !body.dataset.loaded) {
+        body.innerHTML = expandedChartSkeletonHTML(sym) +
+          `<div class="exp-funds" id="exp-funds-${sym}">
+          <div class="exp-fund"><div class="exp-fund-label">Loading</div><div class="exp-fund-val">—</div></div>
+        </div>
+        <div class="exp-news-section">
+          <div class="exp-news-label">Related News</div>
+          <div id="exp-news-${sym}" style="color:var(--text-muted);font-size:9px">Loading…</div>
+        </div>`;
+        body.style.display = 'flex';
+        body.dataset.loaded = 'true';
+        loadTileDetails(sym);
+      } else if (body) {
+        body.style.display = 'flex';
+      }
+    }
+  }
+
+  function switchTf(sym, tf, e) {
+    if (e) e.stopPropagation();
+    const tile = document.getElementById('wl-' + sym);
+    if (!tile) return;
+    tile.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+    const btn = tile.querySelector(`.tf-btn[onclick*="'${tf}'"]`);
+    if (btn) btn.classList.add('active');
+    const xaxis = document.getElementById('exp-xaxis-' + sym);
+    if (xaxis) xaxis.innerHTML = TF_LABELS[tf].map(l => `<span>${l}</span>`).join('');
+    // Sparkline path swap will be wired in when real data is available
   }
 
   function renderWatchlistTiles(list, quotes) {
