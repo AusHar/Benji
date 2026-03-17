@@ -10,7 +10,7 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 ## Source of Truth
 - PRD: `docs/PRD.md` (scope, users, success metrics)
 - Architecture: `docs/ARCHITECTURE.md` (diagrams, boundaries)
-- API Contract: `docs/openapi.yaml` (generate DTOs & interfaces)
+- API Contract: `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` (generate DTOs & interfaces)
 - Runbook: `docs/RUNBOOK.md` (ports, health, common failures)
 
 ## Tech Stack (authoritative)
@@ -30,7 +30,7 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 - **Time:** Use `Instant` (UTC). No `java.util.Date`.
 - **Config:** No secrets in source. Use env vars; see `ENV.example`.
 - **Logging:** Key:value, one line. No PII. Include `requestId` when available.
-- **Commits/PRs:** Conventional Commits; every endpoint change updates `docs/openapi.yaml` and `/http/` examples.
+- **Commits/PRs:** Conventional Commits; every endpoint change updates `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` and `/http/` examples.
 
 ## Definitions of Done (DoD)
 - Unit tests for services (happy + edge cases).
@@ -54,7 +54,7 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 ```
 docs/PRD.md
 docs/ARCHITECTURE.md
-docs/openapi.yaml
+apps/api/trader-assistant/trading-dashboard/openAPI.yaml
 http/                 # IntelliJ .http examples (curl-like)
 src/main/java/...     # app code
 src/test/java/...     # unit + integration tests
@@ -83,7 +83,7 @@ SERVER_PORT=8080
 ## Prompting Hints (for AI tools)
 - Reference the **PRD** for scope and acceptance criteria.
 - Follow **Conventions & Rules** strictly before optimizing performance.
-- When adding an endpoint: update `docs/openapi.yaml`, run codegen, implement interface, add `/http/` sample, write tests.
+- When adding an endpoint: update `apps/api/trader-assistant/trading-dashboard/openAPI.yaml`, run codegen, implement interface, add `/http/` sample, write tests.
 - If something is ambiguous, propose a small ADR in `docs/adr/` and proceed with the simplest option.
 
 ## Quality Bar

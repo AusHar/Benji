@@ -41,12 +41,12 @@
 +- Deliver data to a UI featuring:
 +  - Overview panels for portfolio value, cash position, and recent spend.
 +  - Research workspace combining quote analytics with DD notes.
-+  - Search-driven navigation and simple interaction patterns mirroring OpenAI aesthetics.
++  - Terminal dark aesthetic: IBM Plex Mono, neon green accent, interactive watchlist tile system with expand/collapse, fundamentals, and sparklines.
 +- Provide future hooks for conversational assistants (e.g., `/api/assistant` endpoint).
 +
 +### 4.5 Non-Functional Requirements
-+- Deployable via CI/CD to AWS ECS with zero-downtime rolling updates.
-+- Secrets sourced from AWS SSM/Secrets Manager; no secrets stored in code or repo.
++- Deployable via CI/CD to AWS Lightsail with automated rsync + systemd restart.
++- Secrets sourced from systemd service environment; no secrets stored in code or repo.
 +- Observability through Spring Boot Actuator, structured logging, and trace IDs.
 +- Automated testing (unit, integration, contract) must pass before release.
 +- System must gracefully degrade when providers are unavailable (serve cached data, partial responses).
@@ -56,27 +56,26 @@
 +### Phase 0 – Foundation (Complete)
 +- Spring Boot service with quote endpoint, caching, provider abstraction, CI/CD scaffold, documentation stubs.
 +
-+### Phase 1 – Data Depth (Current)
-+- Expand OpenAPI contract for quotes, portfolio, and finance modules.
-+- Implement production-ready AlphaVantage provider integration with retries and failover.
-+- Add persistence models and migrations for portfolio/finance data.
-+- Author PRD and runbook (this document) to finalize requirements.
++### Phase 1 – Data Depth (Complete)
++- OpenAPI contract for quotes, portfolio, and finance modules.
++- Finnhub provider integration with rate limiting and quota tracking.
++- Persistence models and Flyway migrations for portfolio/finance data.
 +
-+### Phase 2 – Dashboard MVP
-+- Ship UI consuming the API (web client or future mobile).
-+- Implement portfolio ingestion, expense tracking endpoints, and analytics calculations.
-+- Harden security (API key enforcement, actuator credentials) and document configuration.
++### Phase 2 – Dashboard MVP (Complete)
++- Single-file SPA (terminal dark theme): watchlist tiles, stat cards, quotes, portfolio, finance pages.
++- Portfolio ingestion, expense tracking endpoints, and analytics calculations.
++- API key auth enforcement, actuator credentials, and production deployment on AWS Lightsail.
 +
-+### Phase 3 – Production Hardening
-+- Add monitoring/alerting, synthetic checks, automated backups, and disaster recovery plan.
-+- Support role-based access if additional users are onboarded.
-+- Optimize cost/performance; consider distributed cache if scaling beyond a single ECS task.
++### Phase 3 – Production Hardening (Current)
++- Live sparkline data (1D/5D/3M candle history via Finnhub).
++- News feed per ticker in expanded watchlist tiles.
++- Monitoring/alerting, synthetic checks, and disaster recovery plan.
 +
 +## 6. Dependencies & Assumptions
-+- External market data from AlphaVantage (primary) and secondary provider TBD.
++- External market data from Finnhub (primary); secondary provider TBD.
 +- Postgres database available for persistence; Testcontainers for integration testing.
-+- AWS infrastructure (ECR, ECS, IAM roles, SSM) provisioned separately.
-+- UI implementation to follow, consuming this API; early releases may use command-line or API clients.
++- AWS Lightsail instance provisioned; CI deploys via rsync + systemd.
++- UI: single-file SPA served from the JAR, currently shipped.
 +
 +## 7. Risks & Mitigations
 +- **Provider rate limits:** Use caching, exponential backoff, and alternate providers.

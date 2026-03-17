@@ -6,7 +6,7 @@ Primary language: Java 21. Build: Gradle (use the included `./gradlew` in the se
 Keep these priorities in mind: correctness → tests → clarity → performance. Follow the OpenAPI contract; prefer implementing generated interfaces rather than handcrafting endpoint signatures.
 
 ## Where to start
-- Read the PRD: `docs/PRD.md` and architecture: `docs/ARCHITECTURE.md` for scope and boundaries.
+- Read `docs/PRD.md` and `docs/ARCHITECTURE.md` for scope and boundaries.
 - Open the service root and use the wrapper: `cd apps/api/trader-assistant/trading-dashboard && ./gradlew bootRun` to run locally.
 - Codegen: if you change `openAPI.yaml` (in the service root), run `./gradlew openApiGenerate` from the same directory.
 
@@ -14,6 +14,7 @@ Keep these priorities in mind: correctness → tests → clarity → performance
 - API & app code: `apps/api/trader-assistant/trading-dashboard/src/main/java/...` (packages under `com.austinharlan.trading_dashboard`).
 - Config & migrations: `src/main/resources/application.properties|application.yml` and `src/main/resources/db/migration` (Flyway).
 - OpenAPI spec: `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` (source of DTOs and generated interfaces).
+- Frontend SPA: `apps/api/trader-assistant/trading-dashboard/src/main/resources/static/index.html` (single file, no build step).
 - Examples: `http/` (curl-like `.http` files) — update samples when you add/change endpoints.
 - Docs that govern behavior: `docs/AI_README.md`, `docs/AGENTS.md`, and `docs/ARCHITECTURE.md`.
 

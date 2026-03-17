@@ -41,10 +41,12 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 - **Cache:** Caffeine with per-cache TTLs: quotes (30s), overviews (4h), history (1h), news (15m).
 - **Rate Limits:** `MarketDataQuotaTracker` tracks Finnhub calls in a per-minute rolling window (60 calls/min free tier). Usage exposed at `/api/marketdata/quota`. Health indicator returns `UNKNOWN` (HTTP 200) instead of `DOWN` when the quota is exhausted.
 
-## Security (phased)
-- v0: No secrets in code; use env/direnv.  
-- v1: HTTPS everywhere, request validation, basic input sanitation.  
-- v2: Spring Security (JWT), roles/permissions, audit logging.
+## Security
+- Secrets in systemd service environment; no secrets in code or repo.
+- HTTPS via nginx + Let's Encrypt at `https://port.adhdquants.com`.
+- `ApiKeyAuthFilter` validates `X-API-KEY` header (constant-time comparison) on all non-public routes.
+- Actuator endpoints protected by HTTP Basic auth on a separate `SecurityFilterChain`.
+- Public routes: `/actuator/health`, Swagger UI, static frontend (`/`).
 
 ## Diagrams
 
@@ -63,8 +65,8 @@ flowchart LR
     App[Spring Boot App] --> DevDB[(Docker Postgres or H2)]
   end
   subgraph Prod
-    AppCluster[Boot App Cluster] --> CloudDB[(Managed Postgres)]
-    AppCluster --> MarketAPIs[External Market Data]
+    App2[Boot App - Lightsail] --> CloudDB[(Managed Postgres)]
+    App2 --> MarketAPIs[Finnhub]
   end
 
 sequenceDiagram
