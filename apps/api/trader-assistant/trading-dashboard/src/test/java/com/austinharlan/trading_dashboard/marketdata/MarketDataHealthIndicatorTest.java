@@ -43,7 +43,9 @@ class MarketDataHealthIndicatorTest {
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("trading.marketdata.base-url", () -> server.url("/").toString());
-    registry.add("trading.marketdata.api-key", () -> "test-key");
+    registry.add("trading.marketdata.query2-base-url", () -> server.url("/").toString());
+    registry.add("trading.marketdata.yahoo-rss-base-url", () -> server.url("/").toString());
+    registry.add("trading.marketdata.coin-gecko-base-url", () -> server.url("/").toString());
     registry.add("trading.marketdata.health-symbol", () -> "AAPL");
     registry.add("trading.marketdata.connect-timeout", () -> "1s");
     registry.add("trading.marketdata.read-timeout", () -> "1s");
@@ -102,8 +104,10 @@ class MarketDataHealthIndicatorTest {
   @Test
   void shouldReuseCachedHealthWithinConfiguredTtl() {
     MarketDataProperties properties = new MarketDataProperties();
-    properties.setApiKey("ignored");
     properties.setBaseUrl("http://ignored");
+    properties.setQuery2BaseUrl("http://ignored");
+    properties.setYahooRssBaseUrl("http://ignored");
+    properties.setCoinGeckoBaseUrl("http://ignored");
     properties.setHealthSymbol("SPY");
     properties.setHealthCacheTtl(Duration.ofMinutes(5));
 
