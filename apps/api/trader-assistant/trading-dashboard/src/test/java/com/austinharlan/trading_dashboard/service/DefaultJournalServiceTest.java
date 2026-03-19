@@ -106,8 +106,7 @@ class DefaultJournalServiceTest {
   void deleteEntry_throwsWhenNotFound() {
     when(entryRepo.existsById(5L)).thenReturn(false);
 
-    assertThatThrownBy(() -> service.deleteEntry(5L))
-        .isInstanceOf(EntityNotFoundException.class);
+    assertThatThrownBy(() -> service.deleteEntry(5L)).isInstanceOf(EntityNotFoundException.class);
   }
 
   @Test
@@ -136,8 +135,7 @@ class DefaultJournalServiceTest {
   void getStats_streakCountsConsecutiveDaysBackFromToday() {
     LocalDate today = LocalDate.now();
     LocalDate yesterday = today.minusDays(1);
-    JournalEntryEntity todayEntry =
-        new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
+    JournalEntryEntity todayEntry = new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
     JournalEntryEntity yesterdayEntry =
         new JournalEntryEntity("<p>b</p>", yesterday, Set.of(), Set.of());
     when(entryRepo.findAllByOrderByEntryDateDesc()).thenReturn(List.of(todayEntry, yesterdayEntry));
@@ -153,8 +151,7 @@ class DefaultJournalServiceTest {
   void getStats_streakBreaksOnGap() {
     LocalDate today = LocalDate.now();
     LocalDate twoDaysAgo = today.minusDays(2); // yesterday is missing
-    JournalEntryEntity todayEntry =
-        new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
+    JournalEntryEntity todayEntry = new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
     JournalEntryEntity oldEntry =
         new JournalEntryEntity("<p>b</p>", twoDaysAgo, Set.of(), Set.of());
     when(entryRepo.findAllByOrderByEntryDateDesc()).thenReturn(List.of(todayEntry, oldEntry));

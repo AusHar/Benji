@@ -1856,6 +1856,8 @@
       if (todayEntry) journalTodayId = todayEntry.id;
 
       page.innerHTML = renderJournalLayout(todayEntry, journalEntries, goals, stats);
+      // Fire-and-forget: loads P&L and movers after the page is painted
+      loadJournalAsync(journalEntries);
       attachJournalHandlers(goals, stats);
     } catch (e) {
       page.innerHTML = empty('📓', 'Journal unavailable', 'Could not load journal data.');
@@ -2130,6 +2132,209 @@
     const todayEntry = journalEntries.find(e => e.entry_date === today);
     feed.innerHTML = renderTodayEditor(todayEntry) + renderPastEntries(journalEntries);
     attachJournalHandlers();
+  }
+
+  function renderJStats(stats) {
+    // Today P&L is fetched asynchronously after render; placeholder shown first
+    return `
+      <div class="j-stats-row">
+        <div class="j-stat">
+          <div class="j-stat-val">${stats.entry_count}</div>
+          <div class="j-stat-lbl">Entries</div>
+        </div>
+        <div class="j-stat">
+          <div class="j-stat-val">${stats.current_streak}</div>
+          <div class="j-stat-lbl">Streak</div>
+        </div>
+        <div class="j-stat">
+          <div class="j-stat-val" id="j-pnl">—</div>
+          <div class="j-stat-lbl">Today</div>
+        </div>
+      </div>`;
+  }
+
+  function renderJCalendar(stats) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = now.toISOString().slice(0, 10);
+    const headers = ['Su','Mo','Tu','We','Th','Fr','Sa']
+      .map(d => `<div class="j-cal-head">${d}</div>`).join('');
+    let cells = '';
+    for (let i = 0; i < firstDay; i++) cells += `<div class="j-cal-empty"></div>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const level = stats.calendar[dateStr] ?? 0;
+      const cls = level === 2 ? 'j-cal-rich' : level === 1 ? 'j-cal-entry' : 'j-cal-none';
+      const todayCls = dateStr === todayStr ? ' j-cal-today' : '';
+      const click = level > 0 ? `onclick="applyJournalFilter('date:${dateStr}')"` : '';
+      cells += `<div class="j-cal-day ${cls}${todayCls}" title="${dateStr}" ${click}></div>`;
+    }
+    const monthLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return `
+      <div class="j-widget">
+        <div class="j-widget-title">${monthLabel}</div>
+        <div class="j-cal-grid">${headers}${cells}</div>
+      </div>`;
+  }
+
+  function renderJMovers(entries) {
+    // Mover data loaded asynchronously after render; replaced by loadJournalAsync()
+    return `
+      <div class="j-widget" id="j-movers-widget">
+        <div class="j-widget-title">Movers in Your Journal</div>
+        <div id="j-movers-inner"><span style="font-size:10px;color:var(--text-dim)">Loading…</span></div>
+      </div>`;
+  }
+
+  function renderJGoals(goals) {
+    const rows = goals.length === 0
+      ? '<div style="font-size:10px;color:var(--text-dim)">No goals yet.</div>'
+      : goals.map(g => {
+          const pct = g.progress_pct != null ? Math.min(g.progress_pct, 100).toFixed(0) : 0;
+          const barCls = g.goal_type === 'habit' ? 'habit' : 'milestone';
+          const curr = g.current_progress != null ? g.current_progress.toLocaleString() : '—';
+          const tgt = g.target_value != null ? g.target_value.toLocaleString() : '∞';
+          return `
+            <div class="j-goal">
+              <div class="j-goal-label">
+                <span>${g.label}</span>
+                <span style="color:var(--text-dim);font-size:10px">${curr} / ${tgt}</span>
+              </div>
+              <div class="j-goal-track">
+                <div class="j-goal-bar ${barCls}" style="width:${pct}%"></div>
+              </div>
+            </div>`;
+        }).join('');
+
+    return `
+      <div class="j-widget" id="j-goals-widget">
+        <div class="j-widget-title" style="display:flex;align-items:center">
+          Goals
+          <button class="j-goals-editbtn" id="j-goals-edit-btn">Edit</button>
+        </div>
+        <div id="j-goals-list">${rows}</div>
+        <div id="j-goals-edit-form" style="display:none">
+          ${renderGoalEditForm()}
+        </div>
+      </div>`;
+  }
+
+  function renderGoalEditForm() {
+    return `
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px">Add new goal:</div>
+      <input class="j-goal-input" id="j-new-goal-label" placeholder="Label (e.g. Hit $500K)">
+      <select class="j-goal-input" id="j-new-goal-type" style="margin-top:4px">
+        <option value="milestone">Milestone</option>
+        <option value="habit">Habit</option>
+      </select>
+      <input class="j-goal-input" id="j-new-goal-target" placeholder="Target value (optional)" type="number" style="margin-top:4px">
+      <button class="j-add-goal-btn" onclick="addGoal()">+ Add Goal</button>`;
+  }
+
+  function renderJMostWritten(stats) {
+    if (!stats.most_mentioned || stats.most_mentioned.length === 0) {
+      return `<div class="j-widget">
+        <div class="j-widget-title">Most Written About</div>
+        <div style="font-size:10px;color:var(--text-dim)">No data yet.</div>
+      </div>`;
+    }
+    const max = stats.most_mentioned[0].count;
+    const rows = stats.most_mentioned.slice(0, 8).map(tc => {
+      const cls = neonClass(tc.token.replace(/^[$#]/, '').toUpperCase());
+      const pct = max > 0 ? (tc.count / max * 100).toFixed(0) : 0;
+      const safeToken = tc.token.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `
+        <div class="j-mw-row">
+          <span class="j-mw-token neon-token ${cls}" onclick="applyJournalFilter('${safeToken}')">${safeToken}</span>
+          <div class="j-mw-bar-wrap"><div class="j-mw-bar" style="width:${pct}%"></div></div>
+          <span class="j-mw-count">${tc.count}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="j-widget">
+        <div class="j-widget-title">Most Written About</div>
+        ${rows}
+      </div>`;
+  }
+
+  async function loadJournalAsync(entries) {
+    // Load portfolio positions and quotes, then update P&L and movers
+    try {
+      const positions = await get('/api/portfolio/positions');
+      if (!positions || positions.length === 0) return;
+
+      const quotes = await Promise.allSettled(
+        positions.map(p => get(`/api/quotes/${p.ticker}`)));
+
+      // Compute weighted portfolio day P&L
+      let totalValue = 0, weightedPct = 0;
+      quotes.forEach((result, i) => {
+        if (result.status !== 'fulfilled' || !result.value) return;
+        const q = result.value;
+        const mv = positions[i].quantity * q.price;
+        totalValue += mv;
+        weightedPct += mv * (q.change_pct || 0);
+      });
+      if (totalValue > 0) {
+        const pnl = (weightedPct / totalValue);
+        const el = document.getElementById('j-pnl');
+        if (el) {
+          el.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
+          el.style.color = pnl >= 0 ? 'var(--green)' : '#ff3864';
+        }
+      }
+
+      // Movers: positions that user has written about
+      const journalTickers = new Set(entries.flatMap(e => e.tickers));
+      const movers = quotes
+        .map((result, i) => ({ p: positions[i], q: result.value }))
+        .filter(x => x.q && journalTickers.has(x.p.ticker))
+        .sort((a, b) => Math.abs(b.q.change_pct || 0) - Math.abs(a.q.change_pct || 0))
+        .slice(0, 5);
+
+      const inner = document.getElementById('j-movers-inner');
+      if (inner) {
+        if (movers.length === 0) {
+          inner.innerHTML = '<div style="font-size:10px;color:var(--text-dim)">No overlap with portfolio.</div>';
+        } else {
+          inner.innerHTML = movers.map(({ p, q }) => {
+            const pct = q.change_pct || 0;
+            const tickerHash = Math.abs(p.ticker.split('').reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0, 0)) % 10;
+            const dir = pct >= 0 ? 'up' : 'down';
+            const entryCount = entries.filter(e => e.tickers.includes(p.ticker)).length;
+            return `<div class="j-mover-row">
+              <span class="j-mover-ticker neon-token neon-t-${tickerHash}"
+                onclick="applyJournalFilter('$${p.ticker}')">${p.ticker}</span>
+              <span class="j-mover-pct ${dir}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span>
+              <span class="j-mover-count">${entryCount}</span>
+            </div>`;
+          }).join('');
+        }
+      }
+    } catch (_) {
+      // Movers/P&L are best-effort; silently ignore failures
+    }
+  }
+
+  async function addGoal() {
+    const label = document.getElementById('j-new-goal-label').value.trim();
+    const goalType = document.getElementById('j-new-goal-type').value;
+    const targetRaw = document.getElementById('j-new-goal-target').value;
+    if (!label) return;
+    const targetValue = targetRaw ? parseFloat(targetRaw) : null;
+    await post('/api/journal/goals', { label, goal_type: goalType, target_value: targetValue });
+    await loadJournal(); // Reload full page to reflect updated goals
+  }
+
+  function toggleGoalsEdit() {
+    const form = document.getElementById('j-goals-edit-form');
+    const btn = document.getElementById('j-goals-edit-btn');
+    const isVisible = form.style.display !== 'none';
+    form.style.display = isVisible ? 'none' : 'block';
+    btn.textContent = isVisible ? 'Edit' : 'Done';
   }
 
   /* ── Add / Delete Position ──────────────── */
