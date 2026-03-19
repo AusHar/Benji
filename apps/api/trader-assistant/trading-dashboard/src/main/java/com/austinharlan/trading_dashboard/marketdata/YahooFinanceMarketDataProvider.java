@@ -107,6 +107,7 @@ public class YahooFinanceMarketDataProvider implements MarketDataProvider {
             .baseUrl(normalizeUrl(properties.getYahooRssBaseUrl()))
             .clientConnector(connector)
             .defaultHeader(HttpHeaders.USER_AGENT, USER_AGENT)
+            .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
             .defaultHeader(HttpHeaders.ACCEPT_LANGUAGE, "en-US,en;q=0.9")
             .build();
 
