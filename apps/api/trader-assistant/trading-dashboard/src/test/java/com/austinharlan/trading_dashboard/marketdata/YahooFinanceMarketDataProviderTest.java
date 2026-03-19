@@ -241,6 +241,16 @@ class YahooFinanceMarketDataProviderTest {
     assertThat(server.getRequestCount()).isEqualTo(2);
   }
 
+  @Test
+  void getOverviewThrowsClientExceptionOnNetworkFailure() {
+    server.enqueue(
+        new MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START));
+
+    assertThatThrownBy(() -> provider().getOverview("AAPL"))
+        .isInstanceOf(
+            com.austinharlan.trading_dashboard.marketdata.MarketDataClientException.class);
+  }
+
   // ── getNews ─────────────────────────────────────────────────────────────────
 
   @Test

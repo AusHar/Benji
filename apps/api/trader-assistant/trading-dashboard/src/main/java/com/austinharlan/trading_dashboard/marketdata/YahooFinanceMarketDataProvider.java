@@ -305,6 +305,11 @@ public class YahooFinanceMarketDataProvider implements MarketDataProvider {
                                     "Yahoo Finance error " + r.statusCode() + ": " + b)))
             .bodyToMono(JsonNode.class)
             .onErrorMap(
+                WebClientResponseException.class,
+                ex ->
+                    new MarketDataClientException(
+                        "Yahoo Finance call failed: " + ex.getStatusCode(), ex))
+            .onErrorMap(
                 WebClientRequestException.class,
                 ex ->
                     new MarketDataClientException(
