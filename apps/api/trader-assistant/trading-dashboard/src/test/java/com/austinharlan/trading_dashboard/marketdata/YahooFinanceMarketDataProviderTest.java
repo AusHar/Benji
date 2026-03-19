@@ -55,6 +55,36 @@ class YahooFinanceMarketDataProviderTest {
     server.shutdown();
   }
 
+  @Test
+  void getQuoteRetriesOnTransientErrorInProd() {
+    // First response: 500 (transient) → triggers retry
+    server.enqueue(new MockResponse().setResponseCode(500).setBody("Internal Server Error"));
+    // Second response: 200 success
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/json")
+            .setBody(
+                """
+                {
+                  "quoteResponse": {
+                    "result": [{
+                      "symbol": "AAPL",
+                      "regularMarketPrice": 178.72,
+                      "regularMarketChangePercent": 1.23,
+                      "regularMarketTime": 1709900400
+                    }],
+                    "error": null
+                  }
+                }
+                """));
+
+    Quote quote = provider("prod").getQuote("AAPL");
+
+    assertThat(quote.symbol()).isEqualTo("AAPL");
+    assertThat(server.getRequestCount()).isEqualTo(2);
+  }
+
   // ── getQuote ────────────────────────────────────────────────────────────────
 
   @Test
@@ -282,7 +312,7 @@ class YahooFinanceMarketDataProviderTest {
     assertThat(articles.get(0).headline()).isEqualTo("Apple announces new product");
     assertThat(articles.get(0).url()).isEqualTo("https://finance.yahoo.com/news/apple-1");
     assertThat(articles.get(0).image()).isNull();
-    long expectedId = (long) Math.abs(Objects.hashCode("urn:apple-article-guid-1"));
+    long expectedId = Math.abs((long) Objects.hashCode("urn:apple-article-guid-1"));
     assertThat(articles.get(0).id()).isEqualTo(expectedId);
   }
 

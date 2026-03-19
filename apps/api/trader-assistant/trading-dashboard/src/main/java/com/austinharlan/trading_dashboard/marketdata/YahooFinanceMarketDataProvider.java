@@ -434,7 +434,7 @@ public class YahooFinanceMarketDataProvider implements MarketDataProvider {
           String source = e.getSource() != null ? e.getSource().getTitle() : null;
           Instant publishedAt =
               e.getPublishedDate() != null ? e.getPublishedDate().toInstant() : Instant.now();
-          long id = (long) Math.abs(Objects.hashCode(e.getUri()));
+          long id = Math.abs((long) Objects.hashCode(e.getUri()));
           articles.add(new NewsArticle(id, headline, summary, source, url, null, publishedAt));
         } catch (Exception ex) {
           log.warn("Skipping malformed RSS entry", ex);
