@@ -1963,51 +1963,112 @@
     if (editGoalsBtn) editGoalsBtn.addEventListener('click', toggleGoalsEdit);
   }
 
+  // Returns the caret position as an absolute character offset from the start of editor.
+  // Uses Range.toString() so it counts through all text nodes including inside spans.
+  function getCaretCharOffset(editor) {
+    try {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount || !sel.anchorNode) return 0;
+      const range = sel.getRangeAt(0).cloneRange();
+      range.selectNodeContents(editor);
+      range.setEnd(sel.anchorNode, sel.anchorOffset);
+      return range.toString().length;
+    } catch (_) { return 0; }
+  }
+
+  // Restores the caret to the given absolute character offset by walking all text nodes.
+  function restoreCaretCharOffset(editor, targetOffset) {
+    try {
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      let remaining = targetOffset;
+      let node;
+      while ((node = walker.nextNode())) {
+        if (remaining <= node.length) {
+          const range = document.createRange();
+          range.setStart(node, remaining);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return;
+        }
+        remaining -= node.length;
+      }
+      // Fallback: place caret at end of editor
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (_) {}
+  }
+
+  // If the caret is inside a .neon-token span, move it to just after the span
+  // so subsequent keystrokes are typed in plain text (prevents color bleed).
+  function ejectCaretFromNeonSpan() {
+    try {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount || !sel.anchorNode) return;
+      const anchor = sel.anchorNode;
+      const parent = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor;
+      if (parent && parent.classList.contains('neon-token')) {
+        const range = document.createRange();
+        range.setStartAfter(parent);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    } catch (_) {}
+  }
+
   function wrapTokensInEditor(editor) {
-    // Walk text nodes only; skip existing .neon-token spans
-    const sel = window.getSelection();
-    const anchor = sel.anchorNode;
-    const offset = sel.anchorOffset;
+    if (!window.getSelection().rangeCount) return;
 
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
-      acceptNode: n => n.parentElement.classList.contains('neon-token')
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT
-    });
+    // Save caret as a scalar offset (survives replaceChild destroying old text nodes).
+    const caretOffset = getCaretCharOffset(editor);
 
-    const textNodes = [];
-    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    // Collect all text nodes with their absolute start offsets, then filter to plain ones.
+    const nodeInfos = [];
+    const fullWalker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let pos = 0, n;
+    while ((n = fullWalker.nextNode())) {
+      nodeInfos.push({ node: n, start: pos, isNeon: n.parentElement.classList.contains('neon-token') });
+      pos += n.length;
+    }
 
-    const TOKEN_RE = /(\$[A-Z]{1,10}|#[a-zA-Z][a-zA-Z0-9_]*)/g;
-    textNodes.forEach(node => {
+    // Only match complete tokens: must be followed by a non-alphanumeric char or end of string.
+    // Skip any match whose end == caretOffset (user is still typing that token).
+    const TOKEN_RE = /(\$[A-Z]{1,10}|#[a-zA-Z][a-zA-Z0-9_]*)(?![a-zA-Z0-9])/g;
+
+    for (const { node, start, isNeon } of nodeInfos) {
+      if (isNeon) continue;
       const text = node.nodeValue;
-      if (!TOKEN_RE.test(text)) return;
       TOKEN_RE.lastIndex = 0;
-      const frag = document.createDocumentFragment();
-      let last = 0, m;
+      const matches = [];
+      let m;
       while ((m = TOKEN_RE.exec(text)) !== null) {
-        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        if (start + m.index + m[0].length === caretOffset) continue; // still typing
+        matches.push({ index: m.index, len: m[0].length, token: m[1] });
+      }
+      if (matches.length === 0) continue;
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      for (const { index, len, token } of matches) {
+        if (index > last) frag.appendChild(document.createTextNode(text.slice(last, index)));
         const span = document.createElement('span');
-        span.className = `neon-token ${neonClass(m[1].replace(/^[$#]/, '').toUpperCase())}`;
-        span.dataset.token = m[1];
-        span.textContent = m[1];
+        span.className = `neon-token ${neonClass(token.replace(/^[$#]/, '').toUpperCase())}`;
+        span.dataset.token = token;
+        span.textContent = token;
         frag.appendChild(span);
-        last = m.index + m[0].length;
+        last = index + len;
       }
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       node.parentNode.replaceChild(frag, node);
-    });
+    }
 
-    // Restore caret
-    try {
-      if (anchor && anchor.isConnected) {
-        const r = document.createRange();
-        r.setStart(anchor, Math.min(offset, anchor.length || 0));
-        r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
-      }
-    } catch (_) {}
+    restoreCaretCharOffset(editor, caretOffset);
+    ejectCaretFromNeonSpan();
   }
 
   function updateTodayPills(editor) {
