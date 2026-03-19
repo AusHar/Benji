@@ -14,10 +14,12 @@ class CryptoSymbolMapperTest {
   @BeforeEach
   void setUp() {
     MarketDataProperties properties = new MarketDataProperties();
-    properties.setBaseUrl("https://query1.finance.yahoo.com");
-    properties.setQuery2BaseUrl("https://query2.finance.yahoo.com");
-    properties.setYahooRssBaseUrl("https://finance.yahoo.com");
-    properties.setCoinGeckoBaseUrl("https://api.coingecko.com");
+    // Only cryptoSymbols matters to CryptoSymbolMapper; URL fields use placeholder values to
+    // satisfy @NotBlank validation on MarketDataProperties
+    properties.setBaseUrl("http://test");
+    properties.setQuery2BaseUrl("http://test");
+    properties.setYahooRssBaseUrl("http://test");
+    properties.setCoinGeckoBaseUrl("http://test");
     properties.setCryptoSymbols(
         Map.of("BTC", "bitcoin", "ETH", "ethereum", "SOL", "solana", "XRP", "ripple"));
     mapper = new CryptoSymbolMapper(properties);
@@ -57,5 +59,6 @@ class CryptoSymbolMapperTest {
   void toYahooRssSymbolAppendsDashUsd() {
     assertThat(mapper.toYahooRssSymbol("BTC")).isEqualTo("BTC-USD");
     assertThat(mapper.toYahooRssSymbol("eth")).isEqualTo("ETH-USD");
+    assertThat(mapper.toYahooRssSymbol(null)).isNull();
   }
 }
