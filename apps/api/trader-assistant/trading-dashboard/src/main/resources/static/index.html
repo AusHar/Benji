@@ -2118,8 +2118,10 @@
       if (child.nodeType === Node.TEXT_NODE) return;
       if (child.nodeType === Node.ELEMENT_NODE) {
         const tag = child.tagName.toLowerCase();
+        // neon-token spans are intentionally excluded: their text content ($TICKER/#tag)
+        // is kept as plain text so colorizeHtml can re-wrap at display time without
+        // finding tokens inside data-token attributes and double-wrapping them.
         const allowed = tag === 'b' || tag === 'i' || tag === 'a'
-          || (tag === 'span' && child.classList.contains('neon-token'))
           || (tag === 'div' && child.classList.contains('j-embed'))
           || (tag === 'img' && child.classList.contains('j-embed-thumb'));
         if (!allowed) {
