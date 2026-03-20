@@ -345,16 +345,16 @@ public class CoinGeckoMarketDataProvider implements MarketDataProvider {
     String name = root.path("name").asText(null);
     JsonNode marketData = root.path("market_data");
     BigDecimal marketCap =
-        marketData.path("market_cap").has("usd")
+        marketData.path("market_cap").path("usd").isNumber()
             ? BigDecimal.valueOf(marketData.path("market_cap").path("usd").asDouble())
             : null;
     // CoinGecko free tier has no 52-week high/low; map all-time high/low as the best approximation.
     BigDecimal ath =
-        marketData.path("ath").has("usd")
+        marketData.path("ath").path("usd").isNumber()
             ? BigDecimal.valueOf(marketData.path("ath").path("usd").asDouble())
             : null;
     BigDecimal atl =
-        marketData.path("atl").has("usd")
+        marketData.path("atl").path("usd").isNumber()
             ? BigDecimal.valueOf(marketData.path("atl").path("usd").asDouble())
             : null;
     return new CompanyOverview(
