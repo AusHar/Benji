@@ -277,6 +277,9 @@ public class CoinGeckoMarketDataProvider implements MarketDataProvider {
 
   @Override
   public List<NewsArticle> getNews(String tickerSymbol) {
+    // tickerSymbol is the raw ticker (e.g. "BTC"), NOT a CoinGecko ID.
+    // RoutingMarketDataProvider passes the original symbol here; mapper converts to "BTC-USD"
+    // below.
     requireSymbol(tickerSymbol);
     quotaTracker.increment();
     String rssSymbol = mapper.toYahooRssSymbol(tickerSymbol);
@@ -300,8 +303,9 @@ public class CoinGeckoMarketDataProvider implements MarketDataProvider {
     }
     JsonNode data = root.path(coinId);
     if (data.isEmpty()) throw new QuoteNotFoundException("Quote not found for " + coinId);
-    double price = data.path("usd").asDouble(0);
-    if (price == 0) throw new QuoteNotFoundException("Quote not found for " + coinId);
+    JsonNode usdNode = data.path("usd");
+    if (!usdNode.isNumber()) throw new QuoteNotFoundException("Quote not found for " + coinId);
+    double price = usdNode.asDouble();
     BigDecimal changePercent =
         data.has("usd_24h_change")
             ? BigDecimal.valueOf(data.path("usd_24h_change").asDouble())
@@ -344,6 +348,7 @@ public class CoinGeckoMarketDataProvider implements MarketDataProvider {
         marketData.path("market_cap").has("usd")
             ? BigDecimal.valueOf(marketData.path("market_cap").path("usd").asDouble())
             : null;
+    // CoinGecko free tier has no 52-week high/low; map all-time high/low as the best approximation.
     BigDecimal ath =
         marketData.path("ath").has("usd")
             ? BigDecimal.valueOf(marketData.path("ath").path("usd").asDouble())
