@@ -714,6 +714,9 @@
       pointer-events: none;
     }
     .j-card-foot { padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .j-posted-badge { font-size: 9px; font-weight: 500; letter-spacing: .6px; color: var(--green); opacity: .8; }
+    .j-edit-btn { font-size: 9px; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border-mid); background: none; color: var(--text-dim); cursor: pointer; transition: color .15s, border-color .15s; }
+    .j-edit-btn:hover { color: var(--text-mid); border-color: var(--green); }
     .j-pills { display: flex; flex-wrap: wrap; gap: 4px; }
     .j-pill { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: rgba(78,221,138,.08); color: var(--green); }
     .j-save-btn { font-size: 11px; padding: 4px 12px; background: rgba(78,221,138,.12); border: 1px solid rgba(78,221,138,.22); border-radius: 4px; color: var(--green); cursor: pointer; letter-spacing: .4px; }
@@ -1839,6 +1842,8 @@
   let journalTodayId = null;   // null = no entry yet; number = existing entry id
   let journalFilter = null;    // null = unfiltered; string = active token filter
   let journalEntries = [];     // cached full list
+  let journalGoals = [];       // cached for editTodayEntry re-attach
+  let journalStats = {};
 
   async function loadJournal() {
     const page = document.getElementById('page-journal');
@@ -1850,6 +1855,8 @@
         get('/api/journal/stats'),
       ]);
       journalEntries = entries || [];
+      journalGoals = goals || [];
+      journalStats = stats || {};
       journalTodayId = null;
       const today = new Date().toISOString().slice(0, 10);
       const todayEntry = journalEntries.find(e => e.entry_date === today);
@@ -1900,6 +1907,33 @@
           <button class="j-save-btn" id="j-save-btn">Save</button>
         </div>
       </div>`;
+  }
+
+  function renderTodayPosted(entry) {
+    const today = new Date();
+    const label = today.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    const pills = entry ? renderPills([...entry.tickers.map(t=>'$'+t), ...entry.tags.map(t=>'#'+t)]) : '';
+    return `
+      <div class="j-card today" id="j-today-card">
+        <div class="j-card-head">
+          <span class="j-card-date">${label}</span>
+          <span class="j-posted-badge">Posted ✓</span>
+        </div>
+        <div class="j-editor" style="pointer-events:none;min-height:auto">${entry ? colorizeHtml(entry.body) : ''}</div>
+        <div class="j-card-foot">
+          <div class="j-pills">${pills}</div>
+          <button class="j-edit-btn" onclick="editTodayEntry()">Edit</button>
+        </div>
+      </div>`;
+  }
+
+  function editTodayEntry() {
+    const card = document.getElementById('j-today-card');
+    if (!card) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayEntry = journalEntries.find(e => e.entry_date === todayStr);
+    card.outerHTML = renderTodayEditor(todayEntry);
+    attachJournalHandlers(journalGoals, journalStats);
   }
 
   function colorizeHtml(html) {
@@ -2092,12 +2126,17 @@
         saved = await post('/api/journal/entries', { body, entry_date: entryDate });
         journalTodayId = saved.id;
       }
-      btn.textContent = 'Saved ✓';
-      setTimeout(() => { btn.textContent = 'Save'; }, 2000);
-      // Refresh the past entries list
+      // Swap today's card to posted state immediately (no flicker)
       journalEntries = await get('/api/journal/entries');
-      document.getElementById('j-feed').innerHTML =
-        renderTodayEditor(saved) + renderPastEntries(journalEntries);
+      const todayCard = document.getElementById('j-today-card');
+      if (todayCard) todayCard.outerHTML = renderTodayPosted(saved);
+      // Refresh past entries below
+      const feed = document.getElementById('j-feed');
+      if (feed) {
+        const existingCards = feed.querySelectorAll('.j-card:not(.today)');
+        existingCards.forEach(c => c.remove());
+        feed.insertAdjacentHTML('beforeend', renderPastEntries(journalEntries));
+      }
       attachJournalHandlers(goals, stats);
     } catch (_) {
       btn.textContent = 'Error — retry';
