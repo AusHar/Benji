@@ -72,12 +72,15 @@ class MarketDataHealthIndicatorTest {
             .setBody(
                 """
                 {
-                  "c": 123.45,
-                  "h": 124.00,
-                  "l": 122.00,
-                  "o": 122.50,
-                  "pc": 122.22,
-                  "t": 1727740800
+                  "quoteResponse": {
+                    "result": [{
+                      "symbol": "AAPL",
+                      "regularMarketPrice": 123.45,
+                      "regularMarketChangePercent": 1.5,
+                      "regularMarketTime": 1727740800
+                    }],
+                    "error": null
+                  }
                 }
                 """));
 
