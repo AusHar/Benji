@@ -1807,21 +1807,21 @@
             : '--';
           const chg     = fmtChg(q?.change_pct ?? null);
           const tileCls = tileClass(q?.change_pct ?? null);
-          return \`<div class="wl-tile \${tileCls}" id="pt-\${pos.ticker}" onclick="togglePortTile('\${pos.ticker}',event)">
-            <button class="exp-close" onclick="togglePortTile('\${pos.ticker}',event)" style="display:none">✕</button>
+          return `<div class="wl-tile ${tileCls}" id="pt-${pos.ticker}" onclick="togglePortTile('${pos.ticker}',event)">
+            <button class="exp-close" onclick="togglePortTile('${pos.ticker}',event)" style="display:none">✕</button>
             <div class="tile-top">
-              <div class="tile-sym">\${pos.ticker}</div>
-              <div class="tile-chg \${chg.cls}">\${chg.text}</div>
+              <div class="tile-sym">${pos.ticker}</div>
+              <div class="tile-chg ${chg.cls}">${chg.text}</div>
             </div>
-            <div class="tile-price">\${price != null ? money(price) : '<span class="spinner"></span>'}</div>
+            <div class="tile-price">${price != null ? money(price) : '<span class="spinner"></span>'}</div>
             <div class="tile-pos-info">
-              <span>\${num(pos.quantity)} shares · avg \${money(pos.cost_basis / pos.quantity)}</span>
-              <span class="\${pnlCls}">\${pnlText}</span>
+              <span>${num(pos.quantity)} shares · avg ${money(pos.cost_basis / pos.quantity)}</span>
+              <span class="${pnlCls}">${pnlText}</span>
             </div>
-            \${sparklinePlaceholderSVG()}
-            \${compactNewsHTML([])}
+            ${sparklinePlaceholderSVG()}
+            ${compactNewsHTML([])}
             <div class="tile-expanded-body" style="display:none"></div>
-          </div>\`;
+          </div>`;
         }).join('')}
       </div>`;
   }
