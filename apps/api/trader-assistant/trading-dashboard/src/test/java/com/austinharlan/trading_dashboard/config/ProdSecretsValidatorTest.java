@@ -12,7 +12,10 @@ class ProdSecretsValidatorTest {
   @Test
   void runRejectsPlaceholderTradingApiKey() {
     ProdSecretsValidator validator =
-        new ProdSecretsValidator(baseEnvironment(), apiSecurityProperties("replace_me"));
+        new ProdSecretsValidator(
+            baseEnvironment(),
+            apiSecurityProperties("replace_me"),
+            marketDataProperties("real-marketdata-key"));
 
     assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .isInstanceOf(IllegalStateException.class)
@@ -26,7 +29,8 @@ class ProdSecretsValidatorTest {
     environment.setProperty("spring.security.user.password", "strong-management-password");
 
     ProdSecretsValidator validator =
-        new ProdSecretsValidator(environment, apiSecurityProperties("real-api-key"));
+        new ProdSecretsValidator(
+            environment, apiSecurityProperties("real-api-key"), marketDataProperties("real-key"));
 
     assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .isInstanceOf(IllegalStateException.class)
@@ -37,7 +41,10 @@ class ProdSecretsValidatorTest {
   @Test
   void runAllowsRealSecrets() {
     ProdSecretsValidator validator =
-        new ProdSecretsValidator(baseEnvironment(), apiSecurityProperties("real-api-key"));
+        new ProdSecretsValidator(
+            baseEnvironment(),
+            apiSecurityProperties("real-api-key"),
+            marketDataProperties("real-marketdata-key"));
 
     assertThatCode(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .doesNotThrowAnyException();
@@ -53,6 +60,13 @@ class ProdSecretsValidatorTest {
   private static ApiSecurityProperties apiSecurityProperties(String key) {
     ApiSecurityProperties properties = new ApiSecurityProperties();
     properties.setKey(key);
+    return properties;
+  }
+
+  private static MarketDataProperties marketDataProperties(String apiKey) {
+    MarketDataProperties properties = new MarketDataProperties();
+    properties.setBaseUrl("https://finnhub.io/api/v1");
+    properties.setApiKey(apiKey);
     return properties;
   }
 }

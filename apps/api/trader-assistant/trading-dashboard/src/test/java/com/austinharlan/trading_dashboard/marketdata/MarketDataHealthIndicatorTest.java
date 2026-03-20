@@ -43,9 +43,7 @@ class MarketDataHealthIndicatorTest {
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("trading.marketdata.base-url", () -> server.url("/").toString());
-    registry.add("trading.marketdata.query2-base-url", () -> server.url("/").toString());
-    registry.add("trading.marketdata.yahoo-rss-base-url", () -> server.url("/").toString());
-    registry.add("trading.marketdata.coin-gecko-base-url", () -> server.url("/").toString());
+    registry.add("trading.marketdata.api-key", () -> "test-key");
     registry.add("trading.marketdata.health-symbol", () -> "AAPL");
     registry.add("trading.marketdata.connect-timeout", () -> "1s");
     registry.add("trading.marketdata.read-timeout", () -> "1s");
@@ -72,15 +70,12 @@ class MarketDataHealthIndicatorTest {
             .setBody(
                 """
                 {
-                  "quoteResponse": {
-                    "result": [{
-                      "symbol": "AAPL",
-                      "regularMarketPrice": 123.45,
-                      "regularMarketChangePercent": 1.5,
-                      "regularMarketTime": 1727740800
-                    }],
-                    "error": null
-                  }
+                  "c": 123.45,
+                  "h": 124.00,
+                  "l": 122.00,
+                  "o": 122.50,
+                  "pc": 122.22,
+                  "t": 1727740800
                 }
                 """));
 
@@ -92,7 +87,7 @@ class MarketDataHealthIndicatorTest {
   }
 
   @Test
-  void shouldReportUnknownWhenProviderFails() {
+  void shouldReportDownWhenProviderFails() {
     server.enqueue(
         new MockResponse()
             .setResponseCode(500)
@@ -101,37 +96,14 @@ class MarketDataHealthIndicatorTest {
 
     HealthComponent component = healthEndpoint.healthForPath("marketData");
 
-    assertThat(component.getStatus()).isEqualTo(Status.UNKNOWN);
-  }
-
-  @Test
-  void shouldReportDownOnUnexpectedError() {
-    MarketDataProperties properties = new MarketDataProperties();
-    properties.setBaseUrl("http://ignored");
-    properties.setQuery2BaseUrl("http://ignored");
-    properties.setYahooRssBaseUrl("http://ignored");
-    properties.setCoinGeckoBaseUrl("http://ignored");
-    properties.setHealthSymbol("SPY");
-    properties.setHealthCacheTtl(Duration.ZERO);
-
-    MarketDataProvider provider =
-        symbol -> {
-          throw new RuntimeException("unexpected internal error");
-        };
-
-    MarketDataHealthIndicator indicator = new MarketDataHealthIndicator(properties, provider);
-    Health health = indicator.health();
-
-    assertThat(health.getStatus()).isEqualTo(Status.DOWN);
+    assertThat(component.getStatus()).isEqualTo(Status.DOWN);
   }
 
   @Test
   void shouldReuseCachedHealthWithinConfiguredTtl() {
     MarketDataProperties properties = new MarketDataProperties();
+    properties.setApiKey("ignored");
     properties.setBaseUrl("http://ignored");
-    properties.setQuery2BaseUrl("http://ignored");
-    properties.setYahooRssBaseUrl("http://ignored");
-    properties.setCoinGeckoBaseUrl("http://ignored");
     properties.setHealthSymbol("SPY");
     properties.setHealthCacheTtl(Duration.ofMinutes(5));
 

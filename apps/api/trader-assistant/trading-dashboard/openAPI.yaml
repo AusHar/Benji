@@ -158,7 +158,7 @@ paths:
       tags:
         - Quotes
       operationId: getMarketDataQuota
-      summary: Return market data API usage in the current minute against the per-minute limit.
+      summary: Return Finnhub API usage in the current minute against the per-minute limit.
       responses:
         '200':
           description: Quota usage for today.
@@ -732,7 +732,7 @@ components:
         used:
           type: integer
           format: int32
-          description: Number of market data API calls made in the current minute.
+          description: Number of Finnhub API calls made in the current minute.
           example: 7
         daily_limit:
           type: integer

@@ -6,20 +6,14 @@ trading:
     allow-credentials: false
     max-age: 3600
   marketdata:
-    base-url: https://query1.finance.yahoo.com
-    query2-base-url: https://query2.finance.yahoo.com
-    yahoo-rss-base-url: https://finance.yahoo.com
-    coin-gecko-base-url: https://api.coingecko.com
-    crypto-symbols:
-      BTC: bitcoin
-      ETH: ethereum
-      SOL: solana
-      XRP: ripple
+    base-url: https://finnhub.io/api/v1
+    # PROD-REQUIRED: set MARKETDATA_API_KEY to a real secret before deployment.
+    api-key: ${MARKETDATA_API_KEY:${FINNHUB_API_KEY}}
     health-symbol: ${MARKETDATA_HEALTH_SYMBOL:SPY}
     health-cache-ttl: ${MARKETDATA_HEALTH_CACHE_TTL:PT1M}
-    connect-timeout: 5s
-    read-timeout: 10s
-    write-timeout: 10s
+    connect-timeout: 2s
+    read-timeout: 5s
+    write-timeout: 5s
     retry:
       max-attempts: ${TRADING_MARKETDATA_RETRY_MAX_ATTEMPTS:3}
       initial-backoff: ${TRADING_MARKETDATA_RETRY_INITIAL_BACKOFF:PT0.5S}
