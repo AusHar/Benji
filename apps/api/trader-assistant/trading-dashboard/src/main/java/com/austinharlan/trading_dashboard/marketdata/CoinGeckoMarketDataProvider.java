@@ -307,7 +307,7 @@ public class CoinGeckoMarketDataProvider implements MarketDataProvider {
     if (!usdNode.isNumber()) throw new QuoteNotFoundException("Quote not found for " + coinId);
     double price = usdNode.asDouble();
     BigDecimal changePercent =
-        data.has("usd_24h_change")
+        data.path("usd_24h_change").isNumber()
             ? BigDecimal.valueOf(data.path("usd_24h_change").asDouble())
             : null;
     long epochSeconds = data.path("usd_last_updated_at").asLong(0);
