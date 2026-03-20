@@ -11,29 +11,36 @@ The trading dashboard currently uses Finnhub for all market data (quotes, fundam
 
 A previous attempt at this migration overstepped scope and modified frontend pages. This spec is strictly backend.
 
+**Risk acknowledgement:** Yahoo Finance is an unofficial, undocumented API. Endpoints can change without notice. The health indicator will detect breakage, but there is no guaranteed SLA. This is accepted as a trade-off for eliminating the API key requirement.
+
 ## Scope
 
 ### In scope
-- Replace `RealMarketDataProvider` internals (Finnhub calls → Yahoo Finance calls)
+- Replace `RealMarketDataProvider` internals (Finnhub calls -> Yahoo Finance calls)
 - New `YahooCrumbProvider` for Yahoo's cookie/crumb authentication
 - Remove `apiKey` from `MarketDataProperties`, `ProdSecretsValidator`, `application.yml`, `ENV.example`
-- Delete `MarketDataQuotaTracker` (no formal Yahoo rate limit to track)
-- Delete `MarketDataRateLimitException` (no quota tracking)
+- Delete `MarketDataQuotaTracker` and remove all references from consumers
+- Delete `MarketDataRateLimitException` and remove all references from consumers
+- Remove `/api/marketdata/quota` endpoint (from `openAPI.yaml`, controller, and tests)
+- Update `DefaultQuoteService` to remove rate-limit catch blocks
+- Update `ApiExceptionHandler` to remove rate-limit exception handler
 - Update `MarketDataHealthIndicator` error handling
 - Add Rome RSS library dependency for Yahoo news feed parsing
 - Update `openAPI.yaml` source field from "Finnhub" to "Yahoo Finance"
+- Clean up stale entries in `ENV.example`
 - Update all affected tests
 
 ### Explicitly out of scope
 - `index.html` — no frontend changes whatsoever
 - `MarketDataProvider.java` interface — unchanged
-- `DefaultQuoteService.java` — caching layer unchanged
-- `QuoteController.java` — controller unchanged
 - `FakeMarketDataProvider.java` — dev provider unchanged
 - Record types (`Quote`, `CompanyOverview`, `DailyBar`, `NewsArticle`) — unchanged
 - Crypto support (CoinGecko, routing provider, symbol mapper) — not included
 - News sentiment analysis — future feature
 - News thumbnails — not available via RSS, field will be null
+
+### Known tech debt (not addressed)
+- `index.html` contains the hardcoded string "Finnhub rate limit reached" (line ~1604). This message will never surface after migration since the rate-limit exception no longer exists, but the string remains. No frontend changes are in scope.
 
 ---
 
@@ -48,14 +55,14 @@ A previous attempt at this migration overstepped scope and modified frontend pag
 
 ## YahooCrumbProvider
 
-New class responsible for managing the session cookie + crumb token required by Yahoo's v10 `quoteSummary` endpoint.
+New `@Component @Profile("!dev")` class responsible for managing the session cookie + crumb token required by Yahoo's v10 `quoteSummary` endpoint.
 
 **Lifecycle:**
-1. Fetch `https://fc.yahoo.com/` → extract `Set-Cookie` header (session cookie)
-2. Fetch `https://query2.finance.yahoo.com/v1/test/getcrumb` with that cookie → plaintext crumb string
-3. Cache cookie + crumb in memory
-4. On 401/403 from any Yahoo call → `invalidate()` → next request re-fetches fresh credentials
-5. Thread-safe via synchronization
+1. Fetch `https://fc.yahoo.com/` -> extract `Set-Cookie` header (session cookie)
+2. Fetch `https://query2.finance.yahoo.com/v1/test/getcrumb` with that cookie -> plaintext crumb string
+3. Cache cookie + crumb in memory via `volatile` fields with double-checked locking (same pattern as `MarketDataHealthIndicator`)
+4. On 401/403 from any Yahoo call -> `invalidate()` -> next request re-fetches fresh credentials
+5. All HTTP requests use a browser-like `User-Agent` header (e.g., `Mozilla/5.0`) to avoid Yahoo rejecting non-browser clients
 
 **Interface:**
 ```java
@@ -96,7 +103,7 @@ public class YahooCrumbProvider {
 
 | Record field | Yahoo JSON path |
 |---|---|
-| `date` | `chart.result[0].timestamp[i]` (epoch → LocalDate) |
+| `date` | `chart.result[0].timestamp[i]` (epoch -> LocalDate) |
 | `open` | `chart.result[0].indicators.quote[0].open[i]` |
 | `high` | `chart.result[0].indicators.quote[0].high[i]` |
 | `low` | `chart.result[0].indicators.quote[0].low[i]` |
@@ -107,7 +114,7 @@ public class YahooCrumbProvider {
 
 | Record field | RSS element |
 |---|---|
-| `id` | Hash of `<guid>` or `<link>` |
+| `id` | `link.hashCode()` cast to `long` (or `guid.hashCode()` if guid present) |
 | `headline` | `<title>` |
 | `summary` | `<description>` |
 | `source` | `"Yahoo Finance"` (static) |
@@ -120,7 +127,7 @@ public class YahooCrumbProvider {
 | Scenario | Behavior |
 |---|---|
 | Valid response | Parse and return |
-| 401/403 | Invalidate crumb, retry once with fresh crumb. If still fails → `MarketDataClientException` |
+| 401/403 | Invalidate crumb, retry once with fresh crumb. If still fails -> `MarketDataClientException` |
 | 404 (bad symbol) | `QuoteNotFoundException` |
 | 5xx | `MarketDataClientException` |
 | Network timeout / unreachable | `MarketDataClientException` |
@@ -141,39 +148,44 @@ public class YahooCrumbProvider {
 ### Modified
 | File | Change |
 |---|---|
-| `RealMarketDataProvider.java` | Rewrite internals: Finnhub → Yahoo Finance. Same class, same annotations, same interface. |
-| `MarketDataProperties.java` | Remove `apiKey`. Add `query2BaseUrl`, `yahooRssBaseUrl`. Remove retry config. |
-| `MarketDataHealthIndicator.java` | Remove rate-limit catch. Add `MarketDataClientException` → UNKNOWN. |
-| `ProdSecretsValidator.java` | Remove `MARKETDATA_API_KEY` from required secrets. |
-| `application.yml` | Replace Finnhub URLs/key with Yahoo URLs. Remove retry config. |
-| `ENV.example` | Remove `MARKETDATA_API_KEY` / `FINNHUB_API_KEY`. |
-| `openAPI.yaml` | Change source default from "Finnhub" to "Yahoo Finance". |
+| `RealMarketDataProvider.java` | Rewrite internals: Finnhub -> Yahoo Finance. Constructor changes: remove `Environment` and `MarketDataQuotaTracker` params, add `YahooCrumbProvider`. Remove all retry logic and `RetryProperties` usage. Add browser-like `User-Agent` header to all requests. |
+| `MarketDataProperties.java` | Remove `apiKey` field and `@NotBlank` annotation. Remove `RetryProperties` inner class entirely. Add `@NotBlank query2BaseUrl` and `@NotBlank yahooRssBaseUrl`. |
+| `MarketDataHealthIndicator.java` | Remove rate-limit catch. Add `MarketDataClientException` -> UNKNOWN. |
+| `DefaultQuoteService.java` | Remove all 3 `catch (MarketDataRateLimitException)` blocks. Keep stale-cache fallback but trigger it on `MarketDataClientException` instead. |
+| `ApiExceptionHandler.java` | Remove `@ExceptionHandler(MarketDataRateLimitException.class)` method. |
+| `QuoteController.java` | Remove `Optional<MarketDataQuotaTracker>` injection. Remove `getMarketDataQuota()` method. Remove `/api/marketdata/quota` from the hardcoded endpoints list in `getQuotesIndex()`. |
+| `ProdSecretsValidator.java` | Remove `getApiKey()` call from `run()` method. Constructor still takes `MarketDataProperties` (still has `baseUrl` and other fields to validate). |
+| `application.yml` | Replace Finnhub URLs/key with Yahoo URLs. Remove `api-key` and `retry` block. |
+| `ENV.example` (service-level) | Remove `MARKETDATA_API_KEY`, `FINNHUB_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `YAHOO_FINANCE_API_KEY`, `TRADING_MARKETDATA_BASE_URL`, and `TRADING_MARKETDATA_RETRY_*` env vars. |
+| `ENV.example` (repo root) | Remove `FINNHUB_API_KEY` and `MARKETDATA_API_KEY` entries. |
+| `.envrc.example` | Remove `ALPHA_VANTAGE_API_KEY`, `YAHOO_FINANCE_API_KEY`, and `MARKETDATA_API_KEY` entries. |
+| `openAPI.yaml` | Change source default from "Finnhub" to "Yahoo Finance". Remove `/api/marketdata/quota` endpoint and `MarketDataQuota` schema. |
 | `build.gradle` | Add `com.rometools:rome:2.1.0`. |
 
 ### New
 | File | Purpose |
 |---|---|
-| `YahooCrumbProvider.java` | Cookie + crumb lifecycle management. |
-| `YahooCrumbProviderTest.java` | Tests for crumb fetch, caching, invalidation on 401. |
+| `YahooCrumbProvider.java` | `@Component @Profile("!dev")`. Cookie + crumb lifecycle management with double-checked locking. |
+| `YahooCrumbProviderTest.java` | Tests for crumb fetch, caching, invalidation on 401. Uses MockWebServer. |
 
 ### Deleted
 | File | Reason |
 |---|---|
 | `MarketDataQuotaTracker.java` | No Yahoo rate limit to track. |
-| `MarketDataRateLimitException.java` | No quota tracking. |
+| `MarketDataRateLimitException.java` | No quota tracking; no consumers remain after updating DefaultQuoteService, ApiExceptionHandler, and QuoteController. |
 
 ### Tests Modified
 | File | Change |
 |---|---|
-| `RealMarketDataProviderTest.java` | Rewrite stubs: Yahoo Finance JSON responses instead of Finnhub. |
-| `MarketDataHealthIndicatorTest.java` | Update for UNKNOWN on client error. |
-| `ProdSecretsValidatorTest.java` | Remove `MARKETDATA_API_KEY` assertion. |
+| `RealMarketDataProviderTest.java` | Rewrite stubs: Yahoo Finance JSON responses instead of Finnhub. Remove retry tests. |
+| `MarketDataHealthIndicatorTest.java` | Update for UNKNOWN on client error. Update `@DynamicPropertySource` properties: `base-url` -> `query2-base-url`, remove `api-key`. |
+| `ProdSecretsValidatorTest.java` | Remove `MARKETDATA_API_KEY` assertion. Update test helper to use `query2BaseUrl` instead of `baseUrl`. |
+| `DefaultQuoteServiceTest.java` | Remove rate-limit exception test cases. Update fallback tests to use `MarketDataClientException`. |
+| `QuoteControllerTest.java` | Remove quota endpoint tests. Remove rate-limit references. |
 
 ### Explicitly untouched
 - `index.html`
 - `MarketDataProvider.java`
-- `DefaultQuoteService.java`
-- `QuoteController.java`
 - `FakeMarketDataProvider.java`
 - `Quote.java`, `CompanyOverview.java`, `DailyBar.java`, `NewsArticle.java`
 - `MarketDataClientException.java` (kept — used by new provider)
@@ -185,7 +197,6 @@ public class YahooCrumbProvider {
 ```yaml
 trading:
   marketdata:
-    base-url: https://query2.finance.yahoo.com/v10/finance/quoteSummary
     query2-base-url: https://query2.finance.yahoo.com
     yahoo-rss-base-url: https://feeds.finance.yahoo.com
     health-symbol: ${MARKETDATA_HEALTH_SYMBOL:SPY}
@@ -195,7 +206,7 @@ trading:
     write-timeout: 10s
 ```
 
-No `api-key`. No `retry` block.
+No `api-key`. No `retry` block. No `base-url` (replaced by `query2-base-url` as the single WebClient base URL).
 
 ## Dependencies
 
