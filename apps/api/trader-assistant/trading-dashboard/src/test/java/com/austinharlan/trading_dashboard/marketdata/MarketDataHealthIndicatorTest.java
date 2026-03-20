@@ -92,7 +92,7 @@ class MarketDataHealthIndicatorTest {
   }
 
   @Test
-  void shouldReportDownWhenProviderFails() {
+  void shouldReportUnknownWhenProviderFails() {
     server.enqueue(
         new MockResponse()
             .setResponseCode(500)
@@ -101,7 +101,28 @@ class MarketDataHealthIndicatorTest {
 
     HealthComponent component = healthEndpoint.healthForPath("marketData");
 
-    assertThat(component.getStatus()).isEqualTo(Status.DOWN);
+    assertThat(component.getStatus()).isEqualTo(Status.UNKNOWN);
+  }
+
+  @Test
+  void shouldReportDownOnUnexpectedError() {
+    MarketDataProperties properties = new MarketDataProperties();
+    properties.setBaseUrl("http://ignored");
+    properties.setQuery2BaseUrl("http://ignored");
+    properties.setYahooRssBaseUrl("http://ignored");
+    properties.setCoinGeckoBaseUrl("http://ignored");
+    properties.setHealthSymbol("SPY");
+    properties.setHealthCacheTtl(Duration.ZERO);
+
+    MarketDataProvider provider =
+        symbol -> {
+          throw new RuntimeException("unexpected internal error");
+        };
+
+    MarketDataHealthIndicator indicator = new MarketDataHealthIndicator(properties, provider);
+    Health health = indicator.health();
+
+    assertThat(health.getStatus()).isEqualTo(Status.DOWN);
   }
 
   @Test
