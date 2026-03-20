@@ -1,6 +1,7 @@
 package com.austinharlan.trading_dashboard.marketdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -89,7 +90,7 @@ class RoutingMarketDataProviderTest {
   @Test
   void allFourCryptoSymbolsRouteToCoinGecko() {
     for (String ticker : List.of("BTC", "ETH", "SOL", "XRP")) {
-      when(coinGecko.getQuote(org.mockito.ArgumentMatchers.anyString()))
+      when(coinGecko.getQuote(anyString()))
           .thenReturn(new Quote(ticker, BigDecimal.ONE, null, Instant.now()));
       router.getQuote(ticker);
     }
