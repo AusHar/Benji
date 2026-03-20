@@ -300,9 +300,19 @@
     @keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .quote-refresh-btn.spinning svg { animation: spin-once .45s ease; }
 
-    .tile-pos-info { font-size: 9px; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; margin-top: -4px; }
-    .tile-pos-info .pos { color: var(--green); }
-    .tile-pos-info .neg { color: var(--red); }
+    /* ── Portfolio sparklines grid ─────────────── */
+    .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .spark-tile {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px 8px; transition: border-color .18s, box-shadow 2s ease-out;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
+    }
+    .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
+    .spark-tile canvas { display: block; width: 100%; height: 56px; }
+    .spark-sym  { font-size: 11px; font-weight: 500; color: var(--text-mid); letter-spacing: .5px; }
+    .spark-pct  { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
+    .spark-pct.pos { color: var(--green); }
+    .spark-pct.neg { color: var(--red); }
 
     /* ── Section label ───────────────────────── */
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
@@ -926,11 +936,15 @@
           <div class="chart-title">Allocation by Market Value</div>
           <canvas id="portTreemap"></canvas>
         </div>
+        <div class="chart-wrap" id="port-sparks-wrap" style="display:none">
+          <div class="chart-title">3-Month Performance</div>
+          <div class="port-sparks-grid" id="port-sparks-grid"></div>
+        </div>
         <div class="section-head" style="margin-bottom:14px;margin-top:22px">
           <span class="section-title">Positions</span>
           <button class="btn btn-primary btn-sm" onclick="openAddPosition()">+ Add Position</button>
         </div>
-        <div id="port-table">
+        <div class="table-wrap" id="port-table">
           <div class="state-box"><span class="spinner"></span></div>
         </div>
       </div>
@@ -1243,49 +1257,7 @@
         </div>`;
         body.style.display = 'flex';
         body.dataset.loaded = 'true';
-        loadTileDetails(sym, 'exp');
-      } else if (body) {
-        body.style.display = 'flex';
-      }
-    }
-  }
-
-  /* ── Portfolio tile expand/collapse ─────── */
-  function togglePortTile(sym, e) {
-    if (e) e.stopPropagation();
-    const tile = document.getElementById('pt-' + sym);
-    if (!tile) return;
-    const wasExpanded = tile.classList.contains('expanded');
-
-    document.querySelectorAll('#port-tile-grid .wl-tile.expanded').forEach(t => {
-      t.classList.remove('expanded');
-      const closeBtn = t.querySelector('.exp-close');
-      if (closeBtn) closeBtn.style.display = 'none';
-      const body = t.querySelector('.tile-expanded-body');
-      if (body) body.style.display = 'none';
-    });
-
-    if (!wasExpanded) {
-      tile.classList.add('expanded');
-      const closeBtn = tile.querySelector('.exp-close');
-      if (closeBtn) closeBtn.style.display = 'block';
-
-      const body = tile.querySelector('.tile-expanded-body');
-      if (body && !body.dataset.loaded) {
-        body.innerHTML = expandedChartSkeletonHTML(sym) +
-          `<div class="exp-funds" id="pte-funds-${sym}">
-          <div class="exp-fund"><div class="exp-fund-label">Loading</div><div class="exp-fund-val">—</div></div>
-        </div>
-        <div class="exp-news-section">
-          <div class="exp-news-label">Related News</div>
-          <div id="pte-news-${sym}" style="color:var(--text-muted);font-size:9px">Loading…</div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px">
-          <button class="btn btn-sm" style="color:var(--red);font-size:10px" onclick="event.stopPropagation();deletePosition('${sym}')">Remove Position</button>
-        </div>`;
-        body.style.display = 'flex';
-        body.dataset.loaded = 'true';
-        loadTileDetails(sym, 'pte');
+        loadTileDetails(sym);
       } else if (body) {
         body.style.display = 'flex';
       }
@@ -1304,11 +1276,10 @@
     // Sparkline path swap will be wired in when real data is available
   }
 
-  async function loadTileDetails(sym, prefix = 'exp') {
-    const [overviewRes, historyRes, newsRes] = await Promise.allSettled([
+  async function loadTileDetails(sym) {
+    const [overviewRes, historyRes] = await Promise.allSettled([
       get('/api/quotes/' + sym + '/overview'),
       get('/api/quotes/' + sym + '/history'),
-      get('/api/quotes/' + sym + '/news'),
     ]);
 
     const ov   = overviewRes.status  === 'fulfilled' ? overviewRes.value  : null;
@@ -1341,7 +1312,7 @@
       { l: sixthLabel, v: sixthValue,                                           c: 'amber' },
     ];
 
-    const fundsEl = document.getElementById(prefix + '-funds-' + sym);
+    const fundsEl = document.getElementById('exp-funds-' + sym);
     if (fundsEl) {
       fundsEl.innerHTML = cells.map(c => `
         <div class="exp-fund">
@@ -1350,21 +1321,10 @@
         </div>`).join('');
     }
 
-    const newsEl = document.getElementById(prefix + '-news-' + sym);
+    // News: not yet available via API
+    const newsEl = document.getElementById('exp-news-' + sym);
     if (newsEl) {
-      const articles = newsRes.status === 'fulfilled' ? newsRes.value?.articles : null;
-      if (articles?.length) {
-        newsEl.innerHTML = articles.slice(0, 4).map(a => `
-          <a class="news-item" href="${a.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-            ${a.image ? `<img class="news-thumb" src="${a.image}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}
-            <div class="news-body">
-              <div class="news-headline">${a.headline}</div>
-              <div class="news-meta">${a.source || ''}${a.source && a.published_at ? ' · ' : ''}${a.published_at ? ts(a.published_at) : ''}</div>
-            </div>
-          </a>`).join('');
-      } else {
-        newsEl.innerHTML = `<div style="font-size:9px;color:var(--text-muted);padding:4px 0">No news available.</div>`;
-      }
+      newsEl.innerHTML = `<div style="font-size:9px;color:var(--text-muted);padding:4px 0">No news available.</div>`;
     }
   }
 
@@ -1703,6 +1663,7 @@
   async function loadPortfolio() {
     document.getElementById('port-stats').innerHTML = '';
     document.getElementById('port-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
+    document.getElementById('port-sparks-wrap').style.display = 'none';
 
     const [sRes, pRes] = await Promise.allSettled([
       get('/api/portfolio/summary'),
@@ -1712,19 +1673,15 @@
     const positions = (pRes.status === 'fulfilled' && pRes.value?.positions?.length)
       ? pRes.value.positions : null;
 
-    // Fetch live quotes for every position in parallel
+    // Fetch live prices for every position in parallel
     const priceMap = {};
-    const quoteMap = {};
     if (positions) {
       const priceResults = await Promise.allSettled(
         positions.map(pos => get('/api/quotes/' + pos.ticker))
       );
       positions.forEach((pos, i) => {
         const r = priceResults[i];
-        if (r.status === 'fulfilled' && r.value) {
-          priceMap[pos.ticker] = r.value.price;
-          quoteMap[pos.ticker] = r.value;
-        }
+        if (r.status === 'fulfilled' && r.value) priceMap[pos.ticker] = r.value.price;
       });
     }
 
@@ -1756,6 +1713,7 @@
 
     if (!positions?.length) {
       document.getElementById('port-treemap-wrap').style.display = 'none';
+      document.getElementById('port-sparks-wrap').style.display = 'none';
       document.getElementById('port-table').innerHTML = empty('📊', 'No positions yet', 'Portfolio positions will appear here once added.');
       return;
     }
@@ -1763,37 +1721,43 @@
     // Draw treemap (deferred one frame so canvas has layout width)
     requestAnimationFrame(() => drawTreemap(positions, priceMap));
 
+    // Fetch 3M history for portfolio sparklines (parallel, fault-tolerant)
+    const histResults = await Promise.allSettled(
+      positions.map(p => get('/api/quotes/' + p.ticker + '/history'))
+    );
+    const historyMap = {};
+    positions.forEach((p, i) => {
+      const r = histResults[i];
+      if (r.status === 'fulfilled' && r.value) historyMap[p.ticker] = r.value;
+    });
+    drawPortfolioSparks(positions, historyMap);
+
     document.getElementById('port-table').innerHTML =
-      `<div class="watchlist-grid" id="port-tile-grid">
-        ${positions.map(pos => {
-          const price  = priceMap[pos.ticker];
-          const q      = quoteMap[pos.ticker];
-          const mktVal = price != null ? pos.quantity * price : null;
-          const pnl    = mktVal != null ? mktVal - pos.cost_basis : null;
-          const pct    = (pnl != null && pos.cost_basis > 0) ? pnl / pos.cost_basis : null;
-          const pnlCls = pnl != null ? (pnl >= 0 ? 'pos' : 'neg') : '';
-          const pnlText = pnl != null
-            ? (pnl >= 0 ? '+' : '') + money(pnl) + (pct != null ? ' (' + (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%)' : '')
-            : '--';
-          const chg     = fmtChg(q?.change_pct ?? null);
-          const tileCls = tileClass(q?.change_pct ?? null);
-          return `<div class="wl-tile ${tileCls}" id="pt-${pos.ticker}" onclick="togglePortTile('${pos.ticker}',event)">
-            <button class="exp-close" onclick="togglePortTile('${pos.ticker}',event)" style="display:none">✕</button>
-            <div class="tile-top">
-              <div class="tile-sym">${pos.ticker}</div>
-              <div class="tile-chg ${chg.cls}">${chg.text}</div>
-            </div>
-            <div class="tile-price">${price != null ? money(price) : '<span class="spinner"></span>'}</div>
-            <div class="tile-pos-info">
-              <span>${num(pos.quantity)} shares · avg ${money(pos.cost_basis / pos.quantity)}</span>
-              <span class="${pnlCls}">${pnlText}</span>
-            </div>
-            ${sparklinePlaceholderSVG()}
-            ${compactNewsHTML([])}
-            <div class="tile-expanded-body" style="display:none"></div>
-          </div>`;
-        }).join('')}
-      </div>`;
+      `<table class="data-table">
+        <thead><tr>
+          <th>Ticker</th><th>Shares</th><th>Avg Cost</th>
+          <th>Price</th><th>Mkt Value</th><th>P&L</th><th>%</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${positions.map(x => {
+            const price  = priceMap[x.ticker];
+            const mktVal = price != null ? x.quantity * price : null;
+            const pnl    = mktVal != null ? mktVal - x.cost_basis : null;
+            const pct    = (pnl != null && x.cost_basis > 0) ? pnl / x.cost_basis : null;
+            const cls    = pnl != null ? (pnl >= 0 ? 'td-pos' : 'td-neg') : '';
+            return `<tr>
+              <td><strong>${x.ticker}</strong></td>
+              <td>${num(x.quantity)}</td>
+              <td class="td-amber">${money(x.cost_basis / x.quantity)}</td>
+              <td>${price != null ? money(price) : '--'}</td>
+              <td class="td-amber">${mktVal != null ? money(mktVal) : '--'}</td>
+              <td class="${cls}">${pnl != null ? (pnl >= 0 ? '+' : '') + money(pnl) : '--'}</td>
+              <td class="${cls}">${pct != null ? (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%' : '--'}</td>
+              <td><button class="btn btn-sm" style="color:var(--red);padding:2px 8px;font-size:12px" onclick="deletePosition('${x.ticker}')">Remove</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
   }
 
   /* ── Finance ────────────────────────────── */
@@ -2568,6 +2532,81 @@
       const u = -t;
       return `rgb(${Math.round(106 + 33*u)},${Math.round(136 - 89*u)},${Math.round(120 - 88*u)})`;
     }
+  }
+
+  function drawPortSpark(canvas, bars) {
+    if (!canvas || !bars || bars.length < 2) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W   = canvas.offsetWidth || 140;
+    const H   = 56;
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const closes = bars.map(b => b.close);
+    let min = Math.min(...closes), max = Math.max(...closes);
+    const range = max - min || 1;
+    min -= range * 0.05; max += range * 0.05;
+
+    const xi = i => (i / (closes.length - 1)) * W;
+    const yi = v => H - ((v - min) / (max - min)) * H;
+    const isPos = closes[closes.length - 1] >= closes[0];
+
+    const lineCol  = isPos ? '#4edd8a' : 'rgba(240,120,104,.85)';
+    const fillCol0 = isPos ? 'rgba(78,221,138,.14)' : 'rgba(240,120,104,.10)';
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, fillCol0);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.beginPath();
+    ctx.moveTo(xi(0), yi(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(xi(i), yi(closes[i]));
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(xi(0), yi(closes[0]));
+    for (let i = 1; i < closes.length; i++) ctx.lineTo(xi(i), yi(closes[i]));
+    ctx.strokeStyle = lineCol; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+
+  function drawPortfolioSparks(positions, historyMap) {
+    const wrap = document.getElementById('port-sparks-wrap');
+    const grid = document.getElementById('port-sparks-grid');
+
+    const tiles = positions
+      .filter(p => historyMap[p.ticker]?.bars?.length > 1)
+      .map(p => {
+        const bars  = historyMap[p.ticker].bars;
+        const first = bars[0].close;
+        const last  = bars[bars.length - 1].close;
+        const pct   = first > 0 ? (last - first) / first * 100 : 0;
+        const cls   = pct >= 0 ? 'pos' : 'neg';
+        const sign  = pct >= 0 ? '+' : '';
+        return { ticker: p.ticker, bars, pct, cls, sign };
+      });
+
+    if (!tiles.length) { wrap.style.display = 'none'; return; }
+
+    grid.innerHTML = tiles.map(t =>
+      `<div class="spark-tile">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <span class="spark-sym">${t.ticker}</span>
+          <span class="spark-pct ${t.cls}">${t.sign}${t.pct.toFixed(1)}%</span>
+        </div>
+        <canvas id="pspark-${t.ticker}"></canvas>
+      </div>`
+    ).join('');
+
+    wrap.style.display = 'block';
+    requestAnimationFrame(() => {
+      tiles.forEach(t => {
+        const cv = document.getElementById('pspark-' + t.ticker);
+        if (cv) drawPortSpark(cv, t.bars);
+      });
+    });
   }
 
   function drawTreemap(positions, priceMap) {
