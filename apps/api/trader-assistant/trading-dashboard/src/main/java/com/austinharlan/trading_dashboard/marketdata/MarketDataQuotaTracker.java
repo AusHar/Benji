@@ -7,14 +7,14 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Tracks the number of Finnhub API calls made in the current one-minute window. Thread-safe, resets
- * whenever a full minute has elapsed since the window started.
+ * Tracks the number of market data API calls made in the current one-minute window. Thread-safe,
+ * resets whenever a full minute has elapsed since the window started.
  */
 @Component
 @Profile("!dev")
 public class MarketDataQuotaTracker {
 
-  public static final int CALLS_PER_MINUTE_LIMIT = 60;
+  public static final int CALLS_PER_MINUTE_LIMIT = 50;
 
   /** Alias kept for callers that reference the old constant name. */
   public static final int DAILY_LIMIT = CALLS_PER_MINUTE_LIMIT;

@@ -13,7 +13,7 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 - **Service Layer:** `com.austinharlan.trading_dashboard.service`
   - Orchestrates flows, caching, validation, rate limiting.
 - **Providers (Market Data):** `com.austinharlan.trading_dashboard.marketdata`
-  - `MarketDataProvider` interface with `FakeMarketDataProvider` (dev) and `RealMarketDataProvider` (non-dev, Finnhub-backed).
+  - `MarketDataProvider` interface. In non-dev profiles, `RoutingMarketDataProvider` (@Primary) dispatches to `YahooFinanceMarketDataProvider` (stocks, ETFs, indices) or `CoinGeckoMarketDataProvider` (crypto) based on `CryptoSymbolMapper`. `FakeMarketDataProvider` used in dev/test. No API key required.
 - **Persistence (optional v0):** `com.austinharlan.trading_dashboard.persistence`
   - Spring Data JPA repositories + Flyway migrations (`src/main/resources/db/migration`).
 - **Config:** `com.austinharlan.trading_dashboard.config`
@@ -39,7 +39,7 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 
 ## Caching & Limits
 - **Cache:** Caffeine with per-cache TTLs: quotes (30s), overviews (4h), history (1h), news (15m).
-- **Rate Limits:** `MarketDataQuotaTracker` tracks Finnhub calls in a per-minute rolling window (60 calls/min free tier). Usage exposed at `/api/marketdata/quota`. Health indicator returns `UNKNOWN` (HTTP 200) instead of `DOWN` when the quota is exhausted.
+- **Rate Limits:** `MarketDataQuotaTracker` tracks market data API calls in a per-minute rolling window (50 calls/min limit — CoinGecko free tier is the more restrictive provider). Usage exposed at `/api/marketdata/quota`. Health indicator returns `UNKNOWN` (HTTP 200) instead of `DOWN` when the quota is exhausted.
 
 ## Security
 - Secrets in systemd service environment; no secrets in code or repo.
@@ -66,7 +66,7 @@ flowchart LR
   end
   subgraph Prod
     App2[Boot App - Lightsail] --> CloudDB[(Managed Postgres)]
-    App2 --> MarketAPIs[Finnhub]
+    App2 --> MarketAPIs[Yahoo Finance / CoinGecko]
   end
 
 sequenceDiagram

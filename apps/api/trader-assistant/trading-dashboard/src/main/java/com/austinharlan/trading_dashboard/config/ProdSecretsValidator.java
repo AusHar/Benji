@@ -31,15 +31,10 @@ class ProdSecretsValidator implements ApplicationRunner {
 
   private final Environment environment;
   private final ApiSecurityProperties apiSecurityProperties;
-  private final MarketDataProperties marketDataProperties;
 
-  ProdSecretsValidator(
-      Environment environment,
-      ApiSecurityProperties apiSecurityProperties,
-      MarketDataProperties marketDataProperties) {
+  ProdSecretsValidator(Environment environment, ApiSecurityProperties apiSecurityProperties) {
     this.environment = environment;
     this.apiSecurityProperties = apiSecurityProperties;
-    this.marketDataProperties = marketDataProperties;
   }
 
   @Override
@@ -48,10 +43,6 @@ class ProdSecretsValidator implements ApplicationRunner {
         "TRADING_API_KEY",
         apiSecurityProperties.getKey(),
         "Set trading.api.key (TRADING_API_KEY) before production deployment.");
-    requireSecret(
-        "MARKETDATA_API_KEY",
-        marketDataProperties.getApiKey(),
-        "Set trading.marketdata.api-key (MARKETDATA_API_KEY) before production deployment.");
     requireSecret(
         "SPRING_DATASOURCE_PASSWORD",
         environment.getProperty("spring.datasource.password"),
