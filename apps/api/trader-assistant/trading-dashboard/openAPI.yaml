@@ -153,19 +153,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/marketdata/quota:
-    get:
-      tags:
-        - Quotes
-      operationId: getMarketDataQuota
-      summary: Return Finnhub API usage in the current minute against the per-minute limit.
-      responses:
-        '200':
-          description: Quota usage for today.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MarketDataQuota'
   /api/portfolio/positions:
     get:
       tags:
@@ -563,7 +550,7 @@ components:
         source:
           type: string
           description: Market data provider that supplied the quote.
-          example: Finnhub
+          example: Yahoo Finance
     PortfolioPositionsResponse:
       type: object
       required:
@@ -723,22 +710,6 @@ components:
         notes:
           type: string
           description: Optional annotations captured by the user.
-    MarketDataQuota:
-      type: object
-      required:
-        - used
-        - daily_limit
-      properties:
-        used:
-          type: integer
-          format: int32
-          description: Number of Finnhub API calls made in the current minute.
-          example: 7
-        daily_limit:
-          type: integer
-          format: int32
-          description: Maximum calls allowed per minute on the current plan.
-          example: 60
     CompanyOverviewResponse:
       type: object
       required:
