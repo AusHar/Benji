@@ -32,7 +32,7 @@ CI runs `./gradlew spotlessCheck build --no-daemon`. OWASP dependency scanning r
 **Packages under `com.austinharlan.trading_dashboard`:**
 - `controllers/` — thin adapters implementing generated interfaces; no business logic
 - `service/` — all domain/business logic; `DefaultQuoteService`, `DefaultFinanceInsightsService`
-- `marketdata/` — `MarketDataProvider` interface with `RealMarketDataProvider` (Finnhub) and `FakeMarketDataProvider` (dev/test); `MarketDataQuotaTracker` tracks per-minute API usage
+- `marketdata/` — `MarketDataProvider` interface with `RealMarketDataProvider` (Yahoo Finance) and `FakeMarketDataProvider` (dev/test); `YahooCrumbProvider` manages cookie/crumb authentication
 - `persistence/` — JPA repositories and entities; Flyway migrations in `src/main/resources/db/migration/`
 - `finance/` and `portfolio/` — domain record types
 - `config/` — Spring Security, CORS, API key filter, properties bindings, `ProdSecretsValidator`
@@ -58,7 +58,7 @@ CI (`ci.yml`) builds the JAR, rsync's it to the server, restarts the `benji` sys
 
 ## Environment variables
 
-Copy `ENV.example` to populate required variables. `MANAGEMENT_PASSWORD` has no default and must always be set (even in test, via `src/test/resources/application.properties`). In prod, `ProdSecretsValidator` will refuse to start if `TRADING_API_KEY`, `MARKETDATA_API_KEY`, `SPRING_DATASOURCE_PASSWORD`, or `MANAGEMENT_PASSWORD` are blank or placeholder values.
+Copy `ENV.example` to populate required variables. `MANAGEMENT_PASSWORD` has no default and must always be set (even in test, via `src/test/resources/application.properties`). In prod, `ProdSecretsValidator` will refuse to start if `TRADING_API_KEY`, `SPRING_DATASOURCE_PASSWORD`, or `MANAGEMENT_PASSWORD` are blank or placeholder values. No market data API key is required — Yahoo Finance is unauthenticated.
 
 ## Conventions
 

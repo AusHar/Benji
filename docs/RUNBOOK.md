@@ -3,19 +3,18 @@
 ## 1. Service Overview
 Benji Trader Assistant is a Spring Boot API deployed to AWS Lightsail (Ubuntu 22.04) that aggregates
 market data, portfolio balances, and personal finance signals. It exposes REST endpoints under `/api/*`,
-uses Postgres for persistence, and integrates with Finnhub for market data. A single-file SPA is served
+uses Postgres for persistence, and integrates with Yahoo Finance for market data (no API key required). A single-file SPA is served
 from the JAR at the root path.
 
 ## 2. Environments
 - **Local (dev):** Run via `./gradlew bootRun` with the `dev` profile; uses fake market data and in-memory H2 storage.
 - **Test (CI):** `./gradlew test` with Testcontainers-managed Postgres; executed in GitHub Actions.
-- **Prod:** JAR deployed to Lightsail via rsync in CI, running as the `benji` systemd service with the `prod` profile, real Finnhub provider, and Postgres.
+- **Prod:** JAR deployed to Lightsail via rsync in CI, running as the `benji` systemd service with the `prod` profile, Yahoo Finance provider, and Postgres.
 
 ## 3. Access & Credentials
 | Secret | Location | Notes |
 | --- | --- | --- |
 | `TRADING_API_KEY` | `/etc/systemd/system/benji.service` | Required for prod API key filter. |
-| `MARKETDATA_API_KEY` | `/etc/systemd/system/benji.service` | Finnhub API key. |
 | `SPRING_DATASOURCE_PASSWORD` | `/etc/systemd/system/benji.service` | Postgres password. |
 | `MANAGEMENT_PASSWORD` | `/etc/systemd/system/benji.service` | Basic auth for `/actuator/*`. |
 | `LIGHTSAIL_SSH_KEY` | GitHub Actions secret | Base64-encoded PEM for deploy SSH access. |
@@ -25,9 +24,8 @@ Prod startup validates required secrets and rejects placeholder values (e.g., `c
 ## 4. Operations
 - **Health check:** `GET https://port.adhdquants.com/actuator/health`
   - Returns `{"status":"UP"}` when healthy.
-  - Returns `{"status":"UNKNOWN"}` when the Finnhub per-minute quota is exhausted (this is normal, not an outage).
-  - Returns `{"status":"DOWN"}` only when the Finnhub API itself is unreachable.
-- **Quota usage:** `GET https://port.adhdquants.com/api/marketdata/quota` (requires `X-API-KEY` header)
+  - Returns `{"status":"UNKNOWN"}` when Yahoo Finance is temporarily unreachable (this is normal, not an outage).
+  - Returns `{"status":"DOWN"}` only on unexpected application errors.
 - **Logs:** `sudo journalctl -u benji -f` on the Lightsail instance.
 
 ## 5. Deployment Procedure
@@ -59,21 +57,13 @@ sudo journalctl -u benji -f
 - If persistent: check journal for startup exceptions.
 
 ### Health check returns UNKNOWN
-- Normal — Finnhub per-minute quota was exhausted at the time of the health probe. The service is operational.
+- Normal — Yahoo Finance was temporarily unreachable at the time of the health probe. The service is operational.
 
 ### Quote endpoint returning stale data
-- Check Finnhub quota at `/api/marketdata/quota`.
 - Cache TTLs: quotes 30s, overviews 4h, history 1h, news 15m. Restart to flush.
-
-### Updating a secret (e.g., rotating the Finnhub API key)
-```bash
-ssh -i ~/.ssh/benji-lightsail.pem ubuntu@107.22.236.28
-sudo sed -i 's/MARKETDATA_API_KEY=.*/MARKETDATA_API_KEY=new_key_here/' /etc/systemd/system/benji.service
-sudo systemctl daemon-reload && sudo systemctl restart benji
-```
 
 ## 8. Onboarding Checklist
 - Install Java 21, copy `ENV.example` and populate variables.
-- Set `FINNHUB_API_KEY` (or `MARKETDATA_API_KEY`) with a key from https://finnhub.io (free tier: 60 calls/min).
+- No market data API key required — Yahoo Finance is free and unauthenticated.
 - Run `./gradlew clean build` from `apps/api/trader-assistant/trading-dashboard`.
 - Review `docs/ARCHITECTURE.md` for architectural context.
