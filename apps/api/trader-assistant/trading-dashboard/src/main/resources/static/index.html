@@ -301,14 +301,19 @@
     .quote-refresh-btn.spinning svg { animation: spin-once .45s ease; }
 
     /* ── Portfolio sparklines grid ─────────────── */
-    .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .spark-tile {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
       padding: 10px 12px 8px; transition: border-color .18s, box-shadow 2s ease-out;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
+    .spark-tile { cursor: pointer; position: relative; }
     .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
-    .spark-tile canvas { display: block; width: 100%; height: 56px; }
+    .spark-tile canvas { display: block; width: 100%; height: 90px; }
+    .spark-tile.expanded { grid-column: span 2; background: var(--bg-card-hi); border-color: var(--border-hi); animation: glowpulse 3s ease-in-out infinite; }
+    .spark-tile.expanded canvas { display: none; }
+    .spark-tile .tile-expanded-body { display: none; flex-direction: column; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-mid); gap: 14px; }
+    .spark-tile.expanded .tile-expanded-body { display: flex; }
     .spark-sym  { font-size: 11px; font-weight: 500; color: var(--text-mid); letter-spacing: .5px; }
     .spark-pct  { font-size: 9px; font-weight: 500; letter-spacing: .3px; }
     .spark-pct.pos { color: var(--green); }
@@ -1280,9 +1285,10 @@
   }
 
   async function loadTileDetails(sym) {
-    const [overviewRes, historyRes] = await Promise.allSettled([
+    const [overviewRes, historyRes, newsRes] = await Promise.allSettled([
       get('/api/quotes/' + sym + '/overview'),
       get('/api/quotes/' + sym + '/history'),
+      get('/api/quotes/' + sym + '/news'),
     ]);
 
     const ov   = overviewRes.status  === 'fulfilled' ? overviewRes.value  : null;
@@ -1324,10 +1330,18 @@
         </div>`).join('');
     }
 
-    // News: not yet available via API
     const newsEl = document.getElementById('exp-news-' + sym);
     if (newsEl) {
-      newsEl.innerHTML = `<div style="font-size:9px;color:var(--text-muted);padding:4px 0">No news available.</div>`;
+      const articles = newsRes.status === 'fulfilled' ? newsRes.value?.articles : null;
+      if (articles?.length) {
+        newsEl.innerHTML = articles.map(a =>
+          `<a class="exp-news-item" href="${a.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+            <div class="exp-news-headline">${a.headline}</div>
+            <div class="exp-news-meta">${a.source || ''}${a.source && a.published_at ? ' · ' : ''}${a.published_at ? ts(a.published_at) : ''}</div>
+          </a>`).join('');
+      } else {
+        newsEl.innerHTML = `<div style="font-size:9px;color:var(--text-muted);padding:4px 0">No news available.</div>`;
+      }
     }
   }
 
@@ -1601,7 +1615,7 @@
       el.innerHTML = `<div class="rate-limit-banner">
         <div class="rl-icon">⏳</div>
         <div class="rl-title">Daily query limit reached</div>
-        <div class="rl-sub">Finnhub rate limit reached. Quota resets each minute — try again shortly.</div>
+        <div class="rl-sub">Provider rate limit reached. Please try again shortly.</div>
       </div>`;
       return;
     } else {
@@ -2630,12 +2644,14 @@
     if (!tiles.length) { wrap.style.display = 'none'; return; }
 
     grid.innerHTML = tiles.map(t =>
-      `<div class="spark-tile">
+      `<div class="spark-tile" id="spark-${t.ticker}" onclick="toggleSparkTile('${t.ticker}',event)">
+        <button class="exp-close" onclick="toggleSparkTile('${t.ticker}',event)" style="display:none">✕</button>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
           <span class="spark-sym">${t.ticker}</span>
           <span class="spark-pct ${t.cls}">${t.sign}${t.pct.toFixed(1)}%</span>
         </div>
         <canvas id="pspark-${t.ticker}"></canvas>
+        <div class="tile-expanded-body" style="display:none"></div>
       </div>`
     ).join('');
 
@@ -2646,6 +2662,48 @@
         if (cv) drawPortSpark(cv, t.bars);
       });
     });
+  }
+
+  function toggleSparkTile(sym, e) {
+    if (e) e.stopPropagation();
+    const tile = document.getElementById('spark-' + sym);
+    if (!tile) return;
+    const wasExpanded = tile.classList.contains('expanded');
+
+    // Collapse all spark tiles
+    document.querySelectorAll('.spark-tile.expanded').forEach(t => {
+      t.classList.remove('expanded');
+      const closeBtn = t.querySelector('.exp-close');
+      if (closeBtn) closeBtn.style.display = 'none';
+      const body = t.querySelector('.tile-expanded-body');
+      if (body) body.style.display = 'none';
+      // Re-show the canvas
+      const cv = t.querySelector('canvas');
+      if (cv) cv.style.display = 'block';
+    });
+
+    if (!wasExpanded) {
+      tile.classList.add('expanded');
+      const closeBtn = tile.querySelector('.exp-close');
+      if (closeBtn) closeBtn.style.display = 'block';
+
+      const body = tile.querySelector('.tile-expanded-body');
+      if (body && !body.dataset.loaded) {
+        body.innerHTML = expandedChartSkeletonHTML(sym) +
+          `<div class="exp-funds" id="exp-funds-${sym}">
+          <div class="exp-fund"><div class="exp-fund-label">Loading</div><div class="exp-fund-val">—</div></div>
+        </div>
+        <div class="exp-news-section">
+          <div class="exp-news-label">Related News</div>
+          <div id="exp-news-${sym}" style="color:var(--text-muted);font-size:9px">Loading…</div>
+        </div>`;
+        body.style.display = 'flex';
+        body.dataset.loaded = 'true';
+        loadTileDetails(sym);
+      } else if (body) {
+        body.style.display = 'flex';
+      }
+    }
   }
 
   function drawTreemap(positions, priceMap) {
