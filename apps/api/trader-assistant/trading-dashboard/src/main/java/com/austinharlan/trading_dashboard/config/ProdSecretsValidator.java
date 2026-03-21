@@ -49,10 +49,6 @@ class ProdSecretsValidator implements ApplicationRunner {
         apiSecurityProperties.getKey(),
         "Set trading.api.key (TRADING_API_KEY) before production deployment.");
     requireSecret(
-        "MARKETDATA_API_KEY",
-        marketDataProperties.getApiKey(),
-        "Set trading.marketdata.api-key (MARKETDATA_API_KEY) before production deployment.");
-    requireSecret(
         "SPRING_DATASOURCE_PASSWORD",
         environment.getProperty("spring.datasource.password"),
         "Set SPRING_DATASOURCE_PASSWORD before production deployment.");

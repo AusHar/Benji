@@ -3,8 +3,8 @@ package com.austinharlan.trading_dashboard.service;
 import com.austinharlan.trader.config.CacheProperties;
 import com.austinharlan.trading_dashboard.marketdata.CompanyOverview;
 import com.austinharlan.trading_dashboard.marketdata.DailyBar;
+import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataProvider;
-import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.NewsArticle;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import java.time.Duration;
@@ -72,7 +72,7 @@ public class DefaultQuoteService implements QuoteService {
       List<DailyBar> fresh = provider.getDailyHistory(symbol);
       putCache(historyCache, cacheKey, fresh);
       return fresh;
-    } catch (MarketDataRateLimitException ex) {
+    } catch (MarketDataClientException ex) {
       List<DailyBar> fallback = getCachedValue(historyCache, cacheKey, List.class);
       if (fallback != null) {
         return fallback;
@@ -95,7 +95,7 @@ public class DefaultQuoteService implements QuoteService {
       List<NewsArticle> fresh = provider.getNews(symbol);
       putCache(newsCache, cacheKey, fresh);
       return fresh;
-    } catch (MarketDataRateLimitException ex) {
+    } catch (MarketDataClientException ex) {
       List<NewsArticle> fallback = getCachedValue(newsCache, cacheKey, List.class);
       if (fallback != null) {
         return fallback;
@@ -121,7 +121,7 @@ public class DefaultQuoteService implements QuoteService {
       T fresh = fetcher.get();
       putCache(cache, cacheKey, fresh);
       return fresh;
-    } catch (MarketDataRateLimitException ex) {
+    } catch (MarketDataClientException ex) {
       T fallback = getCachedValue(cache, cacheKey, type);
       if (fallback != null) {
         return fallback;

@@ -57,8 +57,10 @@ public class MarketDataHealthIndicator implements HealthIndicator {
           .withDetail("price", quote.price())
           .withDetail("timestamp", quote.timestamp())
           .build();
-    } catch (MarketDataRateLimitException ex) {
-      return Health.unknown().withDetail("reason", "Finnhub rate limit reached").build();
+    } catch (MarketDataClientException ex) {
+      return Health.unknown()
+          .withDetail("reason", "Cannot reach Yahoo Finance endpoint but application is healthy")
+          .build();
     } catch (Exception ex) {
       return Health.down(ex).build();
     }

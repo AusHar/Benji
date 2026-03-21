@@ -2,13 +2,11 @@ package com.austinharlan.trading_dashboard.controllers;
 
 import com.austinharlan.trading_dashboard.marketdata.CompanyOverview;
 import com.austinharlan.trading_dashboard.marketdata.DailyBar;
-import com.austinharlan.trading_dashboard.marketdata.MarketDataQuotaTracker;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import com.austinharlan.trading_dashboard.service.QuoteService;
 import com.austinharlan.tradingdashboard.api.QuotesApi;
 import com.austinharlan.tradingdashboard.dto.CompanyOverviewResponse;
 import com.austinharlan.tradingdashboard.dto.DailyBarDto;
-import com.austinharlan.tradingdashboard.dto.MarketDataQuota;
 import com.austinharlan.tradingdashboard.dto.NewsArticle;
 import com.austinharlan.tradingdashboard.dto.NewsResponse;
 import com.austinharlan.tradingdashboard.dto.PriceHistoryResponse;
@@ -18,7 +16,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,11 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class QuoteController implements QuotesApi {
   private static final Pattern SYMBOL_PATTERN = Pattern.compile("^[A-Za-z0-9.:_-]{1,20}$");
   private final QuoteService quoteService;
-  private final Optional<MarketDataQuotaTracker> quotaTracker;
 
-  public QuoteController(QuoteService quoteService, Optional<MarketDataQuotaTracker> quotaTracker) {
+  public QuoteController(QuoteService quoteService) {
     this.quoteService = quoteService;
-    this.quotaTracker = quotaTracker;
   }
 
   @Override
@@ -44,19 +39,8 @@ public class QuoteController implements QuotesApi {
                     "/api/quotes/{symbol}",
                     "/api/quotes/{symbol}/overview",
                     "/api/quotes/{symbol}/history",
-                    "/api/quotes/{symbol}/news",
-                    "/api/marketdata/quota"));
+                    "/api/quotes/{symbol}/news"));
     return ResponseEntity.ok(index);
-  }
-
-  @Override
-  public ResponseEntity<MarketDataQuota> getMarketDataQuota() {
-    int used = quotaTracker.map(MarketDataQuotaTracker::getUsed).orElse(0);
-    int limit =
-        quotaTracker
-            .map(MarketDataQuotaTracker::getDailyLimit)
-            .orElse(MarketDataQuotaTracker.DAILY_LIMIT);
-    return ResponseEntity.ok(new MarketDataQuota().used(used).dailyLimit(limit));
   }
 
   @Override

@@ -1,7 +1,6 @@
 package com.austinharlan.trading_dashboard.controllers;
 
 import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
-import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.QuoteNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.tradingdashboard.dto.ErrorResponse;
@@ -21,12 +20,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 class ApiExceptionHandler {
 
   private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
-
-  @ExceptionHandler(MarketDataRateLimitException.class)
-  ResponseEntity<ErrorResponse> handleMarketDataRateLimitException(
-      MarketDataRateLimitException ex) {
-    return build(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", ex.getMessage());
-  }
 
   @ExceptionHandler(InvalidTickerException.class)
   ResponseEntity<ErrorResponse> handleInvalidTicker(InvalidTickerException ex) {
