@@ -5,12 +5,6 @@ export SPRING_DATASOURCE_USERNAME="trader"
 export SPRING_DATASOURCE_PASSWORD="trader"
 export SERVER_PORT=8080
 
-# PROD-REQUIRED: replace placeholder before going live (validator will fail in prod).
-export ALPHA_VANTAGE_API_KEY="your_real_key"
-# PROD-REQUIRED: replace placeholder before going live (validator will fail in prod).
-export YAHOO_FINANCE_API_KEY="your_real_key"
-# PROD-REQUIRED: replace placeholder before going live (validator will fail in prod).
-export MARKETDATA_API_KEY="your_real_key"
 export MARKETDATA_HEALTH_SYMBOL="SPY"
 # PROD-REQUIRED: replace placeholder before going live (validator will fail in prod).
 export TRADING_API_KEY="local-dev-key"
