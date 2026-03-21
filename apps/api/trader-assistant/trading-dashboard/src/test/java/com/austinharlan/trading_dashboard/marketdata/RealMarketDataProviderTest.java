@@ -8,20 +8,19 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
-import okhttp3.mockwebserver.Dispatcher;
+import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.reactive.function.client.WebClient;
 
 class RealMarketDataProviderTest {
-  private static final Duration TIMEOUT = Duration.ofSeconds(2);
+  private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
   private MockWebServer server;
+  private MockWebServer crumbServer;
   private MarketDataProperties properties;
 
   @BeforeEach
@@ -29,193 +28,145 @@ class RealMarketDataProviderTest {
     server = new MockWebServer();
     server.start();
 
+    crumbServer = new MockWebServer();
+    crumbServer.start();
+
     properties = new MarketDataProperties();
-    properties.setBaseUrl(server.url("/").toString());
-    properties.setApiKey("test-key");
+    properties.setQuery2BaseUrl(server.url("/").toString());
+    properties.setYahooRssBaseUrl(server.url("/").toString());
     properties.setHealthSymbol("AAPL");
     properties.setConnectTimeout(TIMEOUT);
     properties.setReadTimeout(TIMEOUT);
     properties.setWriteTimeout(TIMEOUT);
-    properties.getRetry().setInitialBackoff(Duration.ofMillis(10));
-    properties.getRetry().setMaxBackoff(Duration.ofMillis(25));
   }
 
   @AfterEach
   void tearDown() throws IOException {
     server.shutdown();
+    crumbServer.shutdown();
   }
 
   @Test
-  void shouldReturnQuoteWhenApiResponds() {
+  void shouldReturnQuoteFromYahooQuoteSummary() {
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "c": 123.45,
-                  "d": 1.23,
-                  "dp": 1.01,
-                  "h": 124.00,
-                  "l": 122.50,
-                  "o": 122.80,
-                  "pc": 122.22,
-                  "t": 1726358400
-                }
-                """));
+        jsonResponse(
+            """
+            {
+              "quoteSummary": {
+                "result": [{
+                  "price": {
+                    "symbol": "AAPL",
+                    "shortName": "Apple Inc.",
+                    "regularMarketPrice": {"raw": 189.84},
+                    "regularMarketChangePercent": {"raw": 1.25},
+                    "regularMarketTime": 1700000000,
+                    "marketCap": {"raw": 2950000000000}
+                  }
+                }]
+              }
+            }
+            """));
 
     RealMarketDataProvider provider = provider();
-
     Quote quote = provider.getQuote("AAPL");
 
     assertThat(quote.symbol()).isEqualTo("AAPL");
-    assertThat(quote.price()).isEqualByComparingTo(new BigDecimal("123.45"));
-    assertThat(quote.timestamp()).isEqualTo(Instant.ofEpochSecond(1726358400L));
+    assertThat(quote.price()).isEqualByComparingTo(new BigDecimal("189.84"));
+    assertThat(quote.changePercent()).isEqualByComparingTo(new BigDecimal("1.25"));
+    assertThat(quote.timestamp()).isEqualTo(Instant.ofEpochSecond(1700000000L));
   }
 
   @Test
-  void shouldThrowWhenApiReturnsServerError() {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(500)
-            .addHeader("Content-Type", "application/json")
-            .setBody("{\"error\":\"internal\"}"));
+  void shouldThrowWhenYahooReturnsServerError() {
+    server.enqueue(new MockResponse().setResponseCode(500).setBody("{}"));
 
     RealMarketDataProvider provider = provider();
 
     assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataClientException.class)
-        .hasMessageContaining("Finnhub error");
+        .isInstanceOf(MarketDataClientException.class);
   }
 
   @Test
-  void shouldThrowWhenQuotePriceIsZero() {
-    // Finnhub returns c=0 for unknown or unresolvable symbols
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "c": 0,
-                  "d": 0,
-                  "dp": 0,
-                  "h": 0,
-                  "l": 0,
-                  "o": 0,
-                  "pc": 0,
-                  "t": 0
-                }
-                """));
+  void shouldThrowQuoteNotFoundWhenNoResults() {
+    server.enqueue(jsonResponse("""
+        {"quoteSummary": {"result": []}}
+        """));
 
     RealMarketDataProvider provider = provider();
 
     assertThatThrownBy(() -> provider.getQuote("INVALID"))
-        .isInstanceOf(QuoteNotFoundException.class)
-        .hasMessageContaining("Quote was not found");
+        .isInstanceOf(QuoteNotFoundException.class);
   }
 
   @Test
-  void shouldSurfaceRateLimitOn429Response() {
+  void shouldReturnOverviewFromMultipleModules() {
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(429)
-            .addHeader("Content-Type", "application/json")
-            .setBody("{\"error\":\"API limit reached.\"}"));
+        jsonResponse(
+            """
+            {
+              "quoteSummary": {
+                "result": [{
+                  "price": {
+                    "shortName": "Apple Inc.",
+                    "marketCap": {"raw": 2950000000000}
+                  },
+                  "assetProfile": {
+                    "sector": "Technology",
+                    "industry": "Consumer Electronics"
+                  },
+                  "summaryDetail": {
+                    "trailingPE": {"raw": 29.48},
+                    "dividendYield": {"raw": 0.0055},
+                    "fiftyTwoWeekHigh": {"raw": 199.62},
+                    "fiftyTwoWeekLow": {"raw": 124.17}
+                  },
+                  "defaultKeyStatistics": {
+                    "trailingEps": {"raw": 6.26},
+                    "beta": {"raw": 1.2}
+                  }
+                }]
+              }
+            }
+            """));
 
     RealMarketDataProvider provider = provider();
+    CompanyOverview overview = provider.getOverview("AAPL");
 
-    assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataRateLimitException.class)
-        .hasMessageContaining("rate limit");
+    assertThat(overview.symbol()).isEqualTo("AAPL");
+    assertThat(overview.name()).isEqualTo("Apple Inc.");
+    assertThat(overview.sector()).isEqualTo("Technology");
+    assertThat(overview.industry()).isEqualTo("Consumer Electronics");
+    assertThat(overview.marketCap()).isEqualByComparingTo(new BigDecimal("2950000000000"));
+    assertThat(overview.pe()).isEqualByComparingTo(new BigDecimal("29.48"));
+    assertThat(overview.eps()).isEqualByComparingTo(new BigDecimal("6.26"));
+    assertThat(overview.beta()).isEqualByComparingTo(new BigDecimal("1.2"));
   }
 
   @Test
-  void shouldRetryInProdAndSucceedWhenTransientError() {
-    properties.getRetry().setMaxAttempts(3);
-
-    server.enqueue(new MockResponse().setResponseCode(500).setBody("{}"));
+  void shouldReturnHistoryFromChartEndpoint() {
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "c": 123.45,
-                  "d": 1.23,
-                  "dp": 1.01,
-                  "h": 124.00,
-                  "l": 122.50,
-                  "o": 122.80,
-                  "pc": 122.22,
-                  "t": 1726358400
-                }
-                """));
-
-    RealMarketDataProvider provider = provider("prod");
-
-    Quote quote = provider.getQuote("AAPL");
-
-    assertThat(quote.price()).isEqualByComparingTo(new BigDecimal("123.45"));
-    assertThat(server.getRequestCount()).isEqualTo(2);
-  }
-
-  @Test
-  void shouldNotRetryRateLimitResponsesInProd() {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(429)
-            .addHeader("Content-Type", "application/json")
-            .setBody("{}"));
-
-    RealMarketDataProvider provider = provider("prod");
-
-    assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataRateLimitException.class);
-    assertThat(server.getRequestCount()).isEqualTo(1);
-  }
-
-  @Test
-  void shouldFailAfterConfiguredAttemptsInProd() {
-    properties.getRetry().setMaxAttempts(3);
-
-    server.enqueue(new MockResponse().setResponseCode(500).setBody("{}"));
-    server.enqueue(new MockResponse().setResponseCode(500).setBody("{}"));
-    server.enqueue(new MockResponse().setResponseCode(500).setBody("{}"));
-
-    RealMarketDataProvider provider = provider("prod");
-
-    assertThatThrownBy(() -> provider.getQuote("AAPL"))
-        .isInstanceOf(MarketDataClientException.class)
-        .hasMessageContaining("Finnhub error");
-    assertThat(server.getRequestCount()).isEqualTo(3);
-  }
-
-  @Test
-  void shouldReturnHistoryWhenCandleApiResponds() {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(
-                """
-                {
-                  "c": [150.10, 152.50],
-                  "h": [151.00, 153.00],
-                  "l": [149.00, 151.50],
-                  "o": [149.50, 151.00],
-                  "s": "ok",
-                  "t": [1690848000, 1690934400],
-                  "v": [34000000, 28000000]
-                }
-                """));
+        jsonResponse(
+            """
+            {
+              "chart": {
+                "result": [{
+                  "timestamp": [1690848000, 1690934400],
+                  "indicators": {
+                    "quote": [{
+                      "open": [149.50, 151.00],
+                      "high": [151.00, 153.00],
+                      "low": [149.00, 151.50],
+                      "close": [150.10, 152.50],
+                      "volume": [34000000, 28000000]
+                    }]
+                  }
+                }]
+              }
+            }
+            """));
 
     RealMarketDataProvider provider = provider();
-
-    java.util.List<DailyBar> bars = provider.getDailyHistory("AAPL");
+    List<DailyBar> bars = provider.getDailyHistory("AAPL");
 
     assertThat(bars).hasSize(2);
     assertThat(bars.get(0).close()).isEqualByComparingTo(new BigDecimal("150.1"));
@@ -224,82 +175,59 @@ class RealMarketDataProviderTest {
   }
 
   @Test
-  void shouldThrowWhenCandleStatusIsNoData() {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody("{\"s\":\"no_data\"}"));
+  void shouldReturnEmptyNewsOnRssError() {
+    server.enqueue(new MockResponse().setResponseCode(500).setBody("error"));
 
     RealMarketDataProvider provider = provider();
+    List<NewsArticle> news = provider.getNews("AAPL");
 
-    assertThatThrownBy(() -> provider.getDailyHistory("INVALID"))
-        .isInstanceOf(QuoteNotFoundException.class)
-        .hasMessageContaining("History was not found");
+    assertThat(news).isEmpty();
   }
 
   @Test
-  void shouldReturnOverviewFromProfileAndMetrics() {
-    // Use a dispatcher so concurrent profile2 + metric requests are routed correctly
-    // regardless of which arrives first (Mono.zip fires them in parallel).
-    server.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(RecordedRequest request) {
-            String path = request.getPath();
-            if (path != null && path.contains("/stock/profile2")) {
-              return new MockResponse()
-                  .setResponseCode(200)
-                  .addHeader("Content-Type", "application/json")
-                  .setBody(
-                      """
-                      {
-                        "name": "Apple Inc",
-                        "finnhubIndustry": "Technology",
-                        "marketCapitalization": 3032893.0,
-                        "ticker": "AAPL",
-                        "country": "US"
-                      }
-                      """);
-            } else if (path != null && path.contains("/stock/metric")) {
-              return new MockResponse()
-                  .setResponseCode(200)
-                  .addHeader("Content-Type", "application/json")
-                  .setBody(
-                      """
-                      {
-                        "metric": {
-                          "52WeekHigh": 199.62,
-                          "52WeekLow": 124.17,
-                          "beta": 1.2,
-                          "dividendYieldIndicatedAnnual": 0.0055,
-                          "epsInclExtraItemsTTM": 6.26,
-                          "peTTM": 29.48
-                        }
-                      }
-                      """);
-            }
-            return new MockResponse().setResponseCode(404);
-          }
-        });
+  void shouldParseRssNewsEntries() {
+    String rssXml =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <item>
+              <title>Apple stock rises</title>
+              <link>https://finance.yahoo.com/news/apple-rises</link>
+              <description>Apple Inc shares gained today.</description>
+              <pubDate>Thu, 01 Aug 2024 12:00:00 GMT</pubDate>
+              <guid>https://finance.yahoo.com/news/apple-rises</guid>
+            </item>
+          </channel>
+        </rss>
+        """;
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Content-Type", "application/xml")
+            .setBody(rssXml));
 
     RealMarketDataProvider provider = provider();
+    List<NewsArticle> news = provider.getNews("AAPL");
 
-    CompanyOverview overview = provider.getOverview("AAPL");
-
-    assertThat(overview.symbol()).isEqualTo("AAPL");
-    assertThat(overview.name()).isEqualTo("Apple Inc");
-    assertThat(overview.sector()).isEqualTo("Technology");
-    // marketCap is marketCapitalization (millions) * 1_000_000
-    assertThat(overview.marketCap()).isEqualByComparingTo(new BigDecimal("3032893000000.0"));
-    assertThat(overview.pe()).isEqualByComparingTo(new BigDecimal("29.48"));
-    assertThat(overview.beta()).isEqualByComparingTo(new BigDecimal("1.2"));
+    assertThat(news).hasSize(1);
+    assertThat(news.get(0).headline()).isEqualTo("Apple stock rises");
+    assertThat(news.get(0).source()).isEqualTo("Yahoo Finance");
+    assertThat(news.get(0).url()).isEqualTo("https://finance.yahoo.com/news/apple-rises");
   }
 
-  private RealMarketDataProvider provider(String... activeProfiles) {
-    MockEnvironment environment = new MockEnvironment();
-    environment.setActiveProfiles(activeProfiles);
-    return new RealMarketDataProvider(
-        WebClient.builder(), properties, new MarketDataQuotaTracker(), environment);
+  private RealMarketDataProvider provider() {
+    YahooCrumbProvider stubCrumb = new YahooCrumbProvider(crumbServer.url("/").toString());
+    crumbServer.enqueue(
+        new MockResponse().setResponseCode(200).addHeader("Set-Cookie", "A3=d=test; Path=/"));
+    crumbServer.enqueue(new MockResponse().setResponseCode(200).setBody("test-crumb"));
+    return new RealMarketDataProvider(WebClient.builder(), properties, stubCrumb);
+  }
+
+  private static MockResponse jsonResponse(String body) {
+    return new MockResponse()
+        .setResponseCode(200)
+        .addHeader("Content-Type", "application/json")
+        .setBody(body);
   }
 }

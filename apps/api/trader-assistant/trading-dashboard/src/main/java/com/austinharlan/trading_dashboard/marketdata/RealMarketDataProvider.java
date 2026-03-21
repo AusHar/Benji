@@ -2,28 +2,26 @@ package com.austinharlan.trading_dashboard.marketdata;
 
 import com.austinharlan.trading_dashboard.config.MarketDataProperties;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.rometools.rome.feed.synd.SyndEntry;
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.SyndFeedInput;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -31,33 +29,27 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
-import reactor.util.retry.Retry;
-import reactor.util.retry.RetryBackoffSpec;
 
 @Component
 @Profile("!dev")
 public class RealMarketDataProvider implements MarketDataProvider {
-  private static final Set<String> NULL_MARKERS = Set.of("none", "-", "null", "");
-
   private static final Logger log = LoggerFactory.getLogger(RealMarketDataProvider.class);
+  private static final String USER_AGENT =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
   private final WebClient webClient;
+  private final WebClient rssClient;
   private final MarketDataProperties properties;
-  private final MarketDataQuotaTracker quotaTracker;
-  private final boolean retryEnabled;
-  private final int maxAttempts;
-  private final RetryBackoffSpec baseRetrySpec;
+  private final YahooCrumbProvider crumbProvider;
 
   public RealMarketDataProvider(
       WebClient.Builder builder,
       MarketDataProperties properties,
-      MarketDataQuotaTracker quotaTracker,
-      Environment environment) {
-    this.quotaTracker = Objects.requireNonNull(quotaTracker, "quotaTracker must not be null");
+      YahooCrumbProvider crumbProvider) {
     this.properties = Objects.requireNonNull(properties, "properties must not be null");
-    Objects.requireNonNull(environment, "environment must not be null");
+    this.crumbProvider = Objects.requireNonNull(crumbProvider, "crumbProvider must not be null");
 
     HttpClient httpClient =
         HttpClient.create()
@@ -74,65 +66,77 @@ public class RealMarketDataProvider implements MarketDataProvider {
                             new WriteTimeoutHandler(
                                 properties.getWriteTimeout().toMillis(), TimeUnit.MILLISECONDS)));
 
-    String baseUrl = normalizeBaseUrl(properties.getBaseUrl());
+    String baseUrl = normalizeUrl(properties.getQuery2BaseUrl());
 
     this.webClient =
         builder
             .baseUrl(baseUrl)
             .clientConnector(new ReactorClientHttpConnector(httpClient))
             .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+            .defaultHeader(HttpHeaders.USER_AGENT, USER_AGENT)
             .build();
 
-    this.retryEnabled =
-        Arrays.stream(environment.getActiveProfiles())
-            .anyMatch(profile -> profile.equalsIgnoreCase("prod"));
-    this.maxAttempts = Math.max(1, properties.getRetry().getMaxAttempts());
-
-    this.baseRetrySpec =
-        maxAttempts > 1
-            ? Retry.backoff(maxAttempts - 1, properties.getRetry().getInitialBackoff())
-                .maxBackoff(properties.getRetry().getMaxBackoff())
-                .filter(
-                    throwable ->
-                        throwable instanceof MarketDataClientException
-                            && !(throwable instanceof MarketDataRateLimitException))
-                .onRetryExhaustedThrow((spec, signal) -> propagateFinalFailure(signal.failure()))
-            : null;
+    this.rssClient =
+        WebClient.builder()
+            .baseUrl(normalizeUrl(properties.getYahooRssBaseUrl()))
+            .clientConnector(new ReactorClientHttpConnector(httpClient))
+            .defaultHeader(HttpHeaders.USER_AGENT, USER_AGENT)
+            .build();
   }
 
   @Override
   public Quote getQuote(String symbol) {
     requireSymbol(symbol);
-    quotaTracker.increment();
-    JsonNode response =
-        retrieveEndpoint("/quote", symbol, Map.of()).block(properties.getReadTimeout());
-    return toQuote(symbol, response);
+    JsonNode result = fetchQuoteSummary(symbol, "price");
+    return toQuote(symbol, result);
   }
 
   @Override
   public CompanyOverview getOverview(String symbol) {
     requireSymbol(symbol);
-    // Two concurrent requests — increment quota for each
-    quotaTracker.increment();
-    quotaTracker.increment();
-    Mono<JsonNode> profileMono = retrieveEndpoint("/stock/profile2", symbol, Map.of());
-    Mono<JsonNode> metricMono = retrieveEndpoint("/stock/metric", symbol, Map.of("metric", "all"));
-    return Mono.zip(profileMono, metricMono)
-        .map(tuple -> toOverview(symbol, tuple.getT1(), tuple.getT2()))
-        .block(properties.getReadTimeout());
+    JsonNode result =
+        fetchQuoteSummary(symbol, "price,defaultKeyStatistics,summaryDetail,assetProfile");
+    return toOverview(symbol, result);
   }
 
   @Override
   public List<DailyBar> getDailyHistory(String symbol) {
     requireSymbol(symbol);
-    quotaTracker.increment();
-    long to = Instant.now().getEpochSecond();
-    long from = Instant.now().minus(100, ChronoUnit.DAYS).getEpochSecond();
     JsonNode response =
-        retrieveEndpoint(
-                "/stock/candle",
-                symbol,
-                Map.of("resolution", "D", "from", String.valueOf(from), "to", String.valueOf(to)))
+        webClient
+            .get()
+            .uri("/v8/finance/chart/{symbol}?range=100d&interval=1d", symbol)
+            .retrieve()
+            .onStatus(
+                status -> status.value() == 404,
+                r ->
+                    r.bodyToMono(String.class)
+                        .map(
+                            body ->
+                                new QuoteNotFoundException(
+                                    "History was not found for %s".formatted(symbol))))
+            .onStatus(
+                HttpStatusCode::isError,
+                r ->
+                    r.bodyToMono(String.class)
+                        .defaultIfEmpty("")
+                        .map(
+                            body ->
+                                new MarketDataClientException(
+                                    "Yahoo chart error %s: %s".formatted(r.statusCode(), body))))
+            .bodyToMono(JsonNode.class)
+            .doOnError(
+                ex -> log.warn("Yahoo chart request for {} failed: {}", symbol, ex.getMessage()))
+            .onErrorMap(
+                WebClientResponseException.class,
+                ex ->
+                    new MarketDataClientException(
+                        "Yahoo chart call failed with status %s".formatted(ex.getStatusCode()), ex))
+            .onErrorMap(
+                WebClientRequestException.class,
+                ex ->
+                    new MarketDataClientException(
+                        "Yahoo chart request failed: %s".formatted(ex.getMessage()), ex))
             .block(properties.getReadTimeout());
     return toHistory(symbol, response);
   }
@@ -140,187 +144,177 @@ public class RealMarketDataProvider implements MarketDataProvider {
   @Override
   public List<NewsArticle> getNews(String symbol) {
     requireSymbol(symbol);
-    quotaTracker.increment();
-    java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
-    java.time.LocalDate from = today.minusDays(7);
-    JsonNode response =
-        retrieveEndpoint(
-                "/company-news", symbol, Map.of("from", from.toString(), "to", today.toString()))
-            .block(properties.getReadTimeout());
-    return toNews(response);
+    try {
+      String rssXml =
+          rssClient
+              .get()
+              .uri("/rss/2.0/headline?s={symbol}&region=US&lang=en-US", symbol)
+              .accept(MediaType.APPLICATION_XML, MediaType.TEXT_XML)
+              .retrieve()
+              .bodyToMono(String.class)
+              .block(properties.getReadTimeout());
+
+      if (rssXml == null || rssXml.isBlank()) {
+        return List.of();
+      }
+
+      SyndFeedInput input = new SyndFeedInput();
+      SyndFeed feed = input.build(new StringReader(rssXml));
+      return toNews(feed.getEntries());
+    } catch (Exception ex) {
+      log.warn("Failed to fetch Yahoo news for {}: {}", symbol, ex.getMessage());
+      return List.of();
+    }
   }
 
-  public MarketDataQuotaTracker getQuotaTracker() {
-    return quotaTracker;
+  // ── quoteSummary with crumb ──────────────────────────────────────────────
+
+  private JsonNode fetchQuoteSummary(String symbol, String modules) {
+    try {
+      return doFetchQuoteSummary(symbol, modules);
+    } catch (MarketDataClientException ex) {
+      if (ex.getMessage() != null
+          && (ex.getMessage().contains("401") || ex.getMessage().contains("403"))) {
+        log.info("Crumb rejected, refreshing and retrying for {}", symbol);
+        crumbProvider.invalidate();
+        return doFetchQuoteSummary(symbol, modules);
+      }
+      throw ex;
+    }
   }
 
-  private Mono<JsonNode> retrieveEndpoint(
-      String path, String symbol, Map<String, String> extraParams) {
-    Mono<JsonNode> request =
+  private JsonNode doFetchQuoteSummary(String symbol, String modules) {
+    JsonNode root =
         webClient
             .get()
             .uri(
-                uriBuilder -> {
-                  uriBuilder
-                      .path(path)
-                      .queryParam("symbol", symbol)
-                      .queryParam("token", properties.getApiKey());
-                  extraParams.forEach(uriBuilder::queryParam);
-                  return uriBuilder.build();
-                })
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v10/finance/quoteSummary/{symbol}")
+                        .queryParam("modules", modules)
+                        .queryParam("crumb", crumbProvider.getCrumb())
+                        .build(symbol))
+            .header("Cookie", crumbProvider.getCookie())
             .retrieve()
             .onStatus(
-                status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
-                clientResponse ->
-                    clientResponse
-                        .bodyToMono(String.class)
-                        .defaultIfEmpty("")
+                status -> status.value() == 404,
+                r ->
+                    r.bodyToMono(String.class)
                         .map(
                             body ->
-                                new MarketDataRateLimitException(
-                                    body.isBlank()
-                                        ? "Finnhub rate limit reached"
-                                        : "Finnhub rate limit reached: %s".formatted(body))))
+                                new QuoteNotFoundException(
+                                    "Quote was not found for %s".formatted(symbol))))
             .onStatus(
                 HttpStatusCode::isError,
-                clientResponse ->
-                    clientResponse
-                        .bodyToMono(String.class)
+                r ->
+                    r.bodyToMono(String.class)
                         .defaultIfEmpty("")
                         .map(
                             body ->
                                 new MarketDataClientException(
-                                    "Finnhub error %s: %s"
-                                        .formatted(clientResponse.statusCode(), body))))
+                                    "Yahoo Finance error %s: %s".formatted(r.statusCode(), body))))
             .bodyToMono(JsonNode.class)
-            .doOnSubscribe(sub -> log.debug("Requesting Finnhub {} for {}", path, symbol))
-            .doOnSuccess(body -> log.debug("Received Finnhub {} payload for {}", path, symbol))
+            .doOnSubscribe(sub -> log.debug("Requesting Yahoo quoteSummary for {}", symbol))
             .doOnError(
-                ex ->
-                    log.warn(
-                        "Finnhub {} request for {} failed: {}", path, symbol, ex.getMessage(), ex))
+                ex -> log.warn("Yahoo quoteSummary for {} failed: {}", symbol, ex.getMessage(), ex))
             .onErrorMap(
                 WebClientResponseException.class,
                 ex ->
                     new MarketDataClientException(
-                        "Finnhub call failed with status %s".formatted(ex.getStatusCode()), ex))
+                        "Yahoo call failed with status %s".formatted(ex.getStatusCode()), ex))
             .onErrorMap(
                 WebClientRequestException.class,
                 ex ->
                     new MarketDataClientException(
-                        "Finnhub request failed: %s".formatted(ex.getMessage()), ex));
+                        "Yahoo request failed: %s".formatted(ex.getMessage()), ex))
+            .block(properties.getReadTimeout());
 
-    if (!retryEnabled || baseRetrySpec == null) {
-      return request;
+    if (root == null) {
+      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
 
-    return request.retryWhen(
-        baseRetrySpec.doBeforeRetry(
-            retrySignal ->
-                log.warn(
-                    "Retrying Finnhub {} for {} after attempt {} failed (max {} attempts): {}",
-                    path,
-                    symbol,
-                    retrySignal.totalRetries(),
-                    maxAttempts,
-                    retrySignal.failure().getMessage())));
+    JsonNode result = root.path("quoteSummary").path("result");
+    if (!result.isArray() || result.isEmpty()) {
+      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
+    }
+    return result.get(0);
   }
 
-  private RuntimeException propagateFinalFailure(Throwable failure) {
-    if (failure instanceof RuntimeException runtime) {
-      return runtime;
-    }
-    return new MarketDataClientException("Finnhub retries exhausted", failure);
-  }
+  // ── Quote parsing ────────────────────────────────────────────────────────
 
-  // ── Quote parsing ──────────────────────────────────────────────────────────
-
-  private Quote toQuote(String symbol, JsonNode root) {
-    if (root == null || root.isMissingNode()) {
+  private Quote toQuote(String symbol, JsonNode result) {
+    JsonNode price = result.path("price");
+    BigDecimal marketPrice = rawBigDecimal(price, "regularMarketPrice");
+    if (marketPrice == null || marketPrice.signum() == 0) {
       throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
     }
 
-    JsonNode cNode = root.path("c");
-    if (cNode.isMissingNode() || cNode.isNull()) {
-      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
-    }
-
-    double price = cNode.asDouble(0);
-    if (price == 0) {
-      throw new QuoteNotFoundException("Quote was not found for %s".formatted(symbol));
-    }
-
-    long epochSeconds = root.path("t").asLong(0);
+    BigDecimal changePercent = rawBigDecimal(price, "regularMarketChangePercent");
+    long epochSeconds = price.path("regularMarketTime").asLong(0);
     Instant timestamp = epochSeconds > 0 ? Instant.ofEpochSecond(epochSeconds) : Instant.now();
 
-    JsonNode dpNode = root.path("dp");
-    BigDecimal changePercent =
-        (!dpNode.isMissingNode() && !dpNode.isNull())
-            ? BigDecimal.valueOf(dpNode.asDouble())
-            : null;
-
-    return new Quote(symbol, BigDecimal.valueOf(price), changePercent, timestamp);
+    return new Quote(symbol, marketPrice, changePercent, timestamp);
   }
 
-  // ── Overview parsing ───────────────────────────────────────────────────────
+  // ── Overview parsing ─────────────────────────────────────────────────────
 
-  private CompanyOverview toOverview(String symbol, JsonNode profile, JsonNode metricRoot) {
-    if ((profile == null || profile.isEmpty()) && (metricRoot == null || metricRoot.isEmpty())) {
+  private CompanyOverview toOverview(String symbol, JsonNode result) {
+    JsonNode price = result.path("price");
+    JsonNode stats = result.path("defaultKeyStatistics");
+    JsonNode summary = result.path("summaryDetail");
+    JsonNode profile = result.path("assetProfile");
+
+    String name = safeText(price, "shortName");
+    String sector = safeText(profile, "sector");
+    String industry = safeText(profile, "industry");
+    BigDecimal marketCap = rawBigDecimal(price, "marketCap");
+    BigDecimal pe = rawBigDecimal(summary, "trailingPE");
+    BigDecimal eps = rawBigDecimal(stats, "trailingEps");
+    BigDecimal dividendYield = rawBigDecimal(summary, "dividendYield");
+    BigDecimal beta = rawBigDecimal(stats, "beta");
+    BigDecimal high52 = rawBigDecimal(summary, "fiftyTwoWeekHigh");
+    BigDecimal low52 = rawBigDecimal(summary, "fiftyTwoWeekLow");
+
+    if (name == null && marketCap == null) {
       throw new QuoteNotFoundException("Overview was not found for %s".formatted(symbol));
     }
 
-    String name = safeText(profile, "name");
-    // Finnhub provides a single industry classification via finnhubIndustry
-    String sector = safeText(profile, "finnhubIndustry");
-
-    // marketCapitalization from Finnhub is in millions USD
-    BigDecimal marketCapMillions = safeBigDecimal(profile, "marketCapitalization");
-    BigDecimal marketCap =
-        marketCapMillions != null
-            ? marketCapMillions.multiply(BigDecimal.valueOf(1_000_000))
-            : null;
-
-    JsonNode metric =
-        (metricRoot != null && !metricRoot.isMissingNode()) ? metricRoot.path("metric") : null;
-
-    BigDecimal pe = metric != null ? safeBigDecimal(metric, "peTTM") : null;
-    BigDecimal eps = metric != null ? safeBigDecimal(metric, "epsInclExtraItemsTTM") : null;
-    BigDecimal dividendYield =
-        metric != null ? safeBigDecimal(metric, "dividendYieldIndicatedAnnual") : null;
-    BigDecimal beta = metric != null ? safeBigDecimal(metric, "beta") : null;
-    BigDecimal high52 = metric != null ? safeBigDecimal(metric, "52WeekHigh") : null;
-    BigDecimal low52 = metric != null ? safeBigDecimal(metric, "52WeekLow") : null;
-
     return new CompanyOverview(
-        symbol, name, sector, null, marketCap, pe, eps, dividendYield, beta, high52, low52);
+        symbol, name, sector, industry, marketCap, pe, eps, dividendYield, beta, high52, low52);
   }
 
-  // ── History parsing ────────────────────────────────────────────────────────
+  // ── History parsing ──────────────────────────────────────────────────────
 
   private List<DailyBar> toHistory(String symbol, JsonNode root) {
-    if (root == null || root.isEmpty()) {
+    if (root == null) {
       throw new QuoteNotFoundException("History was not found for %s".formatted(symbol));
     }
 
-    String status = root.path("s").asText("");
-    if (!"ok".equals(status)) {
+    JsonNode results = root.path("chart").path("result");
+    if (!results.isArray() || results.isEmpty()) {
       throw new QuoteNotFoundException("History was not found for %s".formatted(symbol));
     }
 
-    JsonNode closes = root.path("c");
-    JsonNode highs = root.path("h");
-    JsonNode lows = root.path("l");
-    JsonNode opens = root.path("o");
-    JsonNode timestamps = root.path("t");
-    JsonNode volumes = root.path("v");
-
-    if (!closes.isArray() || closes.isEmpty()) {
+    JsonNode first = results.get(0);
+    JsonNode timestamps = first.path("timestamp");
+    JsonNode indicators = first.path("indicators").path("quote");
+    if (!timestamps.isArray() || timestamps.isEmpty() || !indicators.isArray()) {
       throw new QuoteNotFoundException("History was not found for %s".formatted(symbol));
     }
+
+    JsonNode quote = indicators.get(0);
+    JsonNode opens = quote.path("open");
+    JsonNode highs = quote.path("high");
+    JsonNode lows = quote.path("low");
+    JsonNode closes = quote.path("close");
+    JsonNode volumes = quote.path("volume");
 
     List<DailyBar> bars = new ArrayList<>();
-    for (int i = 0; i < closes.size(); i++) {
+    for (int i = 0; i < timestamps.size(); i++) {
       try {
+        if (closes.get(i) == null || closes.get(i).isNull()) {
+          continue;
+        }
         LocalDate date =
             Instant.ofEpochSecond(timestamps.get(i).asLong()).atZone(ZoneOffset.UTC).toLocalDate();
         bars.add(
@@ -332,7 +326,7 @@ public class RealMarketDataProvider implements MarketDataProvider {
                 BigDecimal.valueOf(closes.get(i).asDouble()),
                 volumes.get(i).asLong(0)));
       } catch (Exception ex) {
-        log.warn("Skipping malformed candle entry at index {}", i, ex);
+        log.warn("Skipping malformed chart entry at index {}", i, ex);
       }
     }
 
@@ -340,38 +334,37 @@ public class RealMarketDataProvider implements MarketDataProvider {
     return bars;
   }
 
-  // ── News parsing ───────────────────────────────────────────────────────────
+  // ── News parsing (RSS) ───────────────────────────────────────────────────
 
-  private List<NewsArticle> toNews(JsonNode root) {
-    if (root == null || !root.isArray()) {
+  private List<NewsArticle> toNews(List<SyndEntry> entries) {
+    if (entries == null || entries.isEmpty()) {
       return List.of();
     }
     List<NewsArticle> articles = new ArrayList<>();
-    for (JsonNode item : root) {
+    for (SyndEntry entry : entries) {
       try {
-        long id = item.path("id").asLong(0);
-        String headline = safeText(item, "headline");
-        String summary = safeText(item, "summary");
-        String source = safeText(item, "source");
-        String url = safeText(item, "url");
-        String image = safeText(item, "image");
-        long epochSeconds = item.path("datetime").asLong(0);
+        String link = entry.getLink();
+        String guid = entry.getUri();
+        long id = (guid != null ? guid : link != null ? link : "").hashCode();
+        String headline = entry.getTitle();
+        String summary = entry.getDescription() != null ? entry.getDescription().getValue() : null;
         Instant publishedAt =
-            epochSeconds > 0 ? Instant.ofEpochSecond(epochSeconds) : Instant.now();
-        if (headline != null && url != null) {
-          articles.add(new NewsArticle(id, headline, summary, source, url, image, publishedAt));
+            entry.getPublishedDate() != null ? entry.getPublishedDate().toInstant() : Instant.now();
+        if (headline != null && link != null) {
+          articles.add(
+              new NewsArticle(id, headline, summary, "Yahoo Finance", link, null, publishedAt));
         }
       } catch (Exception ex) {
-        log.warn("Skipping malformed news article", ex);
+        log.warn("Skipping malformed RSS entry", ex);
       }
     }
     return articles.stream()
-        .sorted(java.util.Comparator.comparing(NewsArticle::publishedAt).reversed())
+        .sorted(Comparator.comparing(NewsArticle::publishedAt).reversed())
         .limit(10)
         .toList();
   }
 
-  // ── Shared helpers ─────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
   private void requireSymbol(String symbol) {
     if (symbol == null || symbol.isBlank()) {
@@ -379,48 +372,34 @@ public class RealMarketDataProvider implements MarketDataProvider {
     }
   }
 
-  private static String textValue(JsonNode node, String fieldName) {
-    if (node == null || node.isMissingNode()) {
+  private static BigDecimal rawBigDecimal(JsonNode parent, String field) {
+    JsonNode node = parent.path(field);
+    if (node.isMissingNode() || node.isNull()) {
       return null;
     }
-    JsonNode raw = node.get(fieldName);
-    return raw != null ? raw.asText(null) : null;
-  }
-
-  private static String safeText(JsonNode node, String fieldName) {
-    String val = textValue(node, fieldName);
-    if (val == null || NULL_MARKERS.contains(val.trim().toLowerCase(java.util.Locale.ROOT))) {
-      return null;
-    }
-    return val.trim();
-  }
-
-  private static BigDecimal safeBigDecimal(JsonNode node, String fieldName) {
-    if (node == null || node.isMissingNode()) {
-      return null;
-    }
-    JsonNode raw = node.get(fieldName);
-    if (raw == null || raw.isNull() || raw.isMissingNode()) {
-      return null;
-    }
-    if (raw.isNumber()) {
+    JsonNode raw = node.path("raw");
+    if (!raw.isMissingNode() && !raw.isNull() && raw.isNumber()) {
       return BigDecimal.valueOf(raw.asDouble());
     }
-    String val = raw.asText(null);
-    if (val == null || NULL_MARKERS.contains(val.trim().toLowerCase(java.util.Locale.ROOT))) {
-      return null;
+    if (node.isNumber()) {
+      return BigDecimal.valueOf(node.asDouble());
     }
-    try {
-      return new BigDecimal(val.trim());
-    } catch (NumberFormatException ex) {
-      return null;
-    }
+    return null;
   }
 
-  private static String normalizeBaseUrl(String baseUrl) {
-    if (baseUrl == null) {
-      throw new MarketDataClientException("Base URL must not be null");
+  private static String safeText(JsonNode parent, String field) {
+    JsonNode node = parent.path(field);
+    if (node.isMissingNode() || node.isNull()) {
+      return null;
     }
-    return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    String text = node.asText(null);
+    return (text != null && !text.isBlank()) ? text.trim() : null;
+  }
+
+  private static String normalizeUrl(String url) {
+    if (url == null) {
+      throw new MarketDataClientException("URL must not be null");
+    }
+    return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 }
