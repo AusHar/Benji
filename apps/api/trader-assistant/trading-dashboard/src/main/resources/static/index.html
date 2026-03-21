@@ -1242,7 +1242,7 @@
     if (old) old.remove();
 
     if (!bars || bars.length < 2) {
-      if (msg) { msg.textContent = '— not enough data for this timeframe'; msg.style.display = ''; }
+      if (msg) { msg.textContent = '— intraday data not available · daily bars only'; msg.style.display = ''; }
       return;
     }
     if (msg) msg.style.display = 'none';
