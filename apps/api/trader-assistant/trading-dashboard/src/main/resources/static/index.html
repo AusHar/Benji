@@ -1208,13 +1208,16 @@
     '3m': ['Jan','Feb','Mar 1','Mar 8','Now'],
   };
 
+  // Store history bars per symbol for timeframe switching
+  const _tileHistory = {};
+
   function expandedChartSkeletonHTML(sym) {
     return `<div class="exp-chart">
     <div class="exp-chart-top">
       <div class="tf-toggle">
-        <button class="tf-btn active" onclick="switchTf('${sym}','1d',event)">1D</button>
+        <button class="tf-btn"        onclick="switchTf('${sym}','1d',event)">1D</button>
         <button class="tf-btn"        onclick="switchTf('${sym}','5d',event)">5D</button>
-        <button class="tf-btn"        onclick="switchTf('${sym}','3m',event)">3M</button>
+        <button class="tf-btn active" onclick="switchTf('${sym}','3m',event)">3M</button>
       </div>
     </div>
     <svg class="exp-spark" id="exp-spark-${sym}" viewBox="0 0 240 64" preserveAspectRatio="none">
@@ -1224,11 +1227,76 @@
       <line class="spark-midline" x1="0" y1="32" x2="240" y2="32"
         stroke="rgba(255,255,255,.14)" stroke-width="1" stroke-dasharray="6,6"/>
     </svg>
-    <div class="exp-xaxis" id="exp-xaxis-${sym}">
-      ${TF_LABELS['1d'].map(l => `<span>${l}</span>`).join('')}
-    </div>
-    <div style="text-align:center;margin-top:4px;font-size:9px;color:var(--text-muted)">— chart data unavailable</div>
+    <div class="exp-xaxis" id="exp-xaxis-${sym}"></div>
+    <div class="exp-chart-msg" id="exp-chart-msg-${sym}" style="text-align:center;margin-top:4px;font-size:9px;color:var(--text-muted)">Loading chart…</div>
   </div>`;
+  }
+
+  function drawExpSparkline(sym, bars) {
+    const svg = document.getElementById('exp-spark-' + sym);
+    const msg = document.getElementById('exp-chart-msg-' + sym);
+    if (!svg) return;
+
+    // Remove any existing polyline
+    const old = svg.querySelector('polyline');
+    if (old) old.remove();
+
+    if (!bars || bars.length < 2) {
+      if (msg) { msg.textContent = '— not enough data for this timeframe'; msg.style.display = ''; }
+      return;
+    }
+    if (msg) msg.style.display = 'none';
+
+    const closes = bars.map(b => b.close);
+    const min = Math.min(...closes);
+    const max = Math.max(...closes);
+    const range = max - min || 1;
+    const W = 240, H = 64, pad = 4;
+
+    const points = closes.map((c, i) => {
+      const x = (i / (closes.length - 1)) * W;
+      const y = pad + ((max - c) / range) * (H - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    const color = closes[closes.length - 1] >= closes[0]
+      ? 'rgba(78,221,138,.8)' : 'rgba(240,120,104,.8)';
+
+    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    polyline.setAttribute('points', points);
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', color);
+    polyline.setAttribute('stroke-width', '1.5');
+    polyline.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(polyline);
+  }
+
+  function barsForTimeframe(sym, tf) {
+    const allBars = _tileHistory[sym];
+    if (!allBars?.length) return [];
+    if (tf === '1d') return allBars.slice(-1);
+    if (tf === '5d') return allBars.slice(-5);
+    return allBars; // 3m — use all (~63-100 days)
+  }
+
+  function xaxisLabelsForBars(bars, tf) {
+    if (!bars?.length) return TF_LABELS[tf];
+    if (tf === '1d') {
+      return bars.length ? [bars[0].date] : TF_LABELS['1d'];
+    }
+    // Pick evenly spaced date labels
+    const count = Math.min(5, bars.length);
+    const labels = [];
+    for (let i = 0; i < count; i++) {
+      const idx = Math.round(i * (bars.length - 1) / (count - 1));
+      const d = bars[idx]?.date;
+      if (d) {
+        const parts = d.split('-');
+        const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(parts[1],10)-1];
+        labels.push(mon + ' ' + parseInt(parts[2],10));
+      }
+    }
+    return labels;
   }
 
   /* ── Tile expand/collapse ───────────────── */
@@ -1274,14 +1342,17 @@
 
   function switchTf(sym, tf, e) {
     if (e) e.stopPropagation();
-    const tile = document.getElementById('wl-' + sym);
+    const tile = document.getElementById('wl-' + sym) || document.getElementById('spark-' + sym);
     if (!tile) return;
     tile.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
     const btn = tile.querySelector(`.tf-btn[onclick*="'${tf}'"]`);
     if (btn) btn.classList.add('active');
+
+    const bars = barsForTimeframe(sym, tf);
+    const labels = xaxisLabelsForBars(bars, tf);
     const xaxis = document.getElementById('exp-xaxis-' + sym);
-    if (xaxis) xaxis.innerHTML = TF_LABELS[tf].map(l => `<span>${l}</span>`).join('');
-    // Sparkline path swap will be wired in when real data is available
+    if (xaxis) xaxis.innerHTML = labels.map(l => `<span>${l}</span>`).join('');
+    drawExpSparkline(sym, bars);
   }
 
   async function loadTileDetails(sym) {
@@ -1294,6 +1365,15 @@
     const ov   = overviewRes.status  === 'fulfilled' ? overviewRes.value  : null;
     const hist = historyRes.status   === 'fulfilled' ? historyRes.value   : null;
     const bar  = hist?.bars?.length  ? hist.bars[hist.bars.length - 1]    : null;
+
+    // Store bars for timeframe switching and draw initial 3M chart
+    if (hist?.bars?.length) {
+      _tileHistory[sym] = hist.bars;
+      const bars3m = barsForTimeframe(sym, '3m');
+      drawExpSparkline(sym, bars3m);
+      const xaxis = document.getElementById('exp-xaxis-' + sym);
+      if (xaxis) xaxis.innerHTML = xaxisLabelsForBars(bars3m, '3m').map(l => `<span>${l}</span>`).join('');
+    }
 
     // Format large numbers (market cap, etc.)
     const fmtLarge = n => {
