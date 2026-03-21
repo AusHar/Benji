@@ -13,9 +13,7 @@ class ProdSecretsValidatorTest {
   void runRejectsPlaceholderTradingApiKey() {
     ProdSecretsValidator validator =
         new ProdSecretsValidator(
-            baseEnvironment(),
-            apiSecurityProperties("replace_me"),
-            marketDataProperties("real-marketdata-key"));
+            baseEnvironment(), apiSecurityProperties("replace_me"), marketDataProperties());
 
     assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .isInstanceOf(IllegalStateException.class)
@@ -30,7 +28,7 @@ class ProdSecretsValidatorTest {
 
     ProdSecretsValidator validator =
         new ProdSecretsValidator(
-            environment, apiSecurityProperties("real-api-key"), marketDataProperties("real-key"));
+            environment, apiSecurityProperties("real-api-key"), marketDataProperties());
 
     assertThatThrownBy(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .isInstanceOf(IllegalStateException.class)
@@ -42,9 +40,7 @@ class ProdSecretsValidatorTest {
   void runAllowsRealSecrets() {
     ProdSecretsValidator validator =
         new ProdSecretsValidator(
-            baseEnvironment(),
-            apiSecurityProperties("real-api-key"),
-            marketDataProperties("real-marketdata-key"));
+            baseEnvironment(), apiSecurityProperties("real-api-key"), marketDataProperties());
 
     assertThatCode(() -> validator.run(new DefaultApplicationArguments(new String[0])))
         .doesNotThrowAnyException();
@@ -63,10 +59,10 @@ class ProdSecretsValidatorTest {
     return properties;
   }
 
-  private static MarketDataProperties marketDataProperties(String apiKey) {
+  private static MarketDataProperties marketDataProperties() {
     MarketDataProperties properties = new MarketDataProperties();
-    properties.setBaseUrl("https://finnhub.io/api/v1");
-    properties.setApiKey(apiKey);
+    properties.setQuery2BaseUrl("https://query2.finance.yahoo.com");
+    properties.setYahooRssBaseUrl("https://feeds.finance.yahoo.com");
     return properties;
   }
 }

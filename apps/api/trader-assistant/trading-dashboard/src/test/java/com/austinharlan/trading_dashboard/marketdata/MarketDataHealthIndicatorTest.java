@@ -11,6 +11,7 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
@@ -29,6 +30,13 @@ class MarketDataHealthIndicatorTest {
 
   @Autowired private HealthEndpoint healthEndpoint;
 
+  @Autowired private YahooCrumbProvider crumbProvider;
+
+  @BeforeEach
+  void resetCrumb() {
+    crumbProvider.invalidate();
+  }
+
   @BeforeAll
   static void startServer() throws Exception {
     server = new MockWebServer();
@@ -42,12 +50,12 @@ class MarketDataHealthIndicatorTest {
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("trading.marketdata.base-url", () -> server.url("/").toString());
-    registry.add("trading.marketdata.api-key", () -> "test-key");
+    registry.add("trading.marketdata.query2-base-url", () -> server.url("/").toString());
+    registry.add("trading.marketdata.yahoo-rss-base-url", () -> server.url("/").toString());
     registry.add("trading.marketdata.health-symbol", () -> "AAPL");
     registry.add("trading.marketdata.connect-timeout", () -> "1s");
-    registry.add("trading.marketdata.read-timeout", () -> "1s");
-    registry.add("trading.marketdata.write-timeout", () -> "1s");
+    registry.add("trading.marketdata.read-timeout", () -> "5s");
+    registry.add("trading.marketdata.write-timeout", () -> "5s");
     registry.add("trading.marketdata.health-cache-ttl", () -> "0s");
     registry.add(
         "spring.datasource.url",
@@ -63,6 +71,13 @@ class MarketDataHealthIndicatorTest {
 
   @Test
   void shouldReportUpWhenProviderResponds() {
+    // YahooCrumbProvider needs cookie + crumb first
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Set-Cookie", "A3=d=test; Path=/; Domain=.yahoo.com"));
+    server.enqueue(new MockResponse().setResponseCode(200).setBody("test-crumb"));
+    // Then the quoteSummary response
     server.enqueue(
         new MockResponse()
             .setResponseCode(200)
@@ -70,12 +85,16 @@ class MarketDataHealthIndicatorTest {
             .setBody(
                 """
                 {
-                  "c": 123.45,
-                  "h": 124.00,
-                  "l": 122.00,
-                  "o": 122.50,
-                  "pc": 122.22,
-                  "t": 1727740800
+                  "quoteSummary": {
+                    "result": [{
+                      "price": {
+                        "symbol": "AAPL",
+                        "regularMarketPrice": {"raw": 189.84},
+                        "regularMarketChangePercent": {"raw": 1.25},
+                        "regularMarketTime": 1700000000
+                      }
+                    }]
+                  }
                 }
                 """));
 
@@ -87,7 +106,14 @@ class MarketDataHealthIndicatorTest {
   }
 
   @Test
-  void shouldReportDownWhenProviderFails() {
+  void shouldReportUnknownWhenProviderFails() {
+    // YahooCrumbProvider needs cookie + crumb first
+    server.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .addHeader("Set-Cookie", "A3=d=test; Path=/; Domain=.yahoo.com"));
+    server.enqueue(new MockResponse().setResponseCode(200).setBody("test-crumb"));
+    // Then a server error from Yahoo
     server.enqueue(
         new MockResponse()
             .setResponseCode(500)
@@ -96,16 +122,16 @@ class MarketDataHealthIndicatorTest {
 
     HealthComponent component = healthEndpoint.healthForPath("marketData");
 
-    assertThat(component.getStatus()).isEqualTo(Status.DOWN);
+    assertThat(component.getStatus()).isEqualTo(Status.UNKNOWN);
   }
 
   @Test
   void shouldReuseCachedHealthWithinConfiguredTtl() {
-    MarketDataProperties properties = new MarketDataProperties();
-    properties.setApiKey("ignored");
-    properties.setBaseUrl("http://ignored");
-    properties.setHealthSymbol("SPY");
-    properties.setHealthCacheTtl(Duration.ofMinutes(5));
+    MarketDataProperties props = new MarketDataProperties();
+    props.setQuery2BaseUrl("http://ignored");
+    props.setYahooRssBaseUrl("http://ignored");
+    props.setHealthSymbol("SPY");
+    props.setHealthCacheTtl(Duration.ofMinutes(5));
 
     AtomicInteger calls = new AtomicInteger();
 
@@ -115,7 +141,7 @@ class MarketDataHealthIndicatorTest {
           return new Quote(symbol, BigDecimal.ONE, null, Instant.parse("2024-10-01T00:00:00Z"));
         };
 
-    MarketDataHealthIndicator indicator = new MarketDataHealthIndicator(properties, provider);
+    MarketDataHealthIndicator indicator = new MarketDataHealthIndicator(props, provider);
 
     Health first = indicator.health();
     Health second = indicator.health();

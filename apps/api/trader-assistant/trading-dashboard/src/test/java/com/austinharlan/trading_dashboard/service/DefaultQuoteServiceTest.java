@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.austinharlan.trader.config.CacheConfig;
 import com.austinharlan.trader.config.CacheProperties;
+import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
 import com.austinharlan.trading_dashboard.marketdata.MarketDataProvider;
-import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -49,12 +49,12 @@ class DefaultQuoteServiceTest {
   }
 
   @Test
-  void returnsCachedQuoteWhenRateLimitedDuringRefresh() {
+  void returnsCachedQuoteWhenProviderFailsDuringRefresh() {
     cacheProperties.getQuotes().setTtl(Duration.ZERO);
     Quote quote = new Quote("MSFT", BigDecimal.TEN, null, Instant.parse("2024-02-01T00:00:00Z"));
     when(provider.getQuote("MSFT"))
         .thenReturn(quote)
-        .thenThrow(new MarketDataRateLimitException("Rate limited"));
+        .thenThrow(new MarketDataClientException("Provider error"));
 
     Quote first = quoteService.getCached("MSFT");
     assertThat(first).isEqualTo(quote);

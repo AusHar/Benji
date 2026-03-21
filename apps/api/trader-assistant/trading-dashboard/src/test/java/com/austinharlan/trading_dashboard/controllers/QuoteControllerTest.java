@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.austinharlan.trading_dashboard.marketdata.MarketDataRateLimitException;
+import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import com.austinharlan.trading_dashboard.marketdata.QuoteNotFoundException;
 import com.austinharlan.trading_dashboard.service.QuoteService;
@@ -63,11 +63,11 @@ class QuoteControllerTest {
   @Test
   void getQuotePropagatesProviderFailures() throws Exception {
     when(quoteService.getCached(anyString()))
-        .thenThrow(new MarketDataRateLimitException("AlphaVantage rate limit reached"));
+        .thenThrow(new MarketDataClientException("Yahoo Finance unavailable"));
 
     mockMvc
         .perform(get("/api/quotes/goog"))
-        .andExpect(status().isTooManyRequests())
-        .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        .andExpect(status().isBadGateway())
+        .andExpect(jsonPath("$.code").value("PROVIDER_ERROR"));
   }
 }
