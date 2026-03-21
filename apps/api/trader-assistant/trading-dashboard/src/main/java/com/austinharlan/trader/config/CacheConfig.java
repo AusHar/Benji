@@ -39,7 +39,11 @@ public class CacheConfig {
             buildCache(
                 "news",
                 cacheProperties.getNews().getTtl(),
-                cacheProperties.getNews().getMaximumSize())));
+                cacheProperties.getNews().getMaximumSize()),
+            buildCache(
+                "daily-image",
+                cacheProperties.getDailyImage().getTtl(),
+                cacheProperties.getDailyImage().getMaximumSize())));
     return manager;
   }
 

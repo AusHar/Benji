@@ -300,6 +300,27 @@
     @keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .quote-refresh-btn.spinning svg { animation: spin-once .45s ease; }
 
+    /* ── Daily image widget ─────────────────── */
+    .daily-image-wrap {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; margin-bottom: 18px;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
+    }
+    .daily-image-wrap img {
+      display: block; width: 100%; max-height: 480px; object-fit: cover;
+    }
+    .daily-image-caption {
+      padding: 10px 14px; display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .daily-image-title {
+      font-size: 11px; color: var(--text-mid); font-weight: 400;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%;
+    }
+    .daily-image-label {
+      font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-dim); white-space: nowrap;
+    }
+
     /* ── Portfolio P&L banner ─────────────────── */
     .pnl-banner {
       display: flex; align-items: baseline; gap: 14px;
@@ -944,6 +965,7 @@
             <div class="daily-quote-attr">Warren Buffett</div>
           </div>
         </div>
+        <div id="daily-image-container"></div>
         <div class="chart-wrap" id="port-treemap-wrap" style="display:none">
           <div class="chart-title">Allocation by Market Value</div>
           <canvas id="portTreemap"></canvas>
@@ -1739,11 +1761,27 @@
   document.getElementById('quoteInput').addEventListener('keydown', e => { if (e.key === 'Enter') fetchQuote(); });
 
   /* ── Portfolio ──────────────────────────── */
+  async function loadDailyImage() {
+    try {
+      const data = await get('/api/daily-image');
+      if (!data || !data.url) return;
+      const container = document.getElementById('daily-image-container');
+      container.innerHTML = `<div class="daily-image-wrap">
+        <img src="${data.url}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'">
+        <div class="daily-image-caption">
+          <span class="daily-image-title">${data.title || ''}</span>
+          <span class="daily-image-label">Babe of the Day</span>
+        </div>
+      </div>`;
+    } catch { /* fail silently */ }
+  }
+
   async function loadPortfolio() {
     document.getElementById('pnl-banner-wrap').innerHTML = '';
     document.getElementById('port-stats').innerHTML = '';
     document.getElementById('port-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
     document.getElementById('port-sparks-wrap').style.display = 'none';
+    loadDailyImage();
 
     const [sRes, pRes] = await Promise.allSettled([
       get('/api/portfolio/summary'),
