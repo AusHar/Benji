@@ -300,6 +300,23 @@
     @keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .quote-refresh-btn.spinning svg { animation: spin-once .45s ease; }
 
+    /* ── Portfolio P&L banner ─────────────────── */
+    .pnl-banner {
+      display: flex; align-items: baseline; gap: 14px;
+      padding: 14px 18px; margin-bottom: 18px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
+    }
+    .pnl-banner-label { font-size: 9px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+    .pnl-banner-value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .pnl-banner-value.pos { color: var(--green); text-shadow: 0 0 12px rgba(78,221,138,.25); }
+    .pnl-banner-value.neg { color: var(--red); }
+    .pnl-banner-pct { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+    /* ── Portfolio sparklines header ──────────── */
+    .spark-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .spark-sort-toggle { display: flex; gap: 2px; }
+
     /* ── Portfolio sparklines grid ─────────────── */
     .port-sparks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .spark-tile {
@@ -555,13 +572,6 @@
     .ov-label { font-size: 7.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px; }
     .ov-value { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
 
-    /* ── Quota bar */
-    .quota-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .quota-track { flex: 1; height: 3px; background: var(--bg-card); border-radius: 2px; overflow: hidden; }
-    .quota-fill { height: 100%; background: var(--green); transition: width .3s; }
-    .quota-fill.warn { background: var(--amber); }
-    .quota-fill.crit { background: var(--red); }
-    .quota-label { font-size: 9px; color: var(--text-muted); white-space: nowrap; }
 
     /* ── Rate-limit banner ───────────────────── */
     .rate-limit-banner {
@@ -918,15 +928,12 @@
           <input class="field wide" id="quoteInput" type="text" placeholder="Ticker — AAPL, VOO, MSFT…" maxlength="12" autocomplete="off">
           <button class="btn-primary" id="quoteBtn">Get Quote</button>
         </div>
-        <div class="quota-bar" id="quotaBar" style="display:none">
-          <div class="quota-track"><div class="quota-fill" id="quotaFill" style="width:0%"></div></div>
-          <span class="quota-label" id="quotaLabel"></span>
-        </div>
         <div id="quoteResult"></div>
       </div>
 
       <!-- Portfolio -->
       <div class="page" id="page-portfolio">
+        <div id="pnl-banner-wrap"></div>
         <div class="stat-row" id="port-stats"></div>
         <div class="daily-quote" id="dailyQuote">
           <button class="quote-refresh-btn" id="quoteRefreshBtn" title="New quote" aria-label="New quote">
@@ -945,7 +952,14 @@
           <canvas id="portTreemap"></canvas>
         </div>
         <div class="chart-wrap" id="port-sparks-wrap" style="display:none">
-          <div class="chart-title">3-Month Performance</div>
+          <div class="spark-header">
+            <div class="chart-title" style="margin-bottom:0">3-Month Performance</div>
+            <div class="spark-sort-toggle">
+              <button class="tf-btn active" onclick="sortSparks('alpha')">A–Z</button>
+              <button class="tf-btn" onclick="sortSparks('top')">Top</button>
+              <button class="tf-btn" onclick="sortSparks('bottom')">Bottom</button>
+            </div>
+          </div>
           <div class="port-sparks-grid" id="port-sparks-grid"></div>
         </div>
         <div class="section-head" style="margin-bottom:14px;margin-top:22px">
@@ -1503,23 +1517,6 @@
     loadWatchlistPrices(list);
   }
 
-  /* ── Quota ──────────────────────────────── */
-  async function loadQuota() {
-    try {
-      const q = await get('/api/marketdata/quota');
-      if (!q) return;
-      const { used, daily_limit } = q;
-      const pct = Math.min(100, Math.round((used / daily_limit) * 100));
-      const fill = document.getElementById('quotaFill');
-      const label = document.getElementById('quotaLabel');
-      const bar = document.getElementById('quotaBar');
-      fill.style.width = pct + '%';
-      fill.className = 'quota-fill ' + (pct >= 90 ? 'crit' : pct >= 60 ? 'warn' : '');
-      label.textContent = used + ' / ' + daily_limit + ' this minute';
-      bar.style.display = 'flex';
-    } catch { /* quota endpoint optional — fail silently */ }
-  }
-
   /* ── Quotes ─────────────────────────────── */
   const largeMoney = n => {
     if (n == null) return '--';
@@ -1673,11 +1670,7 @@
       get('/api/quotes/' + sym + '/news'),
     ]);
 
-    // Refresh quota counter after calls complete
-    loadQuota();
-
     let html = '';
-    const rateLimited = [qRes, oRes, hRes, nRes].some(r => r.reason === 429);
 
     // Price card
     if (qRes.status === 'fulfilled' && qRes.value) {
@@ -1694,8 +1687,8 @@
     } else if (qRes.reason === 429) {
       el.innerHTML = `<div class="rate-limit-banner">
         <div class="rl-icon">⏳</div>
-        <div class="rl-title">Daily query limit reached</div>
-        <div class="rl-sub">Provider rate limit reached. Please try again shortly.</div>
+        <div class="rl-title">Rate limit reached</div>
+        <div class="rl-sub">Too many requests. Please try again shortly.</div>
       </div>`;
       return;
     } else {
@@ -1706,34 +1699,26 @@
     // Fundamentals
     if (oRes.status === 'fulfilled' && oRes.value) {
       html += overviewCard(oRes.value);
-    } else if (rateLimited) {
-      html += `<div class="rate-limit-banner" style="margin-top:18px">
-        <div class="rl-icon">⏳</div>
-        <div class="rl-title">Daily query limit reached</div>
-        <div class="rl-sub">Fundamentals and chart data are unavailable until quota resets at midnight UTC.</div>
-      </div>`;
     } else {
       html += `<p style="font-size:12.5px;color:var(--text-muted);margin:12px 0 20px;">Fundamentals not available for this symbol.</p>`;
     }
 
     // Chart
-    if (!rateLimited) {
-      if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
-        html += `<div class="chart-wrap">
-          <div class="chart-title">100-Day Price History</div>
-          <canvas id="priceChart"></canvas>
-        </div>`;
-      }
+    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+      html += `<div class="chart-wrap">
+        <div class="chart-title">100-Day Price History</div>
+        <canvas id="priceChart"></canvas>
+      </div>`;
     }
 
     el.innerHTML = html;
 
-    if (!rateLimited && hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
       requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
     }
 
     // News
-    if (!rateLimited && nRes.status === 'fulfilled' && nRes.value?.articles?.length) {
+    if (nRes.status === 'fulfilled' && nRes.value?.articles?.length) {
       const articles = nRes.value.articles;
       html += `<div class="section-head" style="margin-top:22px;margin-bottom:10px">
         <span class="section-title">Recent News</span>
@@ -1758,6 +1743,7 @@
 
   /* ── Portfolio ──────────────────────────── */
   async function loadPortfolio() {
+    document.getElementById('pnl-banner-wrap').innerHTML = '';
     document.getElementById('port-stats').innerHTML = '';
     document.getElementById('port-table').innerHTML = '<div class="state-box"><span class="spinner"></span></div>';
     document.getElementById('port-sparks-wrap').style.display = 'none';
@@ -1807,6 +1793,17 @@
       if (hasPrices) cards.push(statCard('Unrealized P&L', pnlVal, pnlCls, '', null));
     }
     document.getElementById('port-stats').innerHTML = cards.join('');
+
+    // P&L banner
+    if (hasPrices && totalPnl != null) {
+      const pnlBannerCls = totalPnl >= 0 ? 'pos' : 'neg';
+      const pnlSign = totalPnl >= 0 ? '+' : '';
+      const pnlPctStr = totalPnlPct != null ? ` <span class="pnl-banner-pct">${pnlSign}${(totalPnlPct * 100).toFixed(2)}%</span>` : '';
+      document.getElementById('pnl-banner-wrap').innerHTML = `<div class="pnl-banner">
+        <div><div class="pnl-banner-label">Unrealized P&L</div></div>
+        <div class="pnl-banner-value ${pnlBannerCls}">${pnlSign}${money(totalPnl)}${pnlPctStr}</div>
+      </div>`;
+    }
 
     if (!positions?.length) {
       document.getElementById('port-treemap-wrap').style.display = 'none';
@@ -2705,11 +2702,13 @@
     ctx.strokeStyle = lineCol; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
   }
 
+  let _sparkTiles = [];
+  let _sparkSort = 'alpha';
+
   function drawPortfolioSparks(positions, historyMap) {
     const wrap = document.getElementById('port-sparks-wrap');
-    const grid = document.getElementById('port-sparks-grid');
 
-    const tiles = positions
+    _sparkTiles = positions
       .filter(p => historyMap[p.ticker]?.bars?.length > 1)
       .map(p => {
         const bars  = historyMap[p.ticker].bars;
@@ -2721,9 +2720,20 @@
         return { ticker: p.ticker, bars, pct, cls, sign };
       });
 
-    if (!tiles.length) { wrap.style.display = 'none'; return; }
+    if (!_sparkTiles.length) { wrap.style.display = 'none'; return; }
 
-    grid.innerHTML = tiles.map(t =>
+    wrap.style.display = 'block';
+    renderSparkTiles();
+  }
+
+  function renderSparkTiles() {
+    const grid = document.getElementById('port-sparks-grid');
+    const sorted = [..._sparkTiles];
+    if (_sparkSort === 'top')         sorted.sort((a, b) => b.pct - a.pct);
+    else if (_sparkSort === 'bottom') sorted.sort((a, b) => a.pct - b.pct);
+    else                              sorted.sort((a, b) => a.ticker.localeCompare(b.ticker));
+
+    grid.innerHTML = sorted.map(t =>
       `<div class="spark-tile" id="spark-${t.ticker}" onclick="toggleSparkTile('${t.ticker}',event)">
         <button class="exp-close" onclick="toggleSparkTile('${t.ticker}',event)" style="display:none">✕</button>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
@@ -2735,13 +2745,21 @@
       </div>`
     ).join('');
 
-    wrap.style.display = 'block';
     requestAnimationFrame(() => {
-      tiles.forEach(t => {
+      sorted.forEach(t => {
         const cv = document.getElementById('pspark-' + t.ticker);
         if (cv) drawPortSpark(cv, t.bars);
       });
     });
+  }
+
+  function sortSparks(mode) {
+    _sparkSort = mode;
+    // Update active button
+    document.querySelectorAll('.spark-sort-toggle .tf-btn').forEach(b => b.classList.remove('active'));
+    const btn = [...document.querySelectorAll('.spark-sort-toggle .tf-btn')].find(b => b.textContent.trim() === (mode === 'alpha' ? 'A–Z' : mode === 'top' ? 'Top' : 'Bottom'));
+    if (btn) btn.classList.add('active');
+    if (_sparkTiles.length) renderSparkTiles();
   }
 
   function toggleSparkTile(sym, e) {
