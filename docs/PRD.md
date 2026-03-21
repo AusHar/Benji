@@ -23,7 +23,7 @@
 +
 +### 4.1 Quote Intelligence
 +- Retrieve quotes by ticker symbol with aggregated metrics (price, volume, Greeks, basic financials, sentiment).
-+- Support multiple upstream providers with failover and rate-limit handling.
++- Support upstream provider abstraction with caching and graceful degradation.
 +- Cache frequent lookups with configurable TTL; expose freshness metadata to clients.
 +- Log provider latency and errors for observability.
 +
@@ -58,7 +58,7 @@
 +
 +### Phase 1 – Data Depth (Complete)
 +- OpenAPI contract for quotes, portfolio, and finance modules.
-+- Finnhub provider integration with rate limiting and quota tracking.
++- Yahoo Finance provider integration with cookie/crumb authentication.
 +- Persistence models and Flyway migrations for portfolio/finance data.
 +
 +### Phase 2 – Dashboard MVP (Complete)
@@ -67,18 +67,18 @@
 +- API key auth enforcement, actuator credentials, and production deployment on AWS Lightsail.
 +
 +### Phase 3 – Production Hardening (Current)
-+- Live sparkline data (1D/5D/3M candle history via Finnhub).
++- Live sparkline data (1D/5D/3M candle history via Yahoo Finance).
 +- News feed per ticker in expanded watchlist tiles.
 +- Monitoring/alerting, synthetic checks, and disaster recovery plan.
 +
 +## 6. Dependencies & Assumptions
-+- External market data from Finnhub (primary); secondary provider TBD.
++- External market data from Yahoo Finance (no API key required).
 +- Postgres database available for persistence; Testcontainers for integration testing.
 +- AWS Lightsail instance provisioned; CI deploys via rsync + systemd.
 +- UI: single-file SPA served from the JAR, currently shipped.
 +
 +## 7. Risks & Mitigations
-+- **Provider rate limits:** Use caching, exponential backoff, and alternate providers.
++- **Provider availability:** Use caching and graceful degradation when Yahoo Finance is unreachable.
 +- **Data accuracy:** Validate ingestion pipelines, add reconciliation jobs against broker balances.
 +- **Security gaps:** Enforce API keys in prod, rotate secrets, and audit access logs.
 +- **Operational drift:** Maintain runbook, automated smoke tests, and infrastructure-as-code to reduce manual variance.

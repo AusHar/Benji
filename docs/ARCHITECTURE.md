@@ -11,9 +11,9 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 - **API Layer (Controllers):** `com.austinharlan.trading_dashboard.controllers`
   - REST endpoints (Spring MVC) returning JSON DTOs.
 - **Service Layer:** `com.austinharlan.trading_dashboard.service`
-  - Orchestrates flows, caching, validation, rate limiting.
+  - Orchestrates flows, caching, and validation.
 - **Providers (Market Data):** `com.austinharlan.trading_dashboard.marketdata`
-  - `MarketDataProvider` interface with `FakeMarketDataProvider` (dev) and `RealMarketDataProvider` (non-dev, Finnhub-backed).
+  - `MarketDataProvider` interface with `FakeMarketDataProvider` (dev) and `RealMarketDataProvider` (non-dev, Yahoo Finance). `YahooCrumbProvider` manages cookie/crumb authentication.
 - **Persistence (optional v0):** `com.austinharlan.trading_dashboard.persistence`
   - Spring Data JPA repositories + Flyway migrations (`src/main/resources/db/migration`).
 - **Config:** `com.austinharlan.trading_dashboard.config`
@@ -39,7 +39,7 @@ The **Trading Dashboard** is a Spring Boot API that serves quotes, portfolio dat
 
 ## Caching & Limits
 - **Cache:** Caffeine with per-cache TTLs: quotes (30s), overviews (4h), history (1h), news (15m).
-- **Rate Limits:** `MarketDataQuotaTracker` tracks Finnhub calls in a per-minute rolling window (60 calls/min free tier). Usage exposed at `/api/marketdata/quota`. Health indicator returns `UNKNOWN` (HTTP 200) instead of `DOWN` when the quota is exhausted.
+- **Upstream Availability:** Yahoo Finance is unauthenticated (no API key). Health indicator returns `UNKNOWN` (HTTP 200) when Yahoo Finance is temporarily unreachable, and `DOWN` only on unexpected application errors.
 
 ## Security
 - Secrets in systemd service environment; no secrets in code or repo.
@@ -66,7 +66,7 @@ flowchart LR
   end
   subgraph Prod
     App2[Boot App - Lightsail] --> CloudDB[(Managed Postgres)]
-    App2 --> MarketAPIs[Finnhub]
+    App2 --> MarketAPIs[Yahoo Finance]
   end
 
 sequenceDiagram
