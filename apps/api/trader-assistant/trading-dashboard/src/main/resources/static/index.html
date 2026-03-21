@@ -735,9 +735,9 @@
     .j-save-btn:hover { background: rgba(78,221,138,.2); }
 
     /* Past entry dimming */
-    .j-card.age-1 { opacity: .55; }
-    .j-card.age-2 { opacity: .28; }
-    .j-card.age-old { opacity: .18; }
+    .j-card:not(.today) { cursor: pointer; opacity: .7; transition: opacity .2s, border-color .2s, box-shadow .3s; }
+    .j-card:not(.today):hover { opacity: .85; border-color: rgba(78,221,138,.30); }
+    .j-card:not(.today).selected { opacity: 1; border-color: rgba(78,221,138,.45); box-shadow: 0 0 12px rgba(78,221,138,.12); }
 
     /* Neon tokens */
     .neon-t-0  { color: #4edd8a; text-shadow: 0 0 8px rgba(78,221,138,.6); }
@@ -2234,16 +2234,15 @@
 
   function renderPastEntries(entries) {
     if (entries.length === 0) return '';
-    return entries.map((e, idx) => renderPastCard(e, idx)).join('');
+    return entries.map(e => renderPastCard(e)).join('');
   }
 
-  function renderPastCard(entry, idx) {
-    const ageClass = idx === 0 ? 'age-1' : idx === 1 ? 'age-2' : 'age-old';
+  function renderPastCard(entry) {
     const date = new Date(entry.entry_date + 'T00:00:00');
     const label = date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     const tokens = [...entry.tickers.map(t=>'$'+t), ...entry.tags.map(t=>'#'+t)];
     return `
-      <div class="j-card ${ageClass}">
+      <div class="j-card" onclick="togglePastCard(this)">
         <div class="j-card-head">
           <span class="j-card-date">${label}</span>
         </div>
@@ -2252,6 +2251,12 @@
           <div class="j-pills">${renderPills(tokens)}</div>
         </div>
       </div>`;
+  }
+
+  function togglePastCard(card) {
+    const wasSelected = card.classList.contains('selected');
+    document.querySelectorAll('.j-card.selected').forEach(c => c.classList.remove('selected'));
+    if (!wasSelected) card.classList.add('selected');
   }
 
   function applyJournalFilter(token) {
@@ -2279,7 +2284,7 @@
       </div>`;
     const feed = document.getElementById('j-feed');
     feed.innerHTML = renderTodayEditor(null) + banner +
-      filtered.map((e, i) => renderPastCard(e, i)).join('');
+      filtered.map(e => renderPastCard(e)).join('');
     attachJournalHandlers();
   }
 
