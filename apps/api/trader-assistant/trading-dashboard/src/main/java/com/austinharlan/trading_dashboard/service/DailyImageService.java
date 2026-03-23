@@ -94,7 +94,7 @@ public class DailyImageService {
     }
   }
 
-  public Map<String, Object> debugFetch() {
+  public Map<String, String> debugFetch() {
     try {
       HttpRequest request =
           HttpRequest.newBuilder()
@@ -113,13 +113,16 @@ public class DailyImageService {
       String contentType = response.headers().firstValue("content-type").orElse("unknown");
 
       return Map.of(
-          "status", response.statusCode(),
-          "contentType", contentType,
-          "bodyLength", body.length(),
-          "bodyPreview", preview,
-          "candidates", fetchImagePosts().size());
+          "status",
+          String.valueOf(response.statusCode()),
+          "contentType",
+          contentType,
+          "bodyLength",
+          String.valueOf(body.length()),
+          "bodyPreview",
+          preview);
     } catch (Exception e) {
-      return Map.of("error", e.getMessage());
+      return Map.of("error", e.getClass().getName() + ": " + e.getMessage());
     }
   }
 
