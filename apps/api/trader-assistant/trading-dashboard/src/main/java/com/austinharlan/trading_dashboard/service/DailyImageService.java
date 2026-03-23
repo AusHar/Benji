@@ -28,7 +28,11 @@ public class DailyImageService {
 
   public DailyImageService(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
-    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    this.httpClient =
+        HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
   }
 
   public record DailyImage(String url, String title, String author) {}
@@ -49,6 +53,7 @@ public class DailyImageService {
           HttpRequest.newBuilder()
               .uri(URI.create(REDDIT_URL))
               .header("User-Agent", "Benji/1.0 (trading-dashboard)")
+              .header("Cookie", "over18=1")
               .timeout(Duration.ofSeconds(15))
               .GET()
               .build();
@@ -57,12 +62,16 @@ public class DailyImageService {
           httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() != 200) {
-        log.warn("Reddit returned status {}", response.statusCode());
+        log.warn(
+            "Reddit returned status {}, body preview: {}",
+            response.statusCode(),
+            response.body().substring(0, Math.min(200, response.body().length())));
         return List.of();
       }
 
       JsonNode root = objectMapper.readTree(response.body());
       JsonNode children = root.path("data").path("children");
+      log.info("Reddit returned {} children", children.size());
 
       List<DailyImage> images = new ArrayList<>();
       for (JsonNode child : children) {
