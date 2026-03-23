@@ -10,7 +10,6 @@ public class CacheProperties {
   private final Overview overview = new Overview();
   private final History history = new History();
   private final News news = new News();
-  private final DailyImage dailyImage = new DailyImage();
 
   public Quotes getQuotes() {
     return quotes;
@@ -26,10 +25,6 @@ public class CacheProperties {
 
   public News getNews() {
     return news;
-  }
-
-  public DailyImage getDailyImage() {
-    return dailyImage;
   }
 
   public static class Quotes {
@@ -113,27 +108,6 @@ public class CacheProperties {
 
     public void setMaximumSize(long maximumSize) {
       this.maximumSize = maximumSize > 0 ? maximumSize : 256;
-    }
-  }
-
-  public static class DailyImage {
-    private Duration ttl = Duration.ofHours(24);
-    private long maximumSize = 1;
-
-    public Duration getTtl() {
-      return ttl;
-    }
-
-    public void setTtl(Duration ttl) {
-      this.ttl = ttl == null ? Duration.ofHours(24) : ttl;
-    }
-
-    public long getMaximumSize() {
-      return maximumSize;
-    }
-
-    public void setMaximumSize(long maximumSize) {
-      this.maximumSize = maximumSize > 0 ? maximumSize : 1;
     }
   }
 }
