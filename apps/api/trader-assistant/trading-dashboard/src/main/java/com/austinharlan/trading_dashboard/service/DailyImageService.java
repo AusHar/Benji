@@ -37,7 +37,7 @@ public class DailyImageService {
 
   public record DailyImage(String url, String title, String author) {}
 
-  @Cacheable("daily-image")
+  @Cacheable(value = "daily-image", unless = "#result == null")
   public DailyImage getImageOfTheDay() {
     List<DailyImage> candidates = fetchImagePosts();
     if (candidates.isEmpty()) {
