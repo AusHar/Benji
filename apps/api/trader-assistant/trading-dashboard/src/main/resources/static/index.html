@@ -952,7 +952,7 @@
           <div class="daily-quote-mark">&ldquo;</div>
           <div>
             <div class="daily-quote-text" id="dailyQuoteText"></div>
-            <div class="daily-quote-attr">Warren Buffett</div>
+            <div class="daily-quote-attr" id="dailyQuoteAttr">Warren Buffett</div>
           </div>
         </div>
         <div class="chart-wrap" id="port-treemap-wrap" style="display:none">
@@ -2875,43 +2875,108 @@
   }
 
   /* ── Daily Buffett quote ─────────────────── */
-  const BUFFETT_QUOTES = [
-    "Rule No. 1: Never lose money. Rule No. 2: Never forget Rule No. 1.",
-    "Price is what you pay. Value is what you get.",
-    "It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",
-    "The stock market is a device for transferring money from the impatient to the patient.",
-    "Risk comes from not knowing what you're doing.",
-    "Be fearful when others are greedy and greedy when others are fearful.",
-    "Our favorite holding period is forever.",
-    "Someone's sitting in the shade today because someone planted a tree a long time ago.",
-    "The best investment you can make is in yourself.",
-    "It takes 20 years to build a reputation and five minutes to ruin it.",
-    "I never attempt to make money on the stock market. I buy on the assumption that they could close the market the next day and not reopen it for five years.",
-    "Wide diversification is only required when investors do not understand what they are doing.",
-    "Only buy something that you'd be perfectly happy to hold if the market shut down for ten years.",
-    "In the short run, the market is a voting machine. In the long run, it is a weighing machine.",
-    "The most important quality for an investor is temperament, not intellect.",
-    "Time is the friend of the wonderful company, the enemy of the mediocre.",
-    "If you aren't willing to own a stock for ten years, don't even think about owning it for ten minutes.",
-    "Opportunities come infrequently. When it rains gold, put out the bucket, not the thimble.",
-    "The difference between successful people and really successful people is that really successful people say no to almost everything.",
-    "I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.",
-    "Chains of habit are too light to be felt until they are too heavy to be broken.",
-    "You only have to do a very few things right in your life so long as you don't do too many things wrong.",
-    "It's not necessary to do extraordinary things to get extraordinary results.",
-    "We don't have to be smarter than the rest; we have to be more disciplined than the rest.",
-    "The investor of today does not profit from yesterday's growth.",
-    "Never invest in a business you cannot understand.",
-    "Forecasts may tell you a great deal about the forecaster; they tell you nothing about the future.",
-    "You do things when the opportunities come along. I've had periods in my life when I've had a bundle of ideas come along, and I've had long dry spells.",
-    "Diversification is a protection against ignorance. It makes little sense for those who know what they're doing.",
-    "The most important thing to do if you find yourself in a hole is to stop digging.",
+  const INVEST_QUOTES = [
+    // Warren Buffett
+    ["Rule No. 1: Never lose money. Rule No. 2: Never forget Rule No. 1.", "Warren Buffett"],
+    ["Price is what you pay. Value is what you get.", "Warren Buffett"],
+    ["It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price.", "Warren Buffett"],
+    ["The stock market is a device for transferring money from the impatient to the patient.", "Warren Buffett"],
+    ["Risk comes from not knowing what you're doing.", "Warren Buffett"],
+    ["Be fearful when others are greedy and greedy when others are fearful.", "Warren Buffett"],
+    ["Our favorite holding period is forever.", "Warren Buffett"],
+    ["Someone's sitting in the shade today because someone planted a tree a long time ago.", "Warren Buffett"],
+    ["The best investment you can make is in yourself.", "Warren Buffett"],
+    ["It takes 20 years to build a reputation and five minutes to ruin it.", "Warren Buffett"],
+    ["I never attempt to make money on the stock market. I buy on the assumption that they could close the market the next day and not reopen it for five years.", "Warren Buffett"],
+    ["Wide diversification is only required when investors do not understand what they are doing.", "Warren Buffett"],
+    ["Only buy something that you'd be perfectly happy to hold if the market shut down for ten years.", "Warren Buffett"],
+    ["In the short run, the market is a voting machine. In the long run, it is a weighing machine.", "Warren Buffett"],
+    ["The most important quality for an investor is temperament, not intellect.", "Warren Buffett"],
+    ["Time is the friend of the wonderful company, the enemy of the mediocre.", "Warren Buffett"],
+    ["If you aren't willing to own a stock for ten years, don't even think about owning it for ten minutes.", "Warren Buffett"],
+    ["Opportunities come infrequently. When it rains gold, put out the bucket, not the thimble.", "Warren Buffett"],
+    ["The difference between successful people and really successful people is that really successful people say no to almost everything.", "Warren Buffett"],
+    ["I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.", "Warren Buffett"],
+    ["Chains of habit are too light to be felt until they are too heavy to be broken.", "Warren Buffett"],
+    ["You only have to do a very few things right in your life so long as you don't do too many things wrong.", "Warren Buffett"],
+    ["It's not necessary to do extraordinary things to get extraordinary results.", "Warren Buffett"],
+    ["We don't have to be smarter than the rest; we have to be more disciplined than the rest.", "Warren Buffett"],
+    ["The investor of today does not profit from yesterday's growth.", "Warren Buffett"],
+    ["Never invest in a business you cannot understand.", "Warren Buffett"],
+    ["Forecasts may tell you a great deal about the forecaster; they tell you nothing about the future.", "Warren Buffett"],
+    ["Diversification is a protection against ignorance. It makes little sense for those who know what they're doing.", "Warren Buffett"],
+    ["The most important thing to do if you find yourself in a hole is to stop digging.", "Warren Buffett"],
+    // Charlie Munger
+    ["The big money is not in the buying and selling, but in the waiting.", "Charlie Munger"],
+    ["Spend each day trying to be a little wiser than you were when you woke up.", "Charlie Munger"],
+    ["Knowing what you don't know is more useful than being brilliant.", "Charlie Munger"],
+    ["It is remarkable how much long-term advantage people like us have gotten by trying to be consistently not stupid.", "Charlie Munger"],
+    ["Opportunity comes to the prepared mind.", "Charlie Munger"],
+    // Peter Lynch
+    ["Know what you own, and know why you own it.", "Peter Lynch"],
+    ["The key to making money in stocks is not to get scared out of them.", "Peter Lynch"],
+    ["Behind every stock is a company. Find out what it's doing.", "Peter Lynch"],
+    ["In the long run, the stock market rewards companies, not stocks.", "Peter Lynch"],
+    ["Time is on your side when you own shares of superior companies.", "Peter Lynch"],
+    // Benjamin Graham
+    ["The investor's chief problem\u2014and even his worst enemy\u2014is likely to be himself.", "Benjamin Graham"],
+    ["Price is what you pay; value is what you get.", "Benjamin Graham"],
+    ["The intelligent investor is a realist who sells to optimists and buys from pessimists.", "Benjamin Graham"],
+    ["The stock market is a voting machine in the short run and a weighing machine in the long run.", "Benjamin Graham"],
+    ["Investment is most intelligent when it is most businesslike.", "Benjamin Graham"],
+    // Ray Dalio
+    ["He who lives by the crystal ball will eat shattered glass.", "Ray Dalio"],
+    ["Pain + reflection = progress.", "Ray Dalio"],
+    ["Don't let pain stand in the way of progress.", "Ray Dalio"],
+    ["The biggest mistake investors make is believing that what happened in the recent past is likely to persist.", "Ray Dalio"],
+    ["Diversification is the most important thing you need to do in order to invest well.", "Ray Dalio"],
+    // Cathie Wood
+    ["Innovation solves problems.", "Cathie Wood"],
+    ["Disruptive innovation creates opportunities for outsized returns.", "Cathie Wood"],
+    ["We believe innovation is key to growth.", "Cathie Wood"],
+    ["The biggest risk is not taking any risk.", "Cathie Wood"],
+    ["Volatility is often a sign of opportunity.", "Cathie Wood"],
+    // Howard Marks
+    ["You can't predict. You can prepare.", "Howard Marks"],
+    ["Most things will prove to be cyclical.", "Howard Marks"],
+    ["Risk means more things can happen than will happen.", "Howard Marks"],
+    ["The key to investing is value.", "Howard Marks"],
+    ["Being too far ahead of your time is indistinguishable from being wrong.", "Howard Marks"],
+    // George Soros
+    ["It's not whether you're right or wrong, but how much money you make when you're right and how much you lose when you're wrong.", "George Soros"],
+    ["Financial markets are generally unpredictable.", "George Soros"],
+    ["The worse a situation becomes, the less it takes to turn it around.", "George Soros"],
+    ["Markets are constantly in a state of uncertainty and flux.", "George Soros"],
+    ["I'm only rich because I know when I'm wrong.", "George Soros"],
+    // John Templeton
+    ["The four most dangerous words in investing are: 'this time it's different.'", "John Templeton"],
+    ["Bull markets are born on pessimism, grow on skepticism, mature on optimism, and die on euphoria.", "John Templeton"],
+    ["The time of maximum pessimism is the best time to buy.", "John Templeton"],
+    ["Invest at the point of maximum pessimism.", "John Templeton"],
+    ["If you want to have a better performance than the crowd, you must do things differently from the crowd.", "John Templeton"],
+    // Joel Greenblatt
+    ["The secret to investing is simple, but not easy.", "Joel Greenblatt"],
+    ["Good investing is about buying good businesses at bargain prices.", "Joel Greenblatt"],
+    ["Value investing works.", "Joel Greenblatt"],
+    ["You don't need to be a genius to be a good investor.", "Joel Greenblatt"],
+    ["The market eventually gets it right.", "Joel Greenblatt"],
+    // Michael Burry
+    ["If you're going to be a great investor, you have to fit the style to who you are.", "Michael Burry"],
+    ["I try to buy shares of unpopular companies when they look like road kill.", "Michael Burry"],
+    ["The best way to achieve long-term returns is to avoid losses.", "Michael Burry"],
+    ["People always ask me what will happen next. The truth is, I don't know.", "Michael Burry"],
+    ["Investing is simple, but not easy.", "Michael Burry"],
   ];
 
-  let _quoteIndex = Math.floor(Date.now() / 86_400_000) % BUFFETT_QUOTES.length;
+  let _quoteIndex = Math.floor(Date.now() / 86_400_000) % INVEST_QUOTES.length;
+
+  function setQuote(index) {
+    document.getElementById('dailyQuoteText').textContent = INVEST_QUOTES[index][0];
+    document.getElementById('dailyQuoteAttr').textContent = INVEST_QUOTES[index][1];
+  }
 
   function initDailyQuote() {
-    document.getElementById('dailyQuoteText').textContent = BUFFETT_QUOTES[_quoteIndex];
+    setQuote(_quoteIndex);
     document.getElementById('quoteRefreshBtn').addEventListener('click', refreshQuote);
   }
 
@@ -2925,9 +2990,9 @@
     textEl.style.opacity = '0';
     setTimeout(() => {
       let next;
-      do { next = Math.floor(Math.random() * BUFFETT_QUOTES.length); } while (next === _quoteIndex);
+      do { next = Math.floor(Math.random() * INVEST_QUOTES.length); } while (next === _quoteIndex);
       _quoteIndex = next;
-      textEl.textContent = BUFFETT_QUOTES[_quoteIndex];
+      setQuote(_quoteIndex);
       requestAnimationFrame(() => { textEl.style.opacity = '1'; });
     }, 250);
   }
