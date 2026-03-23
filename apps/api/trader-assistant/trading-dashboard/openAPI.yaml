@@ -499,6 +499,173 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JournalStatsResponse'
+
+  /api/trades:
+    get:
+      tags:
+        - Trades
+      operationId: listTrades
+      summary: List all trades with optional filters.
+      parameters:
+        - name: ticker
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: side
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [BUY, SELL]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of trades.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeListResponse'
+    post:
+      tags:
+        - Trades
+      operationId: logTrade
+      summary: Log a new trade.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogTradeRequest'
+      responses:
+        '201':
+          description: Trade logged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trade'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/trades/{id}:
+    get:
+      tags:
+        - Trades
+      operationId: getTrade
+      summary: Get a single trade by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Trade details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trade'
+        '404':
+          description: Trade not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Trades
+      operationId: deleteTrade
+      summary: Delete a trade.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Trade deleted.
+        '404':
+          description: Trade not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/trades/stats:
+    get:
+      tags:
+        - Trades
+      operationId: getTradeStats
+      summary: Aggregated trade performance stats.
+      responses:
+        '200':
+          description: Trade stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeStats'
+
+  /api/trades/closed:
+    get:
+      tags:
+        - Trades
+      operationId: listClosedTrades
+      summary: FIFO-matched closed trades with P&L.
+      responses:
+        '200':
+          description: Closed trades.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClosedTradeListResponse'
+
+  /api/trades/pnl-history:
+    get:
+      tags:
+        - Trades
+      operationId: getPnlHistory
+      summary: Cumulative P&L over time.
+      responses:
+        '200':
+          description: P&L history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PnlHistoryResponse'
+
+  /api/trades/calendar:
+    get:
+      tags:
+        - Trades
+      operationId: getTradeCalendar
+      summary: Daily P&L by date for calendar heatmap.
+      responses:
+        '200':
+          description: Trade calendar.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeCalendarResponse'
+
 components:
   schemas:
     QuotesIndex:
@@ -1030,6 +1197,187 @@ components:
           example: '$NVDA'
         count:
           type: integer
+
+    LogTradeRequest:
+      type: object
+      required: [ticker, side, quantity, pricePerShare]
+      properties:
+        ticker:
+          type: string
+          minLength: 1
+          maxLength: 12
+        side:
+          type: string
+          enum: [BUY, SELL]
+        quantity:
+          type: number
+          format: double
+          minimum: 0.0001
+        pricePerShare:
+          type: number
+          format: double
+          minimum: 0.0001
+        tradeDate:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        ticker:
+          type: string
+        side:
+          type: string
+          enum: [BUY, SELL]
+        quantity:
+          type: number
+          format: double
+        pricePerShare:
+          type: number
+          format: double
+        tradeDate:
+          type: string
+          format: date
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    TradeListResponse:
+      type: object
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trade'
+
+    ClosedTrade:
+      type: object
+      properties:
+        ticker:
+          type: string
+        quantity:
+          type: number
+          format: double
+        buyPrice:
+          type: number
+          format: double
+        sellPrice:
+          type: number
+          format: double
+        buyDate:
+          type: string
+          format: date
+        sellDate:
+          type: string
+          format: date
+        pnl:
+          type: number
+          format: double
+        pnlPercent:
+          type: number
+          format: double
+        holdDays:
+          type: integer
+
+    ClosedTradeListResponse:
+      type: object
+      properties:
+        closedTrades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClosedTrade'
+
+    TickerPnl:
+      type: object
+      properties:
+        ticker:
+          type: string
+        pnl:
+          type: number
+          format: double
+        tradeCount:
+          type: integer
+
+    TradeStats:
+      type: object
+      properties:
+        totalTrades:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        winRate:
+          type: number
+          format: double
+        totalPnl:
+          type: number
+          format: double
+        currentStreak:
+          type: integer
+        currentStreakType:
+          type: string
+          enum: [WIN, LOSS, NONE]
+        bestWinStreak:
+          type: integer
+        bestLossStreak:
+          type: integer
+        avgHoldDays:
+          type: number
+          format: double
+        topTickers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TickerPnl'
+
+    PnlHistoryEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        pnl:
+          type: number
+          format: double
+        cumulativePnl:
+          type: number
+          format: double
+
+    PnlHistoryResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PnlHistoryEntry'
+
+    TradeCalendarEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        pnl:
+          type: number
+          format: double
+        tradeCount:
+          type: integer
+
+    TradeCalendarResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TradeCalendarEntry'
+
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
