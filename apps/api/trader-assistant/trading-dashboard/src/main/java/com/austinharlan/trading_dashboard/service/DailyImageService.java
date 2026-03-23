@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +91,35 @@ public class DailyImageService {
     } catch (Exception e) {
       log.error("Failed to fetch Reddit images", e);
       return List.of();
+    }
+  }
+
+  public Map<String, Object> debugFetch() {
+    try {
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(REDDIT_URL))
+              .header("User-Agent", "Benji/1.0 (trading-dashboard)")
+              .header("Cookie", "over18=1")
+              .timeout(Duration.ofSeconds(15))
+              .GET()
+              .build();
+
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+      String body = response.body();
+      String preview = body.substring(0, Math.min(500, body.length()));
+      String contentType = response.headers().firstValue("content-type").orElse("unknown");
+
+      return Map.of(
+          "status", response.statusCode(),
+          "contentType", contentType,
+          "bodyLength", body.length(),
+          "bodyPreview", preview,
+          "candidates", fetchImagePosts().size());
+    } catch (Exception e) {
+      return Map.of("error", e.getMessage());
     }
   }
 

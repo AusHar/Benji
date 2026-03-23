@@ -24,4 +24,9 @@ public class DailyImageController {
     return ResponseEntity.ok(
         Map.of("url", image.url(), "title", image.title(), "author", image.author()));
   }
+
+  @GetMapping("/api/daily-image/debug")
+  public ResponseEntity<?> debugReddit() {
+    return ResponseEntity.ok(dailyImageService.debugFetch());
+  }
 }
