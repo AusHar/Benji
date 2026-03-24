@@ -52,9 +52,21 @@ class TradeIT extends DatabaseIntegrationTest {
   @Test
   void getTrades_returnsSortedByDateDesc() {
     tradeRepository.save(
-        new TradeEntity("AAPL", "BUY", BigDecimal.TEN, BigDecimal.valueOf(100), LocalDate.of(2026, 1, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(100),
+            LocalDate.of(2026, 1, 1),
+            null));
     tradeRepository.save(
-        new TradeEntity("MSFT", "BUY", BigDecimal.TEN, BigDecimal.valueOf(200), LocalDate.of(2026, 3, 1), null));
+        new TradeEntity(
+            "MSFT",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(200),
+            LocalDate.of(2026, 3, 1),
+            null));
 
     ResponseEntity<Map> response =
         rest.exchange("/api/trades", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
@@ -68,9 +80,21 @@ class TradeIT extends DatabaseIntegrationTest {
   @Test
   void getTrades_filtersByTicker() {
     tradeRepository.save(
-        new TradeEntity("AAPL", "BUY", BigDecimal.TEN, BigDecimal.valueOf(100), LocalDate.of(2026, 1, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(100),
+            LocalDate.of(2026, 1, 1),
+            null));
     tradeRepository.save(
-        new TradeEntity("MSFT", "BUY", BigDecimal.TEN, BigDecimal.valueOf(200), LocalDate.of(2026, 1, 1), null));
+        new TradeEntity(
+            "MSFT",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(200),
+            LocalDate.of(2026, 1, 1),
+            null));
 
     ResponseEntity<Map> response =
         rest.exchange(
@@ -85,7 +109,13 @@ class TradeIT extends DatabaseIntegrationTest {
   void deleteTrade_returns204() {
     TradeEntity saved =
         tradeRepository.save(
-            new TradeEntity("AAPL", "BUY", BigDecimal.TEN, BigDecimal.valueOf(100), LocalDate.of(2026, 1, 1), null));
+            new TradeEntity(
+                "AAPL",
+                "BUY",
+                BigDecimal.TEN,
+                BigDecimal.valueOf(100),
+                LocalDate.of(2026, 1, 1),
+                null));
 
     ResponseEntity<Void> response =
         rest.exchange(
@@ -101,9 +131,21 @@ class TradeIT extends DatabaseIntegrationTest {
   @Test
   void closedTrades_returnsFifoMatched() {
     tradeRepository.save(
-        new TradeEntity("AAPL", "BUY", BigDecimal.TEN, BigDecimal.valueOf(100), LocalDate.of(2026, 1, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(100),
+            LocalDate.of(2026, 1, 1),
+            null));
     tradeRepository.save(
-        new TradeEntity("AAPL", "SELL", BigDecimal.TEN, BigDecimal.valueOf(150), LocalDate.of(2026, 2, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "SELL",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(150),
+            LocalDate.of(2026, 2, 1),
+            null));
 
     ResponseEntity<Map> response =
         rest.exchange("/api/trades/closed", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
@@ -117,15 +159,28 @@ class TradeIT extends DatabaseIntegrationTest {
   @Test
   void stats_returnsAggregatedData() {
     tradeRepository.save(
-        new TradeEntity("AAPL", "BUY", BigDecimal.TEN, BigDecimal.valueOf(100), LocalDate.of(2026, 1, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "BUY",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(100),
+            LocalDate.of(2026, 1, 1),
+            null));
     tradeRepository.save(
-        new TradeEntity("AAPL", "SELL", BigDecimal.TEN, BigDecimal.valueOf(150), LocalDate.of(2026, 2, 1), null));
+        new TradeEntity(
+            "AAPL",
+            "SELL",
+            BigDecimal.TEN,
+            BigDecimal.valueOf(150),
+            LocalDate.of(2026, 2, 1),
+            null));
 
     ResponseEntity<Map> response =
         rest.exchange("/api/trades/stats", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(((Number) response.getBody().get("wins")).intValue()).isEqualTo(1);
-    assertThat(((Number) response.getBody().get("winRate")).doubleValue()).isCloseTo(100.0, within(0.1));
+    assertThat(((Number) response.getBody().get("winRate")).doubleValue())
+        .isCloseTo(100.0, within(0.1));
   }
 }

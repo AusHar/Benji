@@ -42,8 +42,7 @@ public class TradeController implements TradesApi {
     String normalizedTicker = ticker != null ? ticker.toUpperCase().strip() : null;
     List<TradeEntity> trades = tradeService.listTrades(normalizedTicker, side, from, to);
     TradeListResponse response =
-        new TradeListResponse()
-            .trades(trades.stream().map(this::toDto).toList());
+        new TradeListResponse().trades(trades.stream().map(this::toDto).toList());
     return ResponseEntity.ok(response);
   }
 
