@@ -324,7 +324,7 @@
       padding: 10px 12px 8px; transition: border-color .18s, box-shadow 2s ease-out;
       box-shadow: inset 0 1px 0 rgba(78,221,138,.06);
     }
-    .spark-tile { cursor: pointer; position: relative; }
+    .spark-tile { cursor: pointer; position: relative; overflow: hidden; }
     .spark-tile:hover { border-color: var(--border-mid); box-shadow: var(--glow-ring); transition: border-color .18s, box-shadow .5s cubic-bezier(0.16,1,0.3,1); }
     .spark-tile canvas { display: block; width: 100%; height: 36px; }
     .spark-tile.expanded { grid-column: span 2; background: var(--bg-card-hi); border-color: var(--border-hi); animation: glowpulse 3s ease-in-out infinite; }
@@ -1990,12 +1990,11 @@
     const canvas = document.getElementById('tradePnlChart');
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
-    const W = canvas.parentElement.clientWidth - 24;
-    const H = 80;
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width || 200;
+    const H = rect.height || 80;
     canvas.width = W * dpr;
     canvas.height = H * dpr;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
 
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
@@ -3069,12 +3068,11 @@
   function drawPortSpark(canvas, bars) {
     if (!canvas || !bars || bars.length < 2) return;
     const dpr = window.devicePixelRatio || 1;
-    const W   = canvas.offsetWidth || 140;
-    const H   = 36;
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width || 140;
+    const H = rect.height || 36;
     canvas.width  = W * dpr;
     canvas.height = H * dpr;
-    canvas.style.width  = W + 'px';
-    canvas.style.height = H + 'px';
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
 
