@@ -3070,9 +3070,10 @@
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     const W = rect.width || 140;
-    const H = rect.height || 36;
+    const H = 36;
     canvas.width  = W * dpr;
     canvas.height = H * dpr;
+    canvas.style.height = H + 'px';
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
 
