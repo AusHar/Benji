@@ -32,16 +32,20 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 ### Migration strategy (V5)
 
 1. Create `users` table
-2. Insert the owner user with `api_key = ${TRADING_API_KEY}`, `is_admin = true`, `is_demo = false`
+2. Insert the owner user with `api_key = 'owner-api-key-change-me'`, `is_admin = true`, `is_demo = false`
 3. Insert the demo user with `api_key = 'demo'`, `is_admin = false`, `is_demo = true`
 4. Add `user_id` column to each table as nullable
 5. Backfill all existing rows with the owner user's ID
 6. Alter `user_id` to NOT NULL
-7. Add foreign key constraints and indexes
+7. Add foreign key constraints and indexes on `user_id` for all tables
+8. Drop existing single-column unique constraints that must become user-scoped:
+   - `portfolio_position`: DROP `uq_portfolio_position_ticker`, ADD `UNIQUE(user_id, ticker)`
+   - `journal_entries`: DROP `uq_journal_entries_entry_date`, ADD `UNIQUE(user_id, entry_date)`
+9. Add index on `trades(user_id, ticker)` for user-scoped trade lookups
 
-**Note:** The migration uses `${TRADING_API_KEY}` from the environment. In dev profile (H2, Flyway disabled), the `DemoDataSeeder` handles user creation via JPA instead. In prod, Flyway runs this migration. The owner user's API key in the migration should use a Flyway placeholder or a fixed known value that matches the production env var.
+**Migration portability:** The migration uses a fixed placeholder API key (`'owner-api-key-change-me'`) — no env var dependency. A `@PostConstruct` component (`ApiKeyInitializer`) updates the owner user's key to `${TRADING_API_KEY}` on startup if it doesn't match. In dev profile (H2, Flyway disabled), the `DemoDataSeeder` handles user creation via JPA instead.
 
-**Revised approach for migration portability:** Use a fixed placeholder API key (e.g., `'owner-api-key-change-me'`) in the migration SQL. A `@PostConstruct` component (`ApiKeyInitializer`) updates the owner user's key to `${TRADING_API_KEY}` on startup if it doesn't match. This keeps the migration pure SQL with no env var dependency.
+**Cascade behavior:** Deleting a `users` row does NOT cascade to child tables. Demo data cleanup is handled explicitly by `DemoService.resetDemoData()`, which deletes from each table individually in the correct order (child tables first). This prevents accidental data loss from a stray user deletion.
 
 ## Backend Architecture
 
@@ -52,6 +56,7 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 - On match: creates a `PreAuthenticatedAuthenticationToken` with a `UserContext` as the principal
 - On no match: returns 401 as today
 - `shouldNotFilter` whitelist adds `/api/demo/session` alongside existing public paths
+- `ActuatorSecurityConfig.applicationSecurity()` must also add `/api/demo/session` to its `requestMatchers(...).permitAll()` list so Spring Security doesn't reject the unauthenticated request before the filter even runs
 
 **`UserContext` (new):**
 - Record: `UserContext(long userId, String displayName, boolean isDemo, boolean isAdmin)`
@@ -59,7 +64,10 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 - Used by all services to get the current user's ID without threading parameters
 
 **`DevSecurityConfig` (modified):**
-- In dev profile, a `@PostConstruct` component ensures a default user exists and sets a permissive filter that auto-authenticates all requests as that user
+- In dev profile, a `@PostConstruct` component (`DevDataSeeder`) ensures a default user exists in the DB (via `UserRepository`)
+- A new `DevUserFilter` (a `OncePerRequestFilter` active only in `@Profile("dev")`) runs on every request. It looks up the default dev user from `UserRepository`, creates a `PreAuthenticatedAuthenticationToken` with a `UserContext` principal, and sets it on the `SecurityContextHolder` — exactly mirroring what the production `ApiKeyAuthFilter` does after a successful key lookup
+- This ensures `UserContext.current()` works identically in dev and prod, preventing NPEs when services call `UserContext.current().userId()`
+- The `DevSecurityConfig.devSecurity()` chain adds this filter before `AnonymousAuthenticationFilter` while keeping `permitAll()` authorization
 
 ### Service Layer
 
@@ -81,7 +89,7 @@ Repository interfaces updated with user-scoped queries:
 - Repository with `findByApiKey(String apiKey)`, `findByIsDemo(boolean isDemo)`
 
 **`DemoService`:**
-- `resetDemoData()`: deletes all data for the demo user across all 5 tables, then inserts seed data
+- `resetDemoData()`: wraps in a `@Transactional` block. Deletes all data for the demo user across all tables in FK-safe order (journal_entry_tickers/tags → journal_entries → journal_goals → trades → finance_transaction → portfolio_position), then inserts seed data
 - Called by `DemoController` on each demo session start
 - Seed data detailed in the "Demo Seed Data" section below
 
@@ -106,6 +114,8 @@ Repository interfaces updated with user-scoped queries:
 - All existing API contracts — request/response shapes unchanged, just scoped to the authenticated user
 
 ## Demo Seed Data
+
+**Seed data independence:** Portfolio positions and trades are seeded as independent tables. The portfolio positions represent the demo user's *current* holdings; the trades represent their *historical* activity. The buy-side trades for held tickers intentionally match the portfolio position quantities and costs, but there is no foreign key or runtime dependency between the two tables — they are populated separately by `DemoService`.
 
 ### Portfolio Positions (10)
 
@@ -278,9 +288,13 @@ All existing endpoints unchanged in contract. They now implicitly scope to the a
 
 | Profile | User Creation | Auth | Market Data |
 |---------|--------------|------|-------------|
-| dev | Auto-create default user via `@PostConstruct`; all requests auto-authenticated | Permissive (no key needed) | `FakeMarketDataProvider` |
-| test | Test users created in test setup | `ApiKeyAuthFilter` active (but key is empty, so filter skips) | `FakeMarketDataProvider` via Testcontainers |
-| prod | Owner + demo users via Flyway migration; `ApiKeyInitializer` syncs owner key from env | `ApiKeyAuthFilter` validates against `users` table | `RealMarketDataProvider` (Yahoo Finance) |
+| dev | `DevDataSeeder` auto-creates default user via `@PostConstruct`; `DevUserFilter` populates `UserContext` on every request | Permissive (no key needed), but `UserContext` is always populated | `FakeMarketDataProvider` |
+| test | Test users created in test setup; `DatabaseIntegrationTest` base class inserts a test user and configures `TRADING_API_KEY` to match | `ApiKeyAuthFilter` active — `isEnabled()` returns true because the test key is set. Tests send the key in the `X-API-KEY` header. Filter looks up user from DB and populates `UserContext`. | `FakeMarketDataProvider` via Testcontainers |
+| prod | Owner + demo users via Flyway V5 migration; `ApiKeyInitializer` syncs owner key from env | `ApiKeyAuthFilter` validates against `users` table and populates `UserContext` | `RealMarketDataProvider` (Yahoo Finance) |
+
+**`ProdSecretsValidator` note:** The placeholder value set includes `"demo"`, which matches the demo user's API key stored in the `users` table. This is safe because `ProdSecretsValidator` only checks the `TRADING_API_KEY` env var (the owner's key), not values in the database. The demo user's key `"demo"` is never used as an env var value.
+
+**Test profile `isEnabled()` change:** Currently `ApiSecurityProperties.isEnabled()` returns `false` when the key is empty, which makes `shouldNotFilter` return `true` for all requests (effectively disabling the filter). After this change, the filter will look up keys from the `users` table instead of comparing against a single env var. The `isEnabled()` check should be removed or repurposed — the filter is now always active in non-dev profiles. Tests must create users in the DB and send valid API keys in headers.
 
 ## Migration Checklist
 
