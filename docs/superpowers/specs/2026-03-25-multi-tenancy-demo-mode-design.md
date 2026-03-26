@@ -43,7 +43,7 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
    - `journal_entries`: DROP `uq_journal_entries_entry_date`, ADD `UNIQUE(user_id, entry_date)`
 9. Add index on `trades(user_id, ticker)` for user-scoped trade lookups
 
-**Migration portability:** The migration uses a fixed placeholder API key (`'owner-api-key-change-me'`) — no env var dependency. A `@PostConstruct` component (`ApiKeyInitializer`) updates the owner user's key to `${TRADING_API_KEY}` on startup if it doesn't match. In dev profile (H2, Flyway disabled), the `DemoDataSeeder` handles user creation via JPA instead.
+**Migration portability:** The migration uses a fixed placeholder API key (`'owner-api-key-change-me'`) — no env var dependency. A `@PostConstruct` component (`ApiKeyInitializer`, active in `@Profile("prod")`) updates the owner user's key to `${TRADING_API_KEY}` on startup if it doesn't match. If the owner user row is not found in the `users` table (e.g., V5 migration failed or was skipped), `ApiKeyInitializer` must throw `IllegalStateException` to fail fast — preventing the app from starting with no valid owner and silently rejecting all API key auth. In dev profile (H2, Flyway disabled), the `DevDataSeeder` handles user creation via JPA instead.
 
 **Cascade behavior:** Deleting a `users` row does NOT cascade to child tables. Demo data cleanup is handled explicitly by `DemoService.resetDemoData()`, which deletes from each table individually in the correct order (child tables first). This prevents accidental data loss from a stray user deletion.
 
@@ -55,8 +55,10 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 - Instead of comparing against a single `TRADING_API_KEY` env var, looks up the provided key in the `users` table via `UserRepository.findByApiKey(key)`
 - On match: creates a `PreAuthenticatedAuthenticationToken` with a `UserContext` as the principal
 - On no match: returns 401 as today
+- The `isEnabled()` guard in `shouldNotFilter` is removed — the filter is now always active in non-dev profiles. Key validation happens via DB lookup, not env var comparison, so `ApiSecurityProperties.isEnabled()` is no longer relevant
 - `shouldNotFilter` whitelist adds `/api/demo/session` alongside existing public paths
-- `ActuatorSecurityConfig.applicationSecurity()` must also add `/api/demo/session` to its `requestMatchers(...).permitAll()` list so Spring Security doesn't reject the unauthenticated request before the filter even runs
+- `ActuatorSecurityConfig.applicationSecurity()`: remove the `if (apiSecurityProperties.isEnabled())` branch entirely. The chain always builds the restricted path with `permitAll` for public endpoints. Add `/api/demo/session` to the `requestMatchers(...).permitAll()` list alongside `/`, `/index.html`, `/swagger-ui/**`, etc.
+- **Timing-safe comparison tradeoff:** The current constant-time `MessageDigest.isEqual` check is replaced by a DB lookup. Query time variance makes timing attacks theoretically possible but impractical at this scale. This is an accepted tradeoff.
 
 **`UserContext` (new):**
 - Record: `UserContext(long userId, String displayName, boolean isDemo, boolean isAdmin)`
@@ -64,8 +66,8 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 - Used by all services to get the current user's ID without threading parameters
 
 **`DevSecurityConfig` (modified):**
-- In dev profile, a `@PostConstruct` component (`DevDataSeeder`) ensures a default user exists in the DB (via `UserRepository`)
-- A new `DevUserFilter` (a `OncePerRequestFilter` active only in `@Profile("dev")`) runs on every request. It looks up the default dev user from `UserRepository`, creates a `PreAuthenticatedAuthenticationToken` with a `UserContext` principal, and sets it on the `SecurityContextHolder` — exactly mirroring what the production `ApiKeyAuthFilter` does after a successful key lookup
+- In dev profile, a `@PostConstruct` component (`DevDataSeeder`) ensures a default dev user exists in the DB via `UserRepository`. The dev user is inserted with `api_key = 'dev'`, `display_name = 'Dev User'`, `is_admin = true`, `is_demo = false`
+- A new `DevUserFilter` (a `OncePerRequestFilter` active only in `@Profile("dev")`) runs on every request. It calls `userRepository.findByApiKey("dev")` to look up the dev user, creates a `PreAuthenticatedAuthenticationToken` with a `UserContext` principal, and sets it on the `SecurityContextHolder` — exactly mirroring what the production `ApiKeyAuthFilter` does after a successful key lookup
 - This ensures `UserContext.current()` works identically in dev and prod, preventing NPEs when services call `UserContext.current().userId()`
 - The `DevSecurityConfig.devSecurity()` chain adds this filter before `AnonymousAuthenticationFilter` while keeping `permitAll()` authorization
 
