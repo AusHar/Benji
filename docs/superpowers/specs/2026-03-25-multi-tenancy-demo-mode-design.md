@@ -59,10 +59,11 @@ Add `user_id BIGINT NOT NULL REFERENCES users(id)` to:
 - `shouldNotFilter` whitelist adds `/api/demo/session` alongside existing public paths
 - `ActuatorSecurityConfig.applicationSecurity()`: remove the `if (apiSecurityProperties.isEnabled())` branch entirely. The chain always builds the restricted path with `permitAll` for public endpoints. Add `/api/demo/session` to the `requestMatchers(...).permitAll()` list alongside `/`, `/index.html`, `/swagger-ui/**`, etc.
 - **Timing-safe comparison tradeoff:** The current constant-time `MessageDigest.isEqual` check is replaced by a DB lookup. Query time variance makes timing attacks theoretically possible but impractical at this scale. This is an accepted tradeoff.
+- **`ApiSecurityProperties` cleanup:** After removing `isEnabled()` from both call sites, delete the `isEnabled()` method. The class is retained for `getKey()` (used by `ApiKeyInitializer` to read `${TRADING_API_KEY}`) and `getHeaderName()` (used by `ApiKeyAuthFilter` to read the header name). If `getKey()` is only needed by `ApiKeyInitializer`, consider inlining the `@Value` there and deleting the class entirely.
 
 **`UserContext` (new):**
 - Record: `UserContext(long userId, String displayName, boolean isDemo, boolean isAdmin)`
-- Static helper: `UserContext.current()` reads from `SecurityContextHolder.getContext().getAuthentication().getPrincipal()`
+- Static helper: `UserContext.current()` reads from `SecurityContextHolder.getContext().getAuthentication().getPrincipal()`. Throws `IllegalStateException` if no authentication is set or the principal is not a `UserContext` — never returns null
 - Used by all services to get the current user's ID without threading parameters
 
 **`DevSecurityConfig` (modified):**
@@ -91,7 +92,7 @@ Repository interfaces updated with user-scoped queries:
 - Repository with `findByApiKey(String apiKey)`, `findByIsDemo(boolean isDemo)`
 
 **`DemoService`:**
-- `resetDemoData()`: wraps in a `@Transactional` block. Deletes all data for the demo user across all tables in FK-safe order (journal_entry_tickers/tags → journal_entries → journal_goals → trades → finance_transaction → portfolio_position), then inserts seed data
+- `resetDemoData()`: wraps in a `@Transactional` block. Deletes all data for the demo user across all tables in FK-safe order (journal_entry_tickers/tags → journal_entries → journal_goals → trades → finance_transaction → portfolio_position), then inserts seed data. Note: `journal_entry_tickers` and `journal_entry_tags` have no `user_id` column — they reference `journal_entries(id)`. Delete them via a join/subquery: `DELETE FROM journal_entry_tickers WHERE entry_id IN (SELECT id FROM journal_entries WHERE user_id = ?)`. Alternatively, rely on the `ON DELETE CASCADE` from V3 and just delete `journal_entries` rows directly (the child rows cascade automatically).
 - Called by `DemoController` on each demo session start
 - Seed data detailed in the "Demo Seed Data" section below
 
@@ -104,7 +105,7 @@ Repository interfaces updated with user-scoped queries:
 **`AdminController`:**
 - `POST /api/admin/users` — requires `is_admin = true` on the requesting user
 - Accepts `{"displayName": "Jake"}`, generates a UUID API key
-- Returns `{"displayName": "Jake", "apiKey": "generated-uuid"}`
+- Returns `{"id": 3, "displayName": "Jake", "apiKey": "generated-uuid"}`
 - Non-admin requests get 403 Forbidden
 - Added to OpenAPI spec
 
@@ -291,7 +292,7 @@ All existing endpoints unchanged in contract. They now implicitly scope to the a
 | Profile | User Creation | Auth | Market Data |
 |---------|--------------|------|-------------|
 | dev | `DevDataSeeder` auto-creates default user via `@PostConstruct`; `DevUserFilter` populates `UserContext` on every request | Permissive (no key needed), but `UserContext` is always populated | `FakeMarketDataProvider` |
-| test | Test users created in test setup; `DatabaseIntegrationTest` base class inserts a test user and configures `TRADING_API_KEY` to match | `ApiKeyAuthFilter` active — `isEnabled()` returns true because the test key is set. Tests send the key in the `X-API-KEY` header. Filter looks up user from DB and populates `UserContext`. | `FakeMarketDataProvider` via Testcontainers |
+| test | Test users created in test setup; `DatabaseIntegrationTest` base class inserts a test user | `ApiKeyAuthFilter` active — always on in non-dev profiles. Filter looks up the provided `X-API-KEY` header in the `users` table and populates `UserContext`. Tests must insert users and send matching keys. | `FakeMarketDataProvider` via Testcontainers |
 | prod | Owner + demo users via Flyway V5 migration; `ApiKeyInitializer` syncs owner key from env | `ApiKeyAuthFilter` validates against `users` table and populates `UserContext` | `RealMarketDataProvider` (Yahoo Finance) |
 
 **`ProdSecretsValidator` note:** The placeholder value set includes `"demo"`, which matches the demo user's API key stored in the `users` table. This is safe because `ProdSecretsValidator` only checks the `TRADING_API_KEY` env var (the owner's key), not values in the database. The demo user's key `"demo"` is never used as an env var value.
