@@ -8,27 +8,28 @@ import org.springframework.data.repository.query.Param;
 
 public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
 
-  List<TradeEntity> findAllByOrderByTradeDateDescCreatedAtDesc();
+  List<TradeEntity> findAllByUserIdOrderByTradeDateDescCreatedAtDesc(Long userId);
 
   @Query(
       """
-      select t from TradeEntity t
-      where (:ticker is null or t.ticker = :ticker)
-        and (:side is null or t.side = :side)
-        and (:fromDate is null or t.tradeDate >= :fromDate)
-        and (:toDate is null or t.tradeDate <= :toDate)
-      order by t.tradeDate desc, t.createdAt desc
+      SELECT t FROM TradeEntity t
+      WHERE t.userId = :userId
+        AND (:ticker IS NULL OR t.ticker = :ticker)
+        AND (:side IS NULL OR t.side = :side)
+        AND (:fromDate IS NULL OR t.tradeDate >= :fromDate)
+        AND (:toDate IS NULL OR t.tradeDate <= :toDate)
+      ORDER BY t.tradeDate DESC, t.createdAt DESC
       """)
-  List<TradeEntity> findFiltered(
+  List<TradeEntity> findFilteredByUserId(
+      @Param("userId") Long userId,
       @Param("ticker") String ticker,
       @Param("side") String side,
       @Param("fromDate") LocalDate fromDate,
       @Param("toDate") LocalDate toDate);
 
   @Query(
-      """
-      select t from TradeEntity t
-      order by t.tradeDate asc, t.createdAt asc
-      """)
-  List<TradeEntity> findAllChronological();
+      "SELECT t FROM TradeEntity t WHERE t.userId = :userId ORDER BY t.tradeDate ASC, t.createdAt ASC")
+  List<TradeEntity> findAllChronologicalByUserId(@Param("userId") Long userId);
+
+  void deleteAllByUserId(Long userId);
 }

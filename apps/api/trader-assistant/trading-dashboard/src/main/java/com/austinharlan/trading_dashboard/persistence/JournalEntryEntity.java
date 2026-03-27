@@ -25,6 +25,9 @@ public class JournalEntryEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
+
   @Column(name = "body", nullable = false, columnDefinition = "TEXT")
   private String body;
 
@@ -50,7 +53,8 @@ public class JournalEntryEntity {
   protected JournalEntryEntity() {}
 
   public JournalEntryEntity(
-      String body, LocalDate entryDate, Set<String> tickers, Set<String> tags) {
+      Long userId, String body, LocalDate entryDate, Set<String> tickers, Set<String> tags) {
+    this.userId = Objects.requireNonNull(userId, "userId must not be null");
     this.body = Objects.requireNonNull(body, "body must not be null");
     this.entryDate = Objects.requireNonNull(entryDate, "entryDate must not be null");
     this.createdAt = Instant.now();
@@ -61,6 +65,10 @@ public class JournalEntryEntity {
 
   public Long getId() {
     return id;
+  }
+
+  public Long getUserId() {
+    return userId;
   }
 
   public String getBody() {

@@ -14,6 +14,9 @@ public class TradeEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
+
   @Column(name = "ticker", nullable = false, length = 12)
   private String ticker;
 
@@ -38,12 +41,14 @@ public class TradeEntity {
   protected TradeEntity() {}
 
   public TradeEntity(
+      Long userId,
       String ticker,
       String side,
       BigDecimal quantity,
       BigDecimal pricePerShare,
       LocalDate tradeDate,
       String notes) {
+    this.userId = Objects.requireNonNull(userId, "userId must not be null");
     this.ticker = Objects.requireNonNull(ticker, "ticker must not be null");
     this.side = Objects.requireNonNull(side, "side must not be null");
     this.quantity = Objects.requireNonNull(quantity, "quantity must not be null");
@@ -55,6 +60,10 @@ public class TradeEntity {
 
   public Long getId() {
     return id;
+  }
+
+  public Long getUserId() {
+    return userId;
   }
 
   public String getTicker() {

@@ -13,11 +13,14 @@ import java.util.Objects;
 @Entity
 @Table(
     name = "portfolio_position",
-    uniqueConstraints = {@UniqueConstraint(columnNames = "ticker")})
+    uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "ticker"})})
 public class PortfolioPositionEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
+
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
 
   @Column(name = "ticker", nullable = false, length = 12)
   private String ticker;
@@ -30,7 +33,8 @@ public class PortfolioPositionEntity {
 
   protected PortfolioPositionEntity() {}
 
-  public PortfolioPositionEntity(String ticker, BigDecimal qty, BigDecimal basis) {
+  public PortfolioPositionEntity(Long userId, String ticker, BigDecimal qty, BigDecimal basis) {
+    this.userId = Objects.requireNonNull(userId, "userId must not be null");
     this.ticker = Objects.requireNonNull(ticker, "ticker must not be null");
     this.qty = Objects.requireNonNull(qty, "qty must not be null");
     this.basis = Objects.requireNonNull(basis, "basis must not be null");
@@ -38,6 +42,10 @@ public class PortfolioPositionEntity {
 
   public Long getId() {
     return id;
+  }
+
+  public Long getUserId() {
+    return userId;
   }
 
   public String getTicker() {
