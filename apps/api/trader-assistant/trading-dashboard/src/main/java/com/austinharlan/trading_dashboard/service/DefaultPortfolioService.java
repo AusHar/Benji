@@ -1,5 +1,6 @@
 package com.austinharlan.trading_dashboard.service;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.persistence.PortfolioPositionEntity;
 import com.austinharlan.trading_dashboard.persistence.PortfolioPositionRepository;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
@@ -23,12 +24,21 @@ public class DefaultPortfolioService implements PortfolioService {
 
   @Override
   public List<PortfolioHolding> listHoldings() {
-    return repository.findAll().stream().map(this::toHolding).sorted(HOLDING_COMPARATOR).toList();
+    long userId = UserContext.current().userId();
+    return repository.findAllByUserId(userId).stream()
+        .map(this::toHolding)
+        .sorted(HOLDING_COMPARATOR)
+        .toList();
   }
 
   @Override
   public Optional<PortfolioSnapshot> summarize() {
-    List<PortfolioHolding> holdings = listHoldings();
+    long userId = UserContext.current().userId();
+    List<PortfolioHolding> holdings =
+        repository.findAllByUserId(userId).stream()
+            .map(this::toHolding)
+            .sorted(HOLDING_COMPARATOR)
+            .toList();
     if (holdings.isEmpty()) {
       return Optional.empty();
     }
@@ -44,28 +54,32 @@ public class DefaultPortfolioService implements PortfolioService {
   @Override
   @Transactional
   public PortfolioHolding addHolding(String ticker, BigDecimal quantity, BigDecimal pricePerShare) {
+    long userId = UserContext.current().userId();
     BigDecimal totalBasis = quantity.multiply(pricePerShare);
     PortfolioPositionEntity entity =
         repository
-            .findByTicker(ticker)
+            .findByUserIdAndTicker(userId, ticker)
             .map(
                 existing -> {
                   existing.setQty(quantity);
                   existing.setBasis(totalBasis);
                   return existing;
                 })
-            .orElseGet(() -> new PortfolioPositionEntity(ticker, quantity, totalBasis));
+            .orElseGet(
+                () -> new PortfolioPositionEntity(userId, ticker, BigDecimal.ZERO, BigDecimal.ZERO));
+    entity.setQty(quantity);
+    entity.setBasis(totalBasis);
     return toHolding(repository.save(entity));
   }
 
   @Override
   @Transactional
   public void deleteHolding(String ticker) {
-    PortfolioPositionEntity entity =
-        repository
-            .findByTicker(ticker)
-            .orElseThrow(() -> new PortfolioPositionNotFoundException(ticker));
-    repository.delete(entity);
+    long userId = UserContext.current().userId();
+    repository
+        .findByUserIdAndTicker(userId, ticker)
+        .orElseThrow(() -> new PortfolioPositionNotFoundException(ticker));
+    repository.deleteByUserIdAndTicker(userId, ticker);
   }
 
   private PortfolioHolding toHolding(PortfolioPositionEntity entity) {
