@@ -883,7 +883,7 @@
 <!-- Demo banner (hidden until demo mode) -->
 <div class="demo-banner" id="demoBanner" style="display:none">
   Demo Mode &mdash; changes reset each session
-  <a href="#" onclick="signOutDemo();return false">Sign in &rarr;</a>
+  <button onclick="signOutDemo()" style="background:none;border:none;color:#4edd8a;font:inherit;font-weight:600;cursor:pointer;padding:0">Sign in &rarr;</button>
 </div>
 
 <!-- Unlock -->
@@ -2476,6 +2476,7 @@
       loadJournalAsync(journalEntries);
       attachJournalHandlers(goals, stats);
     } catch (e) {
+      console.warn('Journal load failed:', e);
       page.innerHTML = empty('📓', 'Journal unavailable', 'Could not load journal data.');
     }
   }
