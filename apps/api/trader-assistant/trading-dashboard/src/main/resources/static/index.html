@@ -594,6 +594,33 @@
     .lock-sub { font-size: 11px; color: var(--text-dim); }
     .lock-err { font-size: 10px; color: var(--red); min-height: 14px; }
 
+    /* Demo hero card */
+    .demo-hero{background:linear-gradient(135deg,#4edd8a15,#4edd8a08);border:1px solid #4edd8a44;border-radius:10px;padding:20px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
+    .demo-hero:hover{border-color:#4edd8a88}
+    .demo-glow{position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,#4edd8a15,transparent);border-radius:50%}
+    .demo-title{font-size:15px;color:#4edd8a;font-weight:600;margin-bottom:6px;position:relative}
+    .demo-sub{font-size:10px;color:#4edd8a99;line-height:1.5;position:relative}
+
+    /* Returning user section */
+    .lock-divider{border-top:1px solid #1a1a2e;margin:0;padding:0}
+    .lock-returning-label{font-size:10px;color:#e08a4a;margin-bottom:8px;letter-spacing:.3px}
+    .lock-returning-row{display:flex;gap:6px}
+    .lock-key-wrap{flex:1;position:relative}
+    .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
+    .lock-go-btn{background:#e08a4a22!important;border:1px solid #e08a4a55!important;border-radius:6px!important;padding:9px 14px!important;color:#e08a4a!important;font-size:11px!important;font-weight:600!important;cursor:pointer}
+    .lock-go-btn:hover{background:#e08a4a33!important}
+
+    @keyframes pulse-border{0%,100%{border-color:#e08a4a33}50%{border-color:#e08a4a88}}
+
+    /* Demo mode banner */
+    .demo-banner{position:fixed;top:0;left:0;right:0;height:32px;background:#0d1a12;border-bottom:1px solid #4edd8a33;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#4edd8a99;z-index:10000;overflow:hidden}
+    .demo-banner::before{content:'';position:absolute;top:0;left:-200px;width:200px;height:100%;background:linear-gradient(90deg,transparent,#4edd8a11,transparent);animation:demo-shimmer 3s ease-in-out infinite}
+    @keyframes demo-shimmer{0%{left:-200px}100%{left:100%}}
+    .demo-banner a{color:#4edd8a;text-decoration:none;font-weight:600}
+    .demo-banner a:hover{text-decoration:underline}
+    body.demo-mode .sidebar{top:32px;height:calc(100vh - 32px)}
+    body.demo-mode .main{margin-top:32px}
+
     /* ── Overview grid */
     .overview-grid {
       background: var(--bg-card); border: 1px solid var(--border);
@@ -853,13 +880,38 @@
 </head>
 <body>
 
+<!-- Demo banner (hidden until demo mode) -->
+<div class="demo-banner" id="demoBanner" style="display:none">
+  Demo Mode &mdash; changes reset each session
+  <a href="#" onclick="signOutDemo();return false">Sign in &rarr;</a>
+</div>
+
 <!-- Unlock -->
 <div class="overlay" id="overlay">
   <div class="lock-box">
     <div class="lock-title">Benji</div>
     <div class="lock-sub">Your personal financial assistant</div>
-    <input class="field" id="keyInput" type="password" placeholder="Enter your API key" autocomplete="off">
-    <button class="btn btn-primary" id="unlockBtn" style="width:100%">Access Dashboard</button>
+
+    <!-- Demo hero -->
+    <div class="demo-hero" id="demoBtn" onclick="startDemo()">
+      <div class="demo-glow"></div>
+      <div class="demo-title">&#10022; Try Demo</div>
+      <div class="demo-sub">Explore a pre-built portfolio with live market data.<br>No login required.</div>
+    </div>
+
+    <!-- Divider -->
+    <div class="lock-divider"></div>
+
+    <!-- Returning user section -->
+    <div class="lock-returning">
+      <div class="lock-returning-label">Already have an API key?</div>
+      <div class="lock-returning-row">
+        <div class="lock-key-wrap">
+          <input class="field lock-key-input" id="keyInput" type="password" placeholder="Enter key" autocomplete="off">
+        </div>
+        <button class="btn lock-go-btn" id="unlockBtn">Go &rarr;</button>
+      </div>
+    </div>
     <div class="lock-err" id="unlockErr"></div>
   </div>
 </div>
@@ -1140,8 +1192,43 @@
 
   /* ── Auth ───────────────────────────────── */
   function boot() {
-    const k = localStorage.getItem('benji_k');
+    const k = sessionStorage.getItem('KEY') || localStorage.getItem('benji_k');
     if (k) { KEY = k; launch(); }
+  }
+
+  async function startDemo() {
+    const btn = document.getElementById('demoBtn');
+    const title = btn.querySelector('.demo-title');
+    const origText = title.textContent;
+    title.textContent = 'Starting demo...';
+    btn.style.pointerEvents = 'none';
+    try {
+      const r = await fetch('/api/demo/session', { method: 'POST' });
+      if (r.ok) {
+        const data = await r.json();
+        KEY = data.apiKey;
+        sessionStorage.setItem('KEY', KEY);
+        localStorage.setItem('benji_watchlist', JSON.stringify(['TSLA','GOOG','META','AMD','SOFI','COIN']));
+        launch();
+      } else {
+        document.getElementById('unlockErr').textContent = 'Failed to start demo';
+      }
+    } catch (e) {
+      document.getElementById('unlockErr').textContent = 'Connection error';
+    } finally {
+      title.textContent = origText;
+      btn.style.pointerEvents = '';
+    }
+  }
+
+  function signOutDemo() {
+    KEY = '';
+    sessionStorage.removeItem('KEY');
+    localStorage.removeItem('benji_watchlist');
+    document.getElementById('demoBanner').style.display = 'none';
+    document.body.classList.remove('demo-mode');
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
   }
 
   async function tryKey() {
@@ -1149,7 +1236,7 @@
     if (!k) return;
     const btn = document.getElementById('unlockBtn');
     btn.disabled = true;
-    btn.textContent = 'Verifying…';
+    btn.textContent = '...';
     try {
       const r = await fetch('/api/quotes', { headers: { 'X-API-KEY': k } });
       if (r.status === 401) throw 'bad';
@@ -1159,13 +1246,17 @@
     } catch {
       document.getElementById('unlockErr').textContent = 'Invalid key — please try again.';
       btn.disabled = false;
-      btn.textContent = 'Access Dashboard';
+      btn.textContent = 'Go \u2192';
     }
   }
 
   function launch() {
     document.getElementById('overlay').style.display = 'none';
     document.getElementById('app').style.display     = 'flex';
+    if (KEY === 'demo') {
+      document.getElementById('demoBanner').style.display = 'flex';
+      document.body.classList.add('demo-mode');
+    }
     document.getElementById('pageDate').textContent  = today();
     go('dashboard');
     initDailyQuote();
