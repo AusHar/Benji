@@ -14,12 +14,9 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 @Configuration
 @Profile("!dev")
 class ActuatorSecurityConfig {
-  private final ApiSecurityProperties apiSecurityProperties;
   private final ApiKeyAuthFilter apiKeyAuthFilter;
 
-  ActuatorSecurityConfig(
-      ApiSecurityProperties apiSecurityProperties, ApiKeyAuthFilter apiKeyAuthFilter) {
-    this.apiSecurityProperties = apiSecurityProperties;
+  ActuatorSecurityConfig(ApiKeyAuthFilter apiKeyAuthFilter) {
     this.apiKeyAuthFilter = apiKeyAuthFilter;
   }
 
@@ -41,22 +38,19 @@ class ActuatorSecurityConfig {
   @Bean
   @Order(Ordered.LOWEST_PRECEDENCE)
   SecurityFilterChain applicationSecurity(HttpSecurity http) throws Exception {
-    if (apiSecurityProperties.isEnabled()) {
-      http.authorizeHttpRequests(
-              auth ->
-                  auth.requestMatchers(
-                          "/",
-                          "/index.html",
-                          "/swagger-ui/**",
-                          "/swagger-ui.html",
-                          "/v3/api-docs/**")
-                      .permitAll()
-                      .anyRequest()
-                      .authenticated())
-          .addFilterBefore(apiKeyAuthFilter, AnonymousAuthenticationFilter.class);
-    } else {
-      http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-    }
+    http.authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers(
+                        "/",
+                        "/index.html",
+                        "/api/demo/session",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
+        .addFilterBefore(apiKeyAuthFilter, AnonymousAuthenticationFilter.class);
 
     http.cors(Customizer.withDefaults())
         .httpBasic(AbstractHttpConfigurer::disable)

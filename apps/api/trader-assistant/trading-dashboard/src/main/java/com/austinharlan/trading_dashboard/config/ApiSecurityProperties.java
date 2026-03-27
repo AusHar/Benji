@@ -27,7 +27,4 @@ public class ApiSecurityProperties {
     }
   }
 
-  public boolean isEnabled() {
-    return StringUtils.hasText(key);
-  }
 }
