@@ -47,6 +47,7 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
   }
 
   @org.junit.jupiter.api.AfterEach
+  @org.springframework.transaction.annotation.Transactional
   void cleanup() {
     if (userAKey != null) {
       userRepository
