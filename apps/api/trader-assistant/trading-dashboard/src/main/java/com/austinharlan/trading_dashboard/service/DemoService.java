@@ -172,7 +172,8 @@ public class DemoService {
         new String[] {"exit", "loss", "lesson"});
   }
 
-  private void journalEntry(Long userId, String date, String body, String[] tickers, String[] tags) {
+  private void journalEntry(
+      Long userId, String date, String body, String[] tickers, String[] tags) {
     var entry =
         new JournalEntryEntity(
             userId,

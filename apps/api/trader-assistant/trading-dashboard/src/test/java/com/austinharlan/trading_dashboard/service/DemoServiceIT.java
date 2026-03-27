@@ -27,7 +27,9 @@ class DemoServiceIT extends DatabaseIntegrationTest {
     assertThat(portfolioRepository.findAllByUserId(demoUserId)).hasSize(10);
     assertThat(tradeRepository.findAllByUserIdOrderByTradeDateDescCreatedAtDesc(demoUserId))
         .hasSizeGreaterThanOrEqualTo(15);
-    assertThat(financeRepository.findAllByUserIdOrderByPostedAtDesc(demoUserId, org.springframework.data.domain.Pageable.unpaged()))
+    assertThat(
+            financeRepository.findAllByUserIdOrderByPostedAtDesc(
+                demoUserId, org.springframework.data.domain.Pageable.unpaged()))
         .hasSizeGreaterThanOrEqualTo(20);
     assertThat(journalEntryRepository.findAllByUserIdOrderByEntryDateDesc(demoUserId)).hasSize(4);
     assertThat(journalGoalRepository.findAllByUserId(demoUserId)).isEmpty();
@@ -45,15 +47,23 @@ class DemoServiceIT extends DatabaseIntegrationTest {
   @Test
   void resetDemoData_doesNotAffectOtherUsers() {
     Long testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
-    portfolioRepository.save(new PortfolioPositionEntity(
-        testUserId, "ZZTEST", java.math.BigDecimal.ONE, java.math.BigDecimal.TEN));
-    tradeRepository.save(new TradeEntity(
-        testUserId, "ZZTEST", "BUY", java.math.BigDecimal.ONE, java.math.BigDecimal.TEN,
-        java.time.LocalDate.now(), "test trade"));
+    portfolioRepository.save(
+        new PortfolioPositionEntity(
+            testUserId, "ZZTEST", java.math.BigDecimal.ONE, java.math.BigDecimal.TEN));
+    tradeRepository.save(
+        new TradeEntity(
+            testUserId,
+            "ZZTEST",
+            "BUY",
+            java.math.BigDecimal.ONE,
+            java.math.BigDecimal.TEN,
+            java.time.LocalDate.now(),
+            "test trade"));
 
     demoService.resetDemoData();
 
     assertThat(portfolioRepository.findByUserIdAndTicker(testUserId, "ZZTEST")).isPresent();
-    assertThat(tradeRepository.findAllByUserIdOrderByTradeDateDescCreatedAtDesc(testUserId)).hasSize(1);
+    assertThat(tradeRepository.findAllByUserIdOrderByTradeDateDescCreatedAtDesc(testUserId))
+        .hasSize(1);
   }
 }
