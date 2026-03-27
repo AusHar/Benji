@@ -1,5 +1,6 @@
 package com.austinharlan.trading_dashboard.service;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.finance.FinanceSummaryData;
 import com.austinharlan.trading_dashboard.finance.FinanceTransactionRecord;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionEntity;
@@ -39,6 +40,7 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
 
   @Override
   public FinanceSummaryData getSummary() {
+    long userId = UserContext.current().userId();
     Instant now = Instant.now(clock);
     YearMonth currentMonth = YearMonth.now(clock);
     LocalDate today = LocalDate.now(clock);
@@ -47,7 +49,7 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
         currentMonth.plusMonths(1).atDay(1).atStartOfDay(clock.getZone()).toInstant();
 
     List<FinanceTransactionRecord> monthTransactions =
-        transactionRepository.findWithinRange(startOfMonth, startOfNextMonth).stream()
+        transactionRepository.findWithinRangeByUserId(userId, startOfMonth, startOfNextMonth).stream()
             .map(this::toRecord)
             .toList();
 
@@ -73,17 +75,18 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
 
   @Override
   public List<FinanceTransactionRecord> listTransactions(Integer limit, String category) {
+    long userId = UserContext.current().userId();
     Pageable pageable = resolvePageable(limit);
     if (StringUtils.hasText(category)) {
       String normalizedCategory = category.trim();
       return transactionRepository
-          .findByCategoryIgnoreCaseOrderByPostedAtDesc(normalizedCategory, pageable)
+          .findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(userId, normalizedCategory, pageable)
           .stream()
           .map(this::toRecord)
           .toList();
     }
 
-    return transactionRepository.findAllByOrderByPostedAtDesc(pageable).stream()
+    return transactionRepository.findAllByUserIdOrderByPostedAtDesc(userId, pageable).stream()
         .map(this::toRecord)
         .toList();
   }
