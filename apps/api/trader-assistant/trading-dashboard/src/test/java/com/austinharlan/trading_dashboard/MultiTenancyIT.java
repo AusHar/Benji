@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MultiTenancyIT extends DatabaseIntegrationTest {
@@ -19,6 +20,7 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
   @Autowired TestRestTemplate rest;
   @Autowired UserRepository userRepository;
   @Autowired PortfolioPositionRepository portfolioRepository;
+  @Autowired TransactionTemplate transactionTemplate;
 
   private String userAKey;
   private String userBKey;
@@ -47,18 +49,20 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
   }
 
   @org.junit.jupiter.api.AfterEach
-  @org.springframework.transaction.annotation.Transactional
   void cleanup() {
-    if (userAKey != null) {
-      userRepository
-          .findByApiKey(userAKey)
-          .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
-    }
-    if (userBKey != null) {
-      userRepository
-          .findByApiKey(userBKey)
-          .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
-    }
+    transactionTemplate.executeWithoutResult(
+        status -> {
+          if (userAKey != null) {
+            userRepository
+                .findByApiKey(userAKey)
+                .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
+          }
+          if (userBKey != null) {
+            userRepository
+                .findByApiKey(userBKey)
+                .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
+          }
+        });
   }
 
   @Test
