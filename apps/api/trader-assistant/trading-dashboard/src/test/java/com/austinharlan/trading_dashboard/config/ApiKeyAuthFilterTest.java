@@ -4,8 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import com.austinharlan.trading_dashboard.persistence.UserEntity;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import jakarta.servlet.FilterChain;
+import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -20,6 +25,7 @@ class ApiKeyAuthFilterTest {
   private static final String HEADER_NAME = "X-API-KEY";
 
   private ApiSecurityProperties properties;
+  private UserRepository userRepository;
   private ApiKeyAuthFilter filter;
 
   @BeforeEach
@@ -28,11 +34,31 @@ class ApiKeyAuthFilterTest {
     properties = new ApiSecurityProperties();
     properties.setKey(VALID_API_KEY);
     properties.setHeaderName(HEADER_NAME);
-    filter = new ApiKeyAuthFilter(properties);
+    userRepository = mock(UserRepository.class);
+    filter = new ApiKeyAuthFilter(properties, userRepository);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private UserEntity testUser() {
+    UserEntity user = new UserEntity("test-api-key-12345", "Test User", true, false);
+    try {
+      var idField = UserEntity.class.getDeclaredField("id");
+      idField.setAccessible(true);
+      idField.set(user, 1L);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+    return user;
   }
 
   @Test
   void allowsRequestWithValidApiKey() throws Exception {
+    when(userRepository.findByApiKey(VALID_API_KEY)).thenReturn(Optional.of(testUser()));
+
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HEADER_NAME, VALID_API_KEY);
     request.setRequestURI("/api/quotes/AAPL");
@@ -64,6 +90,8 @@ class ApiKeyAuthFilterTest {
 
   @Test
   void rejectsRequestWithInvalidApiKey() throws Exception {
+    when(userRepository.findByApiKey("wrong-api-key")).thenReturn(Optional.empty());
+
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HEADER_NAME, "wrong-api-key");
     request.setRequestURI("/api/quotes/AAPL");
@@ -117,17 +145,6 @@ class ApiKeyAuthFilterTest {
   }
 
   @Test
-  void skipsFilterWhenApiKeyNotConfigured() throws Exception {
-    ApiSecurityProperties disabledProperties = new ApiSecurityProperties();
-    ApiKeyAuthFilter disabledFilter = new ApiKeyAuthFilter(disabledProperties);
-
-    MockHttpServletRequest request = new MockHttpServletRequest();
-    request.setRequestURI("/api/quotes/AAPL");
-
-    assertThat(disabledFilter.shouldNotFilter(request)).isTrue();
-  }
-
-  @Test
   void doesNotSkipFilterForApiEndpoints() throws Exception {
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.setRequestURI("/api/quotes/AAPL");
@@ -137,6 +154,8 @@ class ApiKeyAuthFilterTest {
 
   @Test
   void clearsSecurityContextAfterProcessing() throws Exception {
+    when(userRepository.findByApiKey(VALID_API_KEY)).thenReturn(Optional.of(testUser()));
+
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HEADER_NAME, VALID_API_KEY);
     request.setRequestURI("/api/quotes/AAPL");
@@ -150,21 +169,25 @@ class ApiKeyAuthFilterTest {
   }
 
   @Test
-  void usesCustomHeaderName() throws Exception {
-    ApiSecurityProperties customProperties = new ApiSecurityProperties();
-    customProperties.setKey(VALID_API_KEY);
-    customProperties.setHeaderName("Authorization");
-    ApiKeyAuthFilter customFilter = new ApiKeyAuthFilter(customProperties);
+  void setsUserContextOnValidRequest() throws Exception {
+    when(userRepository.findByApiKey(VALID_API_KEY)).thenReturn(Optional.of(testUser()));
 
     MockHttpServletRequest request = new MockHttpServletRequest();
-    request.addHeader("Authorization", VALID_API_KEY);
+    request.addHeader(HEADER_NAME, VALID_API_KEY);
     request.setRequestURI("/api/quotes/AAPL");
 
     MockHttpServletResponse response = new MockHttpServletResponse();
-    FilterChain chain = mock(FilterChain.class);
+    FilterChain chain =
+        (req, res) -> {
+          // During filter chain execution, UserContext should be set
+          assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+          assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+              .isInstanceOf(UserContext.class);
+          UserContext ctx =
+              (UserContext) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+          assertThat(ctx.displayName()).isEqualTo("Test User");
+        };
 
-    customFilter.doFilterInternal(request, response, chain);
-
-    verify(chain).doFilter(request, response);
+    filter.doFilterInternal(request, response, chain);
   }
 }

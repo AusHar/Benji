@@ -49,7 +49,9 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
         currentMonth.plusMonths(1).atDay(1).atStartOfDay(clock.getZone()).toInstant();
 
     List<FinanceTransactionRecord> monthTransactions =
-        transactionRepository.findWithinRangeByUserId(userId, startOfMonth, startOfNextMonth).stream()
+        transactionRepository
+            .findWithinRangeByUserId(userId, startOfMonth, startOfNextMonth)
+            .stream()
             .map(this::toRecord)
             .toList();
 
@@ -80,7 +82,8 @@ public class DefaultFinanceInsightsService implements FinanceInsightsService {
     if (StringUtils.hasText(category)) {
       String normalizedCategory = category.trim();
       return transactionRepository
-          .findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(userId, normalizedCategory, pageable)
+          .findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(
+              userId, normalizedCategory, pageable)
           .stream()
           .map(this::toRecord)
           .toList();

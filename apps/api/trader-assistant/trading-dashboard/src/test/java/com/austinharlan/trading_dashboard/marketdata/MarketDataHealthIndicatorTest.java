@@ -67,6 +67,7 @@ class MarketDataHealthIndicatorTest {
     registry.add(
         "spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.H2Dialect");
     registry.add("spring.flyway.enabled", () -> "false");
+    registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
   }
 
   @Test

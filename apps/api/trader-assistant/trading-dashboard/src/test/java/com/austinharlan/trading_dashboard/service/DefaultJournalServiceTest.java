@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.persistence.JournalEntryEntity;
 import com.austinharlan.trading_dashboard.persistence.JournalEntryRepository;
 import com.austinharlan.trading_dashboard.persistence.JournalGoalEntity;
@@ -13,13 +14,19 @@ import com.austinharlan.trading_dashboard.persistence.JournalGoalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
 class DefaultJournalServiceTest {
+
+  private static final long USER_ID = 1L;
 
   private JournalEntryRepository entryRepo;
   private JournalGoalRepository goalRepo;
@@ -30,6 +37,18 @@ class DefaultJournalServiceTest {
     entryRepo = mock(JournalEntryRepository.class);
     goalRepo = mock(JournalGoalRepository.class);
     service = new DefaultJournalService(entryRepo, goalRepo);
+    setUserContext(USER_ID);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private void setUserContext(long userId) {
+    var ctx = new UserContext(userId, "Test", false, true);
+    var auth = new PreAuthenticatedAuthenticationToken(ctx, "", Collections.emptyList());
+    SecurityContextHolder.getContext().setAuthentication(auth);
   }
 
   // ── createEntry: ticker/tag extraction ───────────────────────────────────
@@ -90,7 +109,7 @@ class DefaultJournalServiceTest {
   @Test
   void updateEntry_refreshesTickersAndTags() {
     JournalEntryEntity existing =
-        new JournalEntryEntity("<p>$TSLA</p>", LocalDate.now(), Set.of("TSLA"), Set.of());
+        new JournalEntryEntity(USER_ID, "<p>$TSLA</p>", LocalDate.now(), Set.of("TSLA"), Set.of());
     when(entryRepo.findById(1L)).thenReturn(Optional.of(existing));
     when(entryRepo.save(org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -104,14 +123,16 @@ class DefaultJournalServiceTest {
 
   @Test
   void deleteEntry_throwsWhenNotFound() {
-    when(entryRepo.existsById(5L)).thenReturn(false);
+    when(entryRepo.findById(5L)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.deleteEntry(5L)).isInstanceOf(EntityNotFoundException.class);
   }
 
   @Test
   void deleteEntry_delegatesToRepository() {
-    when(entryRepo.existsById(3L)).thenReturn(true);
+    JournalEntryEntity existing =
+        new JournalEntryEntity(USER_ID, "<p>text</p>", LocalDate.now(), Set.of(), Set.of());
+    when(entryRepo.findById(3L)).thenReturn(Optional.of(existing));
 
     service.deleteEntry(3L);
 
@@ -122,9 +143,10 @@ class DefaultJournalServiceTest {
 
   @Test
   void getStats_streakIsZeroWhenNoEntries() {
-    when(entryRepo.findAllByOrderByEntryDateDesc()).thenReturn(List.of());
-    when(entryRepo.countByTicker()).thenReturn(List.of());
-    when(entryRepo.countByTag()).thenReturn(List.of());
+    when(entryRepo.findAllByUserIdOrderByEntryDateDesc(USER_ID)).thenReturn(List.of());
+    when(entryRepo.findAllEntryDatesAscByUserId(USER_ID)).thenReturn(List.of());
+    when(entryRepo.countByTickerAndUserId(USER_ID)).thenReturn(List.of());
+    when(entryRepo.countByTagAndUserId(USER_ID)).thenReturn(List.of());
 
     JournalService.JournalStats stats = service.getStats();
 
@@ -135,12 +157,15 @@ class DefaultJournalServiceTest {
   void getStats_streakCountsConsecutiveDaysBackFromToday() {
     LocalDate today = LocalDate.now();
     LocalDate yesterday = today.minusDays(1);
-    JournalEntryEntity todayEntry = new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
+    JournalEntryEntity todayEntry =
+        new JournalEntryEntity(USER_ID, "<p>a</p>", today, Set.of(), Set.of());
     JournalEntryEntity yesterdayEntry =
-        new JournalEntryEntity("<p>b</p>", yesterday, Set.of(), Set.of());
-    when(entryRepo.findAllByOrderByEntryDateDesc()).thenReturn(List.of(todayEntry, yesterdayEntry));
-    when(entryRepo.countByTicker()).thenReturn(List.of());
-    when(entryRepo.countByTag()).thenReturn(List.of());
+        new JournalEntryEntity(USER_ID, "<p>b</p>", yesterday, Set.of(), Set.of());
+    when(entryRepo.findAllByUserIdOrderByEntryDateDesc(USER_ID))
+        .thenReturn(List.of(todayEntry, yesterdayEntry));
+    when(entryRepo.findAllEntryDatesAscByUserId(USER_ID)).thenReturn(List.of(yesterday, today));
+    when(entryRepo.countByTickerAndUserId(USER_ID)).thenReturn(List.of());
+    when(entryRepo.countByTagAndUserId(USER_ID)).thenReturn(List.of());
 
     JournalService.JournalStats stats = service.getStats();
 
@@ -151,16 +176,19 @@ class DefaultJournalServiceTest {
   void getStats_streakBreaksOnGap() {
     LocalDate today = LocalDate.now();
     LocalDate twoDaysAgo = today.minusDays(2); // yesterday is missing
-    JournalEntryEntity todayEntry = new JournalEntryEntity("<p>a</p>", today, Set.of(), Set.of());
+    JournalEntryEntity todayEntry =
+        new JournalEntryEntity(USER_ID, "<p>a</p>", today, Set.of(), Set.of());
     JournalEntryEntity oldEntry =
-        new JournalEntryEntity("<p>b</p>", twoDaysAgo, Set.of(), Set.of());
-    when(entryRepo.findAllByOrderByEntryDateDesc()).thenReturn(List.of(todayEntry, oldEntry));
-    when(entryRepo.countByTicker()).thenReturn(List.of());
-    when(entryRepo.countByTag()).thenReturn(List.of());
+        new JournalEntryEntity(USER_ID, "<p>b</p>", twoDaysAgo, Set.of(), Set.of());
+    when(entryRepo.findAllByUserIdOrderByEntryDateDesc(USER_ID))
+        .thenReturn(List.of(todayEntry, oldEntry));
+    when(entryRepo.findAllEntryDatesAscByUserId(USER_ID)).thenReturn(List.of(twoDaysAgo, today));
+    when(entryRepo.countByTickerAndUserId(USER_ID)).thenReturn(List.of());
+    when(entryRepo.countByTagAndUserId(USER_ID)).thenReturn(List.of());
 
     JournalService.JournalStats stats = service.getStats();
 
-    // today present, yesterday absent → walk stops after 1 day
+    // today present, yesterday absent -> walk stops after 1 day
     assertThat(stats.currentStreak()).isEqualTo(1);
   }
 
@@ -170,10 +198,17 @@ class DefaultJournalServiceTest {
   void listGoals_milestoneProgressUsesStoredMilestoneValue() {
     JournalGoalEntity goal =
         new JournalGoalEntity(
-            "Hit $500K", "milestone", BigDecimal.valueOf(500000), BigDecimal.valueOf(372000), null);
-    when(goalRepo.findAll()).thenReturn(List.of(goal));
-    when(entryRepo.countDistinctEntryDatesInMonth(
-            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+            USER_ID,
+            "Hit $500K",
+            "milestone",
+            BigDecimal.valueOf(500000),
+            BigDecimal.valueOf(372000),
+            null);
+    when(goalRepo.findAllByUserId(USER_ID)).thenReturn(List.of(goal));
+    when(entryRepo.countDistinctEntryDatesInMonthByUserId(
+            org.mockito.ArgumentMatchers.eq(USER_ID),
+            org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyInt()))
         .thenReturn(0L);
 
     JournalService.GoalWithProgress gwp = service.listGoals().getFirst();
@@ -185,10 +220,12 @@ class DefaultJournalServiceTest {
   @Test
   void listGoals_habitProgressUsesEntryCountForCurrentMonth() {
     JournalGoalEntity goal =
-        new JournalGoalEntity("Write daily", "habit", BigDecimal.valueOf(30), null, null);
-    when(goalRepo.findAll()).thenReturn(List.of(goal));
-    when(entryRepo.countDistinctEntryDatesInMonth(
-            org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt()))
+        new JournalGoalEntity(USER_ID, "Write daily", "habit", BigDecimal.valueOf(30), null, null);
+    when(goalRepo.findAllByUserId(USER_ID)).thenReturn(List.of(goal));
+    when(entryRepo.countDistinctEntryDatesInMonthByUserId(
+            org.mockito.ArgumentMatchers.eq(USER_ID),
+            org.mockito.ArgumentMatchers.anyInt(),
+            org.mockito.ArgumentMatchers.anyInt()))
         .thenReturn(12L);
 
     JournalService.GoalWithProgress gwp = service.listGoals().getFirst();

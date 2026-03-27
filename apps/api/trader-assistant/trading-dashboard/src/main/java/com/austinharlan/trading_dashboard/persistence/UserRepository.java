@@ -7,7 +7,7 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
   Optional<UserEntity> findByApiKey(String apiKey);
 
-  Optional<UserEntity> findByIsDemoTrue();
+  Optional<UserEntity> findByDemoTrue();
 
   Optional<UserEntity> findByAdminTrueAndDemoFalse();
 }

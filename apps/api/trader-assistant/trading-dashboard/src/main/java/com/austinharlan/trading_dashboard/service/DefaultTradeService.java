@@ -35,7 +35,8 @@ public class DefaultTradeService implements TradeService {
       @Nullable String notes) {
     long userId = UserContext.current().userId();
     LocalDate date = tradeDate != null ? tradeDate : LocalDate.now();
-    TradeEntity entity = new TradeEntity(userId, ticker, side, quantity, pricePerShare, date, notes);
+    TradeEntity entity =
+        new TradeEntity(userId, ticker, side, quantity, pricePerShare, date, notes);
     return repository.save(entity);
   }
 

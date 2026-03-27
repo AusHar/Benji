@@ -2,22 +2,27 @@ package com.austinharlan.trading_dashboard.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.finance.FinanceSummaryData;
 import com.austinharlan.trading_dashboard.finance.FinanceTransactionRecord;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionEntity;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionRepository;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import com.austinharlan.trading_dashboard.testsupport.DatabaseIntegrationTest;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
 @SpringBootTest
 class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
@@ -26,18 +31,29 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
       Clock.fixed(Instant.parse("2024-05-15T12:00:00Z"), ZoneOffset.UTC);
 
   @Autowired private FinanceTransactionRepository repository;
+  @Autowired private UserRepository userRepository;
 
   private DefaultFinanceInsightsService service;
+  private Long testUserId;
 
   @BeforeEach
   void setUp() {
     repository.deleteAll();
+    testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
     service = new DefaultFinanceInsightsService(repository, FIXED_CLOCK);
+    setUserContext(testUserId);
   }
 
   @AfterEach
   void cleanUp() {
+    SecurityContextHolder.clearContext();
     repository.deleteAll();
+  }
+
+  private void setUserContext(long userId) {
+    var ctx = new UserContext(userId, "Test", false, true);
+    var auth = new PreAuthenticatedAuthenticationToken(ctx, "", Collections.emptyList());
+    SecurityContextHolder.getContext().setAuthentication(auth);
   }
 
   @Test
@@ -47,6 +63,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity april =
         new FinanceTransactionEntity(
             "april-tx",
+            testUserId,
             reference.minus(15, ChronoUnit.DAYS),
             "Rent",
             new BigDecimal("1200.00"),
@@ -56,6 +73,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity mayOne =
         new FinanceTransactionEntity(
             "may-1",
+            testUserId,
             reference.minus(13, ChronoUnit.DAYS),
             "Groceries",
             new BigDecimal("50.25"),
@@ -65,6 +83,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity mayTwo =
         new FinanceTransactionEntity(
             "may-2",
+            testUserId,
             reference.minus(5, ChronoUnit.DAYS),
             "Utilities",
             new BigDecimal("75.10"),
@@ -74,6 +93,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity mayThree =
         new FinanceTransactionEntity(
             "may-3",
+            testUserId,
             reference.minus(0, ChronoUnit.DAYS),
             "Coffee",
             new BigDecimal("20.00"),
@@ -97,6 +117,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity groceriesEarly =
         new FinanceTransactionEntity(
             "groceries-early",
+            testUserId,
             reference.minus(10, ChronoUnit.DAYS),
             "Grocery Run",
             new BigDecimal("30.00"),
@@ -106,6 +127,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity dining =
         new FinanceTransactionEntity(
             "dining",
+            testUserId,
             reference.minus(3, ChronoUnit.DAYS),
             "Dinner Out",
             new BigDecimal("45.00"),
@@ -115,6 +137,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity groceriesLatest =
         new FinanceTransactionEntity(
             "groceries-latest",
+            testUserId,
             reference.minus(1, ChronoUnit.DAYS),
             "Supermarket",
             new BigDecimal("55.00"),

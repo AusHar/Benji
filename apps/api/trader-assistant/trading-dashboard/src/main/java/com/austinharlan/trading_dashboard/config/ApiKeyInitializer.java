@@ -22,10 +22,13 @@ class ApiKeyInitializer {
     String envKey = apiSecurityProperties.getKey();
     // Look up by role, not by placeholder key — the key changes after first startup
     var ownerUser =
-        userRepository.findByAdminTrueAndDemoFalse()
-            .orElseThrow(() -> new IllegalStateException(
-                "PROD-REQUIRED: Owner user not found in users table. "
-                    + "Ensure V5 migration has run successfully."));
+        userRepository
+            .findByAdminTrueAndDemoFalse()
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "PROD-REQUIRED: Owner user not found in users table. "
+                            + "Ensure V5 migration has run successfully."));
     if (!envKey.equals(ownerUser.getApiKey())) {
       ownerUser.setApiKey(envKey);
       userRepository.save(ownerUser);

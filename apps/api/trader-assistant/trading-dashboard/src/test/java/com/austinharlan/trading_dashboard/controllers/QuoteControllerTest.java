@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.austinharlan.trading_dashboard.marketdata.MarketDataClientException;
 import com.austinharlan.trading_dashboard.marketdata.Quote;
 import com.austinharlan.trading_dashboard.marketdata.QuoteNotFoundException;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import com.austinharlan.trading_dashboard.service.QuoteService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -26,6 +27,8 @@ class QuoteControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockBean private QuoteService quoteService;
+
+  @MockBean private UserRepository userRepository;
 
   @Test
   void getQuoteReturnsQuoteResponse() throws Exception {

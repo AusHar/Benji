@@ -30,9 +30,13 @@ class DevUserFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     if (cachedCtx == null) {
-      UserEntity devUser = userRepository.findByApiKey("dev")
-          .orElseThrow(() -> new IllegalStateException("Dev user not found"));
-      cachedCtx = new UserContext(devUser.getId(), devUser.getDisplayName(), devUser.isDemo(), devUser.isAdmin());
+      UserEntity devUser =
+          userRepository
+              .findByApiKey("dev")
+              .orElseThrow(() -> new IllegalStateException("Dev user not found"));
+      cachedCtx =
+          new UserContext(
+              devUser.getId(), devUser.getDisplayName(), devUser.isDemo(), devUser.isAdmin());
     }
     PreAuthenticatedAuthenticationToken auth =
         new PreAuthenticatedAuthenticationToken(cachedCtx, "", Collections.emptyList());

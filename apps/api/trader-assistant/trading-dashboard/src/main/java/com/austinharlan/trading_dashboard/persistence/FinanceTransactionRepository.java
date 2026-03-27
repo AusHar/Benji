@@ -10,8 +10,7 @@ import org.springframework.data.repository.query.Param;
 public interface FinanceTransactionRepository
     extends JpaRepository<FinanceTransactionEntity, String> {
 
-  List<FinanceTransactionEntity> findAllByUserIdOrderByPostedAtDesc(
-      Long userId, Pageable pageable);
+  List<FinanceTransactionEntity> findAllByUserIdOrderByPostedAtDesc(Long userId, Pageable pageable);
 
   List<FinanceTransactionEntity> findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(
       Long userId, String category, Pageable pageable);

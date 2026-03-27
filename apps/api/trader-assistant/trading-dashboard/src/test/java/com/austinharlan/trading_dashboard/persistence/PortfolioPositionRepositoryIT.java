@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.austinharlan.trading_dashboard.testsupport.DatabaseIntegrationTest;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 class PortfolioPositionRepositoryIT extends DatabaseIntegrationTest {
 
   @Autowired private PortfolioPositionRepository repository;
+  @Autowired private UserRepository userRepository;
+
+  private Long testUserId;
+
+  @BeforeEach
+  void setUp() {
+    testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
+  }
 
   @AfterEach
   void cleanDatabase() {
@@ -28,7 +37,7 @@ class PortfolioPositionRepositoryIT extends DatabaseIntegrationTest {
   void repositorySupportsCrudOperations() {
     PortfolioPositionEntity created =
         new PortfolioPositionEntity(
-            "AAPL", new BigDecimal("1.000000"), new BigDecimal("175.500000"));
+            testUserId, "AAPL", new BigDecimal("1.000000"), new BigDecimal("175.500000"));
 
     PortfolioPositionEntity saved = repository.save(created);
     assertThat(saved.getId()).isNotNull();
@@ -40,7 +49,7 @@ class PortfolioPositionRepositoryIT extends DatabaseIntegrationTest {
     assertThat(updated.getQty()).isEqualByComparingTo("2.000000");
     assertThat(updated.getBasis()).isEqualByComparingTo("351.000000");
 
-    assertThat(repository.findByTicker("AAPL")).isPresent();
+    assertThat(repository.findByUserIdAndTicker(testUserId, "AAPL")).isPresent();
 
     repository.delete(updated);
 

@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.*;
 
 import com.austinharlan.trading_dashboard.persistence.TradeEntity;
 import com.austinharlan.trading_dashboard.persistence.TradeRepository;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import com.austinharlan.trading_dashboard.testsupport.DatabaseIntegrationTest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,12 +23,19 @@ class TradeIT extends DatabaseIntegrationTest {
 
   @Autowired private TestRestTemplate rest;
   @Autowired private TradeRepository tradeRepository;
+  @Autowired private UserRepository userRepository;
 
   private final HttpHeaders headers = new HttpHeaders();
+  private Long testUserId;
 
   {
     headers.set("X-API-KEY", "test-api-key");
     headers.setContentType(MediaType.APPLICATION_JSON);
+  }
+
+  @BeforeEach
+  void setUp() {
+    testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
   }
 
   @AfterEach
@@ -53,6 +62,7 @@ class TradeIT extends DatabaseIntegrationTest {
   void getTrades_returnsSortedByDateDesc() {
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "BUY",
             BigDecimal.TEN,
@@ -61,6 +71,7 @@ class TradeIT extends DatabaseIntegrationTest {
             null));
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "MSFT",
             "BUY",
             BigDecimal.TEN,
@@ -81,6 +92,7 @@ class TradeIT extends DatabaseIntegrationTest {
   void getTrades_filtersByTicker() {
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "BUY",
             BigDecimal.TEN,
@@ -89,6 +101,7 @@ class TradeIT extends DatabaseIntegrationTest {
             null));
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "MSFT",
             "BUY",
             BigDecimal.TEN,
@@ -110,6 +123,7 @@ class TradeIT extends DatabaseIntegrationTest {
     TradeEntity saved =
         tradeRepository.save(
             new TradeEntity(
+                testUserId,
                 "AAPL",
                 "BUY",
                 BigDecimal.TEN,
@@ -132,6 +146,7 @@ class TradeIT extends DatabaseIntegrationTest {
   void closedTrades_returnsFifoMatched() {
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "BUY",
             BigDecimal.TEN,
@@ -140,6 +155,7 @@ class TradeIT extends DatabaseIntegrationTest {
             null));
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "SELL",
             BigDecimal.TEN,
@@ -160,6 +176,7 @@ class TradeIT extends DatabaseIntegrationTest {
   void stats_returnsAggregatedData() {
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "BUY",
             BigDecimal.TEN,
@@ -168,6 +185,7 @@ class TradeIT extends DatabaseIntegrationTest {
             null));
     tradeRepository.save(
         new TradeEntity(
+            testUserId,
             "AAPL",
             "SELL",
             BigDecimal.TEN,

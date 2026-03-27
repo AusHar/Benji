@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +20,14 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
 
   @Autowired private JournalEntryRepository entryRepo;
   @Autowired private JournalGoalRepository goalRepo;
+  @Autowired private UserRepository userRepository;
+
+  private Long testUserId;
+
+  @BeforeEach
+  void setUp() {
+    testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
+  }
 
   @AfterEach
   void cleanup() {
@@ -36,10 +45,10 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
   void saveAndFindEntryByDate() {
     LocalDate target = LocalDate.of(2026, 3, 15);
     JournalEntryEntity entry =
-        new JournalEntryEntity("<p>$NVDA</p>", target, Set.of("NVDA"), Set.of("macro"));
+        new JournalEntryEntity(testUserId, "<p>$NVDA</p>", target, Set.of("NVDA"), Set.of("macro"));
     entryRepo.save(entry);
 
-    Optional<JournalEntryEntity> found = entryRepo.findByEntryDate(target);
+    Optional<JournalEntryEntity> found = entryRepo.findByUserIdAndEntryDate(testUserId, target);
 
     assertThat(found).isPresent();
     assertThat(found.get().getTickers()).containsExactlyInAnyOrder("NVDA");
@@ -49,11 +58,13 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
   @Test
   void findByTicker_returnsOnlyMatchingEntries() {
     entryRepo.save(
-        new JournalEntryEntity("<p>$NVDA</p>", LocalDate.of(2026, 3, 1), Set.of("NVDA"), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>$NVDA</p>", LocalDate.of(2026, 3, 1), Set.of("NVDA"), Set.of()));
     entryRepo.save(
-        new JournalEntryEntity("<p>$MSFT</p>", LocalDate.of(2026, 3, 2), Set.of("MSFT"), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>$MSFT</p>", LocalDate.of(2026, 3, 2), Set.of("MSFT"), Set.of()));
 
-    List<JournalEntryEntity> results = entryRepo.findByTicker("NVDA");
+    List<JournalEntryEntity> results = entryRepo.findByUserIdAndTicker(testUserId, "NVDA");
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().getTickers()).contains("NVDA");
@@ -63,12 +74,12 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
   void findByTag_returnsOnlyMatchingEntries() {
     entryRepo.save(
         new JournalEntryEntity(
-            "<p>#macro</p>", LocalDate.of(2026, 3, 1), Set.of(), Set.of("macro")));
+            testUserId, "<p>#macro</p>", LocalDate.of(2026, 3, 1), Set.of(), Set.of("macro")));
     entryRepo.save(
         new JournalEntryEntity(
-            "<p>#growth</p>", LocalDate.of(2026, 3, 2), Set.of(), Set.of("growth")));
+            testUserId, "<p>#growth</p>", LocalDate.of(2026, 3, 2), Set.of(), Set.of("growth")));
 
-    List<JournalEntryEntity> results = entryRepo.findByTag("macro");
+    List<JournalEntryEntity> results = entryRepo.findByUserIdAndTag(testUserId, "macro");
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().getTags()).contains("macro");
@@ -79,7 +90,11 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
     JournalEntryEntity entry =
         entryRepo.save(
             new JournalEntryEntity(
-                "<p>$TSLA #ev</p>", LocalDate.of(2026, 3, 3), Set.of("TSLA"), Set.of("ev")));
+                testUserId,
+                "<p>$TSLA #ev</p>",
+                LocalDate.of(2026, 3, 3),
+                Set.of("TSLA"),
+                Set.of("ev")));
 
     entryRepo.deleteById(entry.getId());
 
@@ -90,13 +105,16 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
   @Test
   void countDistinctEntryDatesInMonth() {
     entryRepo.save(
-        new JournalEntryEntity("<p>a</p>", LocalDate.of(2026, 3, 1), Set.of(), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>a</p>", LocalDate.of(2026, 3, 1), Set.of(), Set.of()));
     entryRepo.save(
-        new JournalEntryEntity("<p>b</p>", LocalDate.of(2026, 3, 5), Set.of(), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>b</p>", LocalDate.of(2026, 3, 5), Set.of(), Set.of()));
     entryRepo.save(
-        new JournalEntryEntity("<p>c</p>", LocalDate.of(2026, 4, 1), Set.of(), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>c</p>", LocalDate.of(2026, 4, 1), Set.of(), Set.of()));
 
-    long marchCount = entryRepo.countDistinctEntryDatesInMonth(2026, 3);
+    long marchCount = entryRepo.countDistinctEntryDatesInMonthByUserId(testUserId, 2026, 3);
 
     assertThat(marchCount).isEqualTo(2);
   }
@@ -104,10 +122,12 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
   @Test
   void uniqueConstraint_preventsSecondEntryForSameDate() {
     entryRepo.save(
-        new JournalEntryEntity("<p>first</p>", LocalDate.of(2026, 3, 10), Set.of(), Set.of()));
+        new JournalEntryEntity(
+            testUserId, "<p>first</p>", LocalDate.of(2026, 3, 10), Set.of(), Set.of()));
 
     JournalEntryEntity duplicate =
-        new JournalEntryEntity("<p>second</p>", LocalDate.of(2026, 3, 10), Set.of(), Set.of());
+        new JournalEntryEntity(
+            testUserId, "<p>second</p>", LocalDate.of(2026, 3, 10), Set.of(), Set.of());
 
     assertThatThrownBy(() -> entryRepo.saveAndFlush(duplicate))
         .isInstanceOf(DataIntegrityViolationException.class);
