@@ -19,6 +19,9 @@ public class JournalGoalEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
+
   @Column(name = "label", nullable = false)
   private String label;
 
@@ -40,11 +43,13 @@ public class JournalGoalEntity {
   protected JournalGoalEntity() {}
 
   public JournalGoalEntity(
+      Long userId,
       String label,
       String goalType,
       BigDecimal targetValue,
       BigDecimal milestoneValue,
       LocalDate deadline) {
+    this.userId = Objects.requireNonNull(userId, "userId must not be null");
     this.label = Objects.requireNonNull(label, "label must not be null");
     this.goalType = Objects.requireNonNull(goalType, "goalType must not be null");
     this.targetValue = targetValue;
@@ -55,6 +60,10 @@ public class JournalGoalEntity {
 
   public Long getId() {
     return id;
+  }
+
+  public Long getUserId() {
+    return userId;
   }
 
   public String getLabel() {

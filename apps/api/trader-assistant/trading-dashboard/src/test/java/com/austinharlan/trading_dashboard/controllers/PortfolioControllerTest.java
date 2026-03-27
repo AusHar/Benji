@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioSnapshot;
@@ -33,6 +34,8 @@ class PortfolioControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockBean private PortfolioService portfolioService;
+
+  @MockBean private UserRepository userRepository;
 
   @Test
   void listPortfolioPositionsReturnsPositions() throws Exception {

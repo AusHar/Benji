@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +18,14 @@ import org.springframework.data.domain.Pageable;
 class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
 
   @Autowired private FinanceTransactionRepository repository;
+  @Autowired private UserRepository userRepository;
+
+  private Long testUserId;
+
+  @BeforeEach
+  void setUp() {
+    testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
+  }
 
   @AfterEach
   void resetDatabase() {
@@ -35,6 +44,7 @@ class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity groceries =
         new FinanceTransactionEntity(
             "groceries-1",
+            testUserId,
             now.minus(2, ChronoUnit.DAYS),
             "Trader Joe's",
             new BigDecimal("45.20"),
@@ -44,6 +54,7 @@ class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
     FinanceTransactionEntity dining =
         new FinanceTransactionEntity(
             "dining-1",
+            testUserId,
             now.minus(1, ChronoUnit.DAYS),
             "Neighborhood Bistro",
             new BigDecimal("62.10"),
@@ -52,19 +63,27 @@ class FinanceTransactionRepositoryIT extends DatabaseIntegrationTest {
 
     FinanceTransactionEntity groceriesLater =
         new FinanceTransactionEntity(
-            "groceries-2", now, "Whole Foods", new BigDecimal("85.75"), "Groceries", null);
+            "groceries-2",
+            testUserId,
+            now,
+            "Whole Foods",
+            new BigDecimal("85.75"),
+            "Groceries",
+            null);
 
     repository.saveAll(List.of(groceries, dining, groceriesLater));
 
     List<FinanceTransactionEntity> groceriesResults =
-        repository.findByCategoryIgnoreCaseOrderByPostedAtDesc("groceries", Pageable.unpaged());
+        repository.findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(
+            testUserId, "groceries", Pageable.unpaged());
 
     assertThat(groceriesResults)
         .extracting(FinanceTransactionEntity::getId)
         .containsExactly("groceries-2", "groceries-1");
 
     List<FinanceTransactionEntity> rangeResults =
-        repository.findWithinRange(now.minus(3, ChronoUnit.DAYS), now.plus(1, ChronoUnit.MINUTES));
+        repository.findWithinRangeByUserId(
+            testUserId, now.minus(3, ChronoUnit.DAYS), now.plus(1, ChronoUnit.MINUTES));
 
     assertThat(rangeResults)
         .hasSize(3)

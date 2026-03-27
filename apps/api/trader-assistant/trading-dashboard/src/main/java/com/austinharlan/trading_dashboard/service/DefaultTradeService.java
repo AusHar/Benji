@@ -1,5 +1,6 @@
 package com.austinharlan.trading_dashboard.service;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.persistence.TradeEntity;
 import com.austinharlan.trading_dashboard.persistence.TradeRepository;
 import com.austinharlan.trading_dashboard.trades.ClosedTrade;
@@ -32,8 +33,10 @@ public class DefaultTradeService implements TradeService {
       BigDecimal pricePerShare,
       @Nullable LocalDate tradeDate,
       @Nullable String notes) {
+    long userId = UserContext.current().userId();
     LocalDate date = tradeDate != null ? tradeDate : LocalDate.now();
-    TradeEntity entity = new TradeEntity(ticker, side, quantity, pricePerShare, date, notes);
+    TradeEntity entity =
+        new TradeEntity(userId, ticker, side, quantity, pricePerShare, date, notes);
     return repository.save(entity);
   }
 
@@ -44,28 +47,39 @@ public class DefaultTradeService implements TradeService {
       @Nullable String side,
       @Nullable LocalDate from,
       @Nullable LocalDate to) {
+    long userId = UserContext.current().userId();
     if (ticker == null && side == null && from == null && to == null) {
-      return repository.findAllByOrderByTradeDateDescCreatedAtDesc();
+      return repository.findAllByUserIdOrderByTradeDateDescCreatedAtDesc(userId);
     }
-    return repository.findFiltered(ticker, side, from, to);
+    return repository.findFilteredByUserId(userId, ticker, side, from, to);
   }
 
   @Override
   @Transactional(readOnly = true)
   public TradeEntity getTrade(long id) {
-    return repository.findById(id).orElseThrow(() -> notFound(id));
+    long userId = UserContext.current().userId();
+    TradeEntity entity = repository.findById(id).orElseThrow(() -> notFound(id));
+    if (!entity.getUserId().equals(userId)) {
+      throw new EntityNotFoundException("Trade not found: " + id);
+    }
+    return entity;
   }
 
   @Override
   public void deleteTrade(long id) {
-    if (!repository.existsById(id)) throw notFound(id);
+    long userId = UserContext.current().userId();
+    TradeEntity entity = repository.findById(id).orElseThrow(() -> notFound(id));
+    if (!entity.getUserId().equals(userId)) {
+      throw new EntityNotFoundException("Trade not found: " + id);
+    }
     repository.deleteById(id);
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<ClosedTrade> getClosedTrades() {
-    List<TradeEntity> all = repository.findAllChronological();
+    long userId = UserContext.current().userId();
+    List<TradeEntity> all = repository.findAllChronologicalByUserId(userId);
     return computeClosedTrades(all);
   }
 

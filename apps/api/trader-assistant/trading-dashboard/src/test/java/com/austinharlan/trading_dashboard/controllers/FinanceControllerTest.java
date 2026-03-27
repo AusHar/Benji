@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.austinharlan.trading_dashboard.finance.FinanceSummaryData;
 import com.austinharlan.trading_dashboard.finance.FinanceTransactionRecord;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import com.austinharlan.trading_dashboard.service.FinanceInsightsService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,6 +30,8 @@ class FinanceControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockBean private FinanceInsightsService financeInsightsService;
+
+  @MockBean private UserRepository userRepository;
 
   @Test
   void getFinanceSummaryReturnsSummary() throws Exception {

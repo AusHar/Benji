@@ -26,8 +26,4 @@ public class ApiSecurityProperties {
       this.headerName = headerName;
     }
   }
-
-  public boolean isEnabled() {
-    return StringUtils.hasText(key);
-  }
 }

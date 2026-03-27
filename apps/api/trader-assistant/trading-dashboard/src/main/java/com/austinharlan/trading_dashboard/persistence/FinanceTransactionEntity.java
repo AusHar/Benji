@@ -17,6 +17,9 @@ public class FinanceTransactionEntity {
   @Column(name = "id", nullable = false, updatable = false, length = 36)
   private String id;
 
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
+
   @Column(name = "posted_at", nullable = false)
   private Instant postedAt;
 
@@ -37,18 +40,25 @@ public class FinanceTransactionEntity {
   }
 
   public FinanceTransactionEntity(
-      Instant postedAt, String description, BigDecimal amount, String category, String notes) {
-    this(UUID.randomUUID().toString(), postedAt, description, amount, category, notes);
+      Long userId,
+      Instant postedAt,
+      String description,
+      BigDecimal amount,
+      String category,
+      String notes) {
+    this(UUID.randomUUID().toString(), userId, postedAt, description, amount, category, notes);
   }
 
   public FinanceTransactionEntity(
       String id,
+      Long userId,
       Instant postedAt,
       String description,
       BigDecimal amount,
       String category,
       String notes) {
     this.id = Objects.requireNonNull(id, "id must not be null");
+    this.userId = Objects.requireNonNull(userId, "userId must not be null");
     this.postedAt = Objects.requireNonNull(postedAt, "postedAt must not be null");
     this.description = Objects.requireNonNull(description, "description must not be null");
     this.amount = Objects.requireNonNull(amount, "amount must not be null");
@@ -58,6 +68,10 @@ public class FinanceTransactionEntity {
 
   public String getId() {
     return id;
+  }
+
+  public Long getUserId() {
+    return userId;
   }
 
   public void setId(String id) {

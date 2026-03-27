@@ -1,5 +1,6 @@
 package com.austinharlan.trading_dashboard.service;
 
+import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.persistence.JournalEntryEntity;
 import com.austinharlan.trading_dashboard.persistence.JournalEntryRepository;
 import com.austinharlan.trading_dashboard.persistence.JournalGoalEntity;
@@ -43,30 +44,37 @@ public class DefaultJournalService implements JournalService {
   @Transactional(readOnly = true)
   public List<JournalEntryEntity> listEntries(
       @Nullable String ticker, @Nullable String tag, @Nullable LocalDate entryDate) {
+    long userId = UserContext.current().userId();
     if (entryDate != null) {
-      return entryRepository.findByEntryDate(entryDate).map(List::of).orElse(List.of());
+      return entryRepository
+          .findByUserIdAndEntryDate(userId, entryDate)
+          .map(List::of)
+          .orElse(List.of());
     }
     if (ticker != null) {
-      return entryRepository.findByTicker(ticker.toUpperCase());
+      return entryRepository.findByUserIdAndTicker(userId, ticker.toUpperCase());
     }
     if (tag != null) {
-      return entryRepository.findByTag(tag.toLowerCase());
+      return entryRepository.findByUserIdAndTag(userId, tag.toLowerCase());
     }
-    return entryRepository.findAllByOrderByEntryDateDesc();
+    return entryRepository.findAllByUserIdOrderByEntryDateDesc(userId);
   }
 
   @Override
   public JournalEntryEntity createEntry(String body, LocalDate entryDate) {
+    long userId = UserContext.current().userId();
     Set<String> tickers = extractTickers(body);
     Set<String> tags = extractTags(body);
-    JournalEntryEntity entry = new JournalEntryEntity(body, entryDate, tickers, tags);
+    JournalEntryEntity entry = new JournalEntryEntity(userId, body, entryDate, tickers, tags);
     return entryRepository.save(entry);
   }
 
   @Override
   public JournalEntryEntity updateEntry(long id, String body) {
+    long userId = UserContext.current().userId();
     JournalEntryEntity entry =
         entryRepository.findById(id).orElseThrow(() -> notFound("Entry", id));
+    if (!entry.getUserId().equals(userId)) throw notFound("Entry", id);
     entry.setBody(body);
     entry.setTickers(extractTickers(body));
     entry.setTags(extractTags(body));
@@ -76,19 +84,23 @@ public class DefaultJournalService implements JournalService {
 
   @Override
   public void deleteEntry(long id) {
-    if (!entryRepository.existsById(id)) throw notFound("Entry", id);
+    long userId = UserContext.current().userId();
+    JournalEntryEntity entry =
+        entryRepository.findById(id).orElseThrow(() -> notFound("Entry", id));
+    if (!entry.getUserId().equals(userId)) throw notFound("Entry", id);
     entryRepository.deleteById(id);
   }
 
   @Override
   @Transactional(readOnly = true)
   public List<GoalWithProgress> listGoals() {
+    long userId = UserContext.current().userId();
     YearMonth currentMonth = YearMonth.now();
     long habitProgress =
-        entryRepository.countDistinctEntryDatesInMonth(
-            currentMonth.getYear(), currentMonth.getMonthValue());
+        entryRepository.countDistinctEntryDatesInMonthByUserId(
+            userId, currentMonth.getYear(), currentMonth.getMonthValue());
 
-    return goalRepository.findAll().stream()
+    return goalRepository.findAllByUserId(userId).stream()
         .map(goal -> toGoalWithProgress(goal, habitProgress))
         .toList();
   }
@@ -100,8 +112,9 @@ public class DefaultJournalService implements JournalService {
       @Nullable BigDecimal targetValue,
       @Nullable BigDecimal milestoneValue,
       @Nullable LocalDate deadline) {
+    long userId = UserContext.current().userId();
     JournalGoalEntity goal =
-        new JournalGoalEntity(label, goalType, targetValue, milestoneValue, deadline);
+        new JournalGoalEntity(userId, label, goalType, targetValue, milestoneValue, deadline);
     return goalRepository.save(goal);
   }
 
@@ -112,7 +125,9 @@ public class DefaultJournalService implements JournalService {
       @Nullable BigDecimal targetValue,
       @Nullable BigDecimal milestoneValue,
       @Nullable LocalDate deadline) {
+    long userId = UserContext.current().userId();
     JournalGoalEntity goal = goalRepository.findById(id).orElseThrow(() -> notFound("Goal", id));
+    if (!goal.getUserId().equals(userId)) throw notFound("Goal", id);
     goal.setLabel(label);
     goal.setTargetValue(targetValue);
     goal.setMilestoneValue(milestoneValue);
@@ -122,20 +137,23 @@ public class DefaultJournalService implements JournalService {
 
   @Override
   public void deleteGoal(long id) {
-    if (!goalRepository.existsById(id)) throw notFound("Goal", id);
+    long userId = UserContext.current().userId();
+    JournalGoalEntity goal = goalRepository.findById(id).orElseThrow(() -> notFound("Goal", id));
+    if (!goal.getUserId().equals(userId)) throw notFound("Goal", id);
     goalRepository.deleteById(id);
   }
 
   @Override
   @Transactional(readOnly = true)
   public JournalStats getStats() {
-    List<JournalEntryEntity> allEntries = entryRepository.findAllByOrderByEntryDateDesc();
+    long userId = UserContext.current().userId();
+    List<JournalEntryEntity> allEntries =
+        entryRepository.findAllByUserIdOrderByEntryDateDesc(userId);
     long entryCount = allEntries.size();
-    List<LocalDate> datesAsc =
-        allEntries.stream().map(JournalEntryEntity::getEntryDate).sorted().toList();
+    List<LocalDate> datesAsc = entryRepository.findAllEntryDatesAscByUserId(userId);
     int streak = computeStreak(datesAsc);
     Map<LocalDate, Integer> calendar = buildCalendar(allEntries);
-    List<JournalStats.TokenCount> mostMentioned = buildMostMentioned();
+    List<JournalStats.TokenCount> mostMentioned = buildMostMentioned(userId);
     return new JournalStats(entryCount, streak, calendar, mostMentioned);
   }
 
@@ -195,16 +213,16 @@ public class DefaultJournalService implements JournalService {
     return hasMedia || hasThreePlusTags;
   }
 
-  private List<JournalStats.TokenCount> buildMostMentioned() {
+  private List<JournalStats.TokenCount> buildMostMentioned(long userId) {
     List<JournalStats.TokenCount> counts = new ArrayList<>();
     entryRepository
-        .countByTicker()
+        .countByTickerAndUserId(userId)
         .forEach(
             row ->
                 counts.add(
                     new JournalStats.TokenCount("$" + row[0], ((Number) row[1]).intValue())));
     entryRepository
-        .countByTag()
+        .countByTagAndUserId(userId)
         .forEach(
             row ->
                 counts.add(
