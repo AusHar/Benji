@@ -76,13 +76,13 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
         new HttpEntity<>(Map.of("ticker", "GOOG", "quantity", 5, "price_per_share", 170.0), hB),
         Map.class);
 
-    ResponseEntity<List> alicePositions =
-        rest.exchange("/api/portfolio/positions", HttpMethod.GET, new HttpEntity<>(hA), List.class);
-    assertThat(alicePositions.getBody()).hasSize(1);
+    ResponseEntity<Map> aliceResp =
+        rest.exchange("/api/portfolio/positions", HttpMethod.GET, new HttpEntity<>(hA), Map.class);
+    assertThat((List<?>) aliceResp.getBody().get("positions")).hasSize(1);
 
-    ResponseEntity<List> bobPositions =
-        rest.exchange("/api/portfolio/positions", HttpMethod.GET, new HttpEntity<>(hB), List.class);
-    assertThat(bobPositions.getBody()).hasSize(1);
+    ResponseEntity<Map> bobResp =
+        rest.exchange("/api/portfolio/positions", HttpMethod.GET, new HttpEntity<>(hB), Map.class);
+    assertThat((List<?>) bobResp.getBody().get("positions")).hasSize(1);
   }
 
   private HttpHeaders headers(String key) {

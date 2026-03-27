@@ -1,6 +1,7 @@
 package com.austinharlan.trading_dashboard.service;
 
 import com.austinharlan.trading_dashboard.persistence.*;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ public class DemoService {
   private final FinanceTransactionRepository financeRepository;
   private final JournalEntryRepository journalEntryRepository;
   private final JournalGoalRepository journalGoalRepository;
+  private final EntityManager entityManager;
 
   public DemoService(
       UserRepository userRepository,
@@ -25,13 +27,15 @@ public class DemoService {
       TradeRepository tradeRepository,
       FinanceTransactionRepository financeRepository,
       JournalEntryRepository journalEntryRepository,
-      JournalGoalRepository journalGoalRepository) {
+      JournalGoalRepository journalGoalRepository,
+      EntityManager entityManager) {
     this.userRepository = userRepository;
     this.portfolioRepository = portfolioRepository;
     this.tradeRepository = tradeRepository;
     this.financeRepository = financeRepository;
     this.journalEntryRepository = journalEntryRepository;
     this.journalGoalRepository = journalGoalRepository;
+    this.entityManager = entityManager;
   }
 
   @Transactional
@@ -50,6 +54,8 @@ public class DemoService {
     tradeRepository.deleteAllByUserId(demoUserId);
     financeRepository.deleteAllByUserId(demoUserId);
     portfolioRepository.deleteAllByUserId(demoUserId);
+    entityManager.flush();
+    entityManager.clear();
 
     seedPortfolio(demoUserId);
     seedTrades(demoUserId);
