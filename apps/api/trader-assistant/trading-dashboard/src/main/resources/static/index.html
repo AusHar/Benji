@@ -1653,6 +1653,36 @@
     const results = await Promise.allSettled(list.map(s => get('/api/quotes/' + s)));
     const quotes = results.map(r => r.status === 'fulfilled' ? r.value : null);
     renderWatchlistTiles(list, quotes);
+    loadWatchlistSparklines(list);
+  }
+
+  async function loadWatchlistSparklines(list) {
+    const results = await Promise.allSettled(list.map(s => get('/api/quotes/' + s + '/history')));
+    results.forEach((r, i) => {
+      if (r.status !== 'fulfilled' || !r.value?.bars?.length) return;
+      const bars = r.value.bars.slice(-30);
+      if (bars.length < 2) return;
+      drawTileSparkline(list[i], bars);
+    });
+  }
+
+  function drawTileSparkline(sym, bars) {
+    const tile = document.getElementById('wl-' + sym);
+    if (!tile) return;
+    const svg = tile.querySelector('.tile-spark');
+    if (!svg) return;
+    const closes = bars.map(b => b.close);
+    const min = Math.min(...closes), max = Math.max(...closes);
+    const range = max - min || 1;
+    const W = 120, H = 36, pad = 3;
+    const points = closes.map((c, i) => {
+      const x = (i / (closes.length - 1)) * W;
+      const y = pad + ((max - c) / range) * (H - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const color = closes[closes.length - 1] >= closes[0]
+      ? 'rgba(78,221,138,.6)' : 'rgba(240,120,104,.6)';
+    svg.innerHTML = `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round"/>`;
   }
 
   /* ── Dashboard ──────────────────────────── */
