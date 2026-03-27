@@ -15,6 +15,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public abstract class DatabaseIntegrationTest {
 
+  /** API key used by TestUserSeeder — send in X-API-KEY header. */
+  protected static final String TEST_API_KEY = "test-api-key";
+
   @Container
   private static final PostgreSQLContainer<?> POSTGRES =
       new PostgreSQLContainer<>("postgres:16-alpine")
