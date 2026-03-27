@@ -42,7 +42,10 @@ public class DemoService {
             .orElseThrow(() -> new IllegalStateException("Demo user not found"))
             .getId();
 
-    journalEntryRepository.deleteAllByUserId(demoUserId);
+    // Load entries first so Hibernate cascades deletes to @ElementCollection tables
+    // (journal_entry_tickers, journal_entry_tags have FK constraints)
+    journalEntryRepository.deleteAll(
+        journalEntryRepository.findAllByUserIdOrderByEntryDateDesc(demoUserId));
     journalGoalRepository.deleteAllByUserId(demoUserId);
     tradeRepository.deleteAllByUserId(demoUserId);
     financeRepository.deleteAllByUserId(demoUserId);

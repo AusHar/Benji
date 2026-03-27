@@ -66,14 +66,14 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
     rest.exchange(
         "/api/portfolio/positions",
         HttpMethod.POST,
-        new HttpEntity<>(Map.of("ticker", "AAPL", "quantity", 10, "pricePerShare", 150.0), hA),
+        new HttpEntity<>(Map.of("ticker", "AAPL", "quantity", 10, "price_per_share", 150.0), hA),
         Map.class);
 
     HttpHeaders hB = headers(userBKey);
     rest.exchange(
         "/api/portfolio/positions",
         HttpMethod.POST,
-        new HttpEntity<>(Map.of("ticker", "GOOG", "quantity", 5, "pricePerShare", 170.0), hB),
+        new HttpEntity<>(Map.of("ticker", "GOOG", "quantity", 5, "price_per_share", 170.0), hB),
         Map.class);
 
     ResponseEntity<List> alicePositions =
