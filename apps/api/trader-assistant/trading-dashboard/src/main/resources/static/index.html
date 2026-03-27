@@ -39,6 +39,9 @@
       --sidebar-col:  54px;
     }
 
+    html {
+      zoom: 1.15;
+    }
     html, body {
       height: 100%;
       background: var(--bg);
@@ -169,7 +172,7 @@
     .sidebar.collapsed .conn-label { opacity: 0; }
 
     /* ── Main shell ──────────────────────────── */
-    .layout { display: flex; height: 100vh; }
+    .layout { display: flex; height: calc(100vh / 1.15); }
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .ticker-bar {
       height: 28px;
@@ -618,7 +621,7 @@
     @keyframes demo-shimmer{0%{left:-200px}100%{left:100%}}
     .demo-banner a{color:#4edd8a;text-decoration:none;font-weight:600}
     .demo-banner a:hover{text-decoration:underline}
-    body.demo-mode .layout{height:calc(100vh - 32px);margin-top:32px}
+    body.demo-mode .layout{height:calc(100vh / 1.15 - 32px);margin-top:32px}
 
     /* ── Overview grid */
     .overview-grid {
