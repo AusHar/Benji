@@ -204,6 +204,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
   Optional<UserEntity> findByApiKey(String apiKey);
 
   Optional<UserEntity> findByIsDemoTrue();
+
+  Optional<UserEntity> findByAdminTrueAndDemoFalse();
 }
 ```
 
@@ -353,10 +355,11 @@ class ApiKeyInitializer {
   @PostConstruct
   void syncOwnerApiKey() {
     String envKey = apiSecurityProperties.getKey();
+    // Look up by role, not by placeholder key — the key changes after first startup
     var ownerUser =
-        userRepository.findByApiKey("owner-api-key-change-me")
+        userRepository.findByAdminTrueAndDemoFalse()
             .orElseThrow(() -> new IllegalStateException(
-                "PROD-REQUIRED: Owner user not found in users table with placeholder key. "
+                "PROD-REQUIRED: Owner user not found in users table. "
                     + "Ensure V5 migration has run successfully."));
     if (!envKey.equals(ownerUser.getApiKey())) {
       ownerUser.setApiKey(envKey);
@@ -1074,13 +1077,33 @@ git commit -m "feat: scope DefaultFinanceInsightsService to current user"
 
 ---
 
-## Task 13: Update Existing Tests
+## Task 13: Update All Existing Tests
 
 **Files:**
 - Modify: `$TEST/TradeIT.java`
 - Modify: `$TEST/service/DefaultTradeServiceTest.java`
+- Modify: `$TEST/config/ApiKeyAuthFilterTest.java`
+- Modify: All other `*IT.java` and `*Test.java` files that construct entities or call old repository methods
 
-- [ ] **Step 1: Update TradeIT**
+> **This task has the widest blast radius.** Run `cd $ROOT && ./gradlew compileTestJava 2>&1 | grep "error:"` first to get the full list of compilation failures. Fix them all before running tests.
+
+- [ ] **Step 1: Identify all broken test files**
+
+Run: `cd $ROOT && ./gradlew compileTestJava 2>&1 | grep "error:" | sort -u`
+
+This will surface every test that uses old entity constructors (missing `userId` param) or old repository methods (e.g., `findByTicker`). Common affected files:
+- `TradeIT.java` — `new TradeEntity(...)` missing userId
+- `DefaultTradeServiceTest.java` — same
+- `ApiKeyAuthFilterTest.java` — constructor changed to `(ApiSecurityProperties, UserRepository)`
+- `PortfolioPositionRepositoryIT.java` — `new PortfolioPositionEntity(...)` missing userId, `findByTicker` removed
+- `FinanceTransactionRepositoryIT.java` (if exists) — constructor change
+- `JournalRepositoryIT.java` (if exists) — constructor change
+- `DefaultFinanceInsightsServiceIT.java` (if exists) — constructor/repo changes
+- `DefaultJournalServiceTest.java` (if exists) — constructor/repo changes
+- `FinanceControllerTest.java` (if exists) — constructor change
+- `PortfolioControllerTest.java` (if exists) — constructor change
+
+- [ ] **Step 2: Update TradeIT**
 
 Read the current file. Key changes:
 - Inject `UserRepository` to look up the test user's ID
@@ -1097,7 +1120,7 @@ Long testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getI
 
 Update all `new TradeEntity(...)` calls to include `testUserId` as first parameter.
 
-- [ ] **Step 2: Update DefaultTradeServiceTest**
+- [ ] **Step 3: Update DefaultTradeServiceTest**
 
 The unit test mocks the repository. Update the mock setup to create `TradeEntity` objects with a userId. The `trade()` helper method needs a userId parameter:
 
@@ -1125,16 +1148,32 @@ void clearContext() {
 }
 ```
 
-- [ ] **Step 3: Run all tests**
+- [ ] **Step 4: Update ApiKeyAuthFilterTest**
+
+The existing test constructs `ApiKeyAuthFilter(properties)`. After Task 5, the constructor is `ApiKeyAuthFilter(ApiSecurityProperties, UserRepository)`. Rewrite the test:
+- Mock `UserRepository` with Mockito
+- The old `isKeyValid()` constant-time comparison tests no longer apply (the filter does a DB lookup now)
+- New test cases: (1) valid key → filter sets UserContext and chains, (2) invalid key → 401, (3) missing key → 401
+- Stub `userRepository.findByApiKey("valid-key")` to return a `UserEntity`, verify the `SecurityContextHolder` gets a `UserContext` principal
+
+- [ ] **Step 5: Update all other broken test files**
+
+For each file identified in Step 1:
+- Update entity constructor calls to include `userId` as first parameter
+- Update repository method calls to user-scoped variants
+- For integration tests: use `testUserId` from `UserRepository.findByApiKey("test-api-key")`
+- For unit tests with mocks: use a fixed `userId` constant (e.g., `1L`)
+
+- [ ] **Step 6: Verify all tests compile and pass**
 
 Run: `cd $ROOT && ./gradlew test 2>&1 | tail -20`
 Expected: All tests pass. Fix any failures before proceeding.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add $TEST/
-git commit -m "test: update existing tests for multi-tenancy user_id"
+git commit -m "test: update all existing tests for multi-tenancy user_id"
 ```
 
 ---
