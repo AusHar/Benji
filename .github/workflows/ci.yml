@@ -24,7 +24,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: benji-jar
-          path: apps/api/trader-assistant/trading-dashboard/build/libs/trading-dashboard-*.jar
+          path: |
+            apps/api/trader-assistant/trading-dashboard/build/libs/trading-dashboard-*.jar
+            !apps/api/trader-assistant/trading-dashboard/build/libs/*-plain.jar
           retention-days: 1
 
       - name: Upload reports
@@ -58,7 +60,7 @@ jobs:
 
       - name: Deploy JAR to Lightsail
         run: |
-          JAR=$(find dist -name "*.jar" | head -1)
+          JAR=$(find dist -name "*.jar" ! -name "*-plain.jar" | head -1)
           rsync -az -e "ssh -i ~/.ssh/deploy.pem" "$JAR" ubuntu@107.22.236.28:/opt/benji/benji.jar
 
       - name: Restart service
