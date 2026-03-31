@@ -609,7 +609,9 @@
     .lock-returning-label{font-size:10px;color:#e08a4a;margin-bottom:8px;letter-spacing:.3px}
     .lock-returning-row{display:flex;gap:6px}
     .lock-key-wrap{flex:1;position:relative}
-    .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
+    .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 32px 9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
+    .lock-eye-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;display:flex;align-items:center}
+    .lock-eye-btn:hover{color:#ccc}
     .lock-go-btn{background:#e08a4a22!important;border:1px solid #e08a4a55!important;border-radius:6px!important;padding:9px 14px!important;color:#e08a4a!important;font-size:11px!important;font-weight:600!important;cursor:pointer}
     .lock-go-btn:hover{background:#e08a4a33!important}
 
@@ -910,6 +912,12 @@
       <div class="lock-returning-row">
         <div class="lock-key-wrap">
           <input class="field lock-key-input" id="keyInput" type="password" placeholder="Enter key" autocomplete="off">
+          <button type="button" class="lock-eye-btn" id="eyeToggle" onclick="toggleKeyVis()" aria-label="Toggle key visibility">
+            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
         </div>
         <button class="btn lock-go-btn" id="unlockBtn">Go &rarr;</button>
       </div>
@@ -1231,6 +1239,16 @@
     document.body.classList.remove('demo-mode');
     document.getElementById('overlay').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
+  }
+
+  function toggleKeyVis() {
+    const inp = document.getElementById('keyInput');
+    const icon = document.getElementById('eyeIcon');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    icon.innerHTML = show
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
   }
 
   async function tryKey() {
