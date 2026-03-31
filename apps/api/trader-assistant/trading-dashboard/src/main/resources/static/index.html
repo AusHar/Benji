@@ -609,7 +609,9 @@
     .lock-returning-label{font-size:10px;color:#e08a4a;margin-bottom:8px;letter-spacing:.3px}
     .lock-returning-row{display:flex;gap:6px}
     .lock-key-wrap{flex:1;position:relative}
-    .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
+    .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 30px 9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
+    .lock-key-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#e0e0e080;font-size:13px;padding:2px 4px;line-height:1;transition:color .2s}
+    .lock-key-toggle:hover{color:#e0e0e0}
     .lock-go-btn{background:#e08a4a22!important;border:1px solid #e08a4a55!important;border-radius:6px!important;padding:9px 14px!important;color:#e08a4a!important;font-size:11px!important;font-weight:600!important;cursor:pointer}
     .lock-go-btn:hover{background:#e08a4a33!important}
 
@@ -910,6 +912,7 @@
       <div class="lock-returning-row">
         <div class="lock-key-wrap">
           <input class="field lock-key-input" id="keyInput" type="password" placeholder="Enter key" autocomplete="off">
+          <button type="button" class="lock-key-toggle" id="toggleKey" title="Show/hide key">&#128065;</button>
         </div>
         <button class="btn lock-go-btn" id="unlockBtn">Go &rarr;</button>
       </div>
@@ -1268,6 +1271,12 @@
 
   document.getElementById('unlockBtn').addEventListener('click', tryKey);
   document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryKey(); });
+  document.getElementById('toggleKey').addEventListener('click', () => {
+    const inp = document.getElementById('keyInput');
+    const isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    document.getElementById('toggleKey').innerHTML = isHidden ? '&#128064;' : '&#128065;';
+  });
   document.getElementById('keyBadge').addEventListener('click', () => {
     if (confirm('Sign out and clear saved key?')) { localStorage.removeItem('benji_k'); location.reload(); }
   });
