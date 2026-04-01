@@ -96,9 +96,10 @@ public class DefaultJournalService implements JournalService {
   public List<GoalWithProgress> listGoals() {
     long userId = UserContext.current().userId();
     YearMonth currentMonth = YearMonth.now();
+    LocalDate startDate = currentMonth.atDay(1);
+    LocalDate endDate = startDate.plusMonths(1);
     long habitProgress =
-        entryRepository.countDistinctEntryDatesInMonthByUserId(
-            userId, currentMonth.getYear(), currentMonth.getMonthValue());
+        entryRepository.countDistinctEntryDatesInMonthByUserId(userId, startDate, endDate);
 
     return goalRepository.findAllByUserId(userId).stream()
         .map(goal -> toGoalWithProgress(goal, habitProgress))

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Benji</title>
+  <meta name="description" content="Benji — your personal financial assistant. Track portfolios, analyze trades, and explore live market data.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@1,9..144,300&display=swap" rel="stylesheet">
@@ -32,7 +33,7 @@
       --text:         #f2faf4;
       --text-mid:     #c0d8c8;
       --text-dim:     #85aa92;
-      --text-muted:   #607a6c;
+      --text-muted:   #6d8d78;
       --mono:         'IBM Plex Mono', monospace;
       --serif:        'Fraunces', Georgia, serif;
       --sidebar-w:    192px;
@@ -610,7 +611,7 @@
     .lock-returning-row{display:flex;gap:6px}
     .lock-key-wrap{flex:1;position:relative}
     .lock-key-input{width:100%;background:#111!important;border:1px solid #e08a4a33!important;border-radius:6px!important;padding:9px 32px 9px 10px!important;font-size:11px!important;color:#e0e0e0!important;animation:pulse-border 2.5s ease-in-out infinite}
-    .lock-eye-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;color:#888;display:flex;align-items:center}
+    .lock-eye-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#888;display:flex;align-items:center}
     .lock-eye-btn:hover{color:#ccc}
     .lock-go-btn{background:#e08a4a22!important;border:1px solid #e08a4a55!important;border-radius:6px!important;padding:9px 14px!important;color:#e08a4a!important;font-size:11px!important;font-weight:600!important;cursor:pointer}
     .lock-go-btn:hover{background:#e08a4a33!important}
@@ -618,7 +619,7 @@
     @keyframes pulse-border{0%,100%{border-color:#e08a4a33}50%{border-color:#e08a4a88}}
 
     /* Demo mode banner */
-    .demo-banner{position:fixed;top:0;left:0;right:0;height:32px;background:#0d1a12;border-bottom:1px solid #4edd8a33;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#4edd8a99;z-index:10000;overflow:hidden}
+    .demo-banner{position:fixed;top:0;left:0;right:0;height:32px;background:#0d1a12;border-bottom:1px solid #4edd8a33;display:flex;align-items:center;justify-content:center;gap:12px;font-size:11px;color:#4edd8acc;z-index:10000;overflow:hidden}
     .demo-banner::before{content:'';position:absolute;top:0;left:-200px;width:200px;height:100%;background:linear-gradient(90deg,transparent,#4edd8a11,transparent);animation:demo-shimmer 3s ease-in-out infinite}
     @keyframes demo-shimmer{0%{left:-200px}100%{left:100%}}
     .demo-banner a{color:#4edd8a;text-decoration:none;font-weight:600}
@@ -984,7 +985,7 @@
   </aside>
 
   <!-- Main -->
-  <div class="main">
+  <main class="main">
 
     <!-- Ticker bar -->
     <div class="ticker-bar" id="tickerBar" style="display:none">
@@ -1095,7 +1096,7 @@
       <div class="page" id="page-journal"></div>
 
     </div>
-  </div>
+  </main>
 </div>
 
 <div id="treemap-tip"></div>
@@ -1232,6 +1233,8 @@
   }
 
   function signOutDemo() {
+    clearInterval(_tickerTimer);
+    _tickerTimer = null;
     KEY = '';
     sessionStorage.removeItem('KEY');
     localStorage.removeItem('benji_watchlist');
@@ -1259,7 +1262,7 @@
     btn.textContent = '...';
     try {
       const r = await fetch('/api/quotes', { headers: { 'X-API-KEY': k } });
-      if (r.status === 401) throw 'bad';
+      if (!r.ok) throw r.status;
       KEY = k;
       localStorage.setItem('benji_k', k);
       launch();
@@ -1932,12 +1935,6 @@
       </div>`;
     }
 
-    el.innerHTML = html;
-
-    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
-      requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
-    }
-
     // News
     if (nRes.status === 'fulfilled' && nRes.value?.articles?.length) {
       const articles = nRes.value.articles;
@@ -1955,7 +1952,12 @@
             </div>
           </a>`).join('')}
       </div>`;
-      el.innerHTML = html;
+    }
+
+    el.innerHTML = html;
+
+    if (hRes.status === 'fulfilled' && hRes.value && hRes.value.bars && hRes.value.bars.length > 1) {
+      requestAnimationFrame(() => drawChart('priceChart', hRes.value.bars));
     }
   }
 
@@ -2860,14 +2862,14 @@
     const feed = document.getElementById('j-feed');
     feed.innerHTML = renderTodayEditor(null) + banner +
       filtered.map(e => renderPastCard(e)).join('');
-    attachJournalHandlers();
+    attachJournalHandlers(journalGoals, journalStats);
   }
 
   function clearJournalFilter() {
     journalFilter = null;
     const feed = document.getElementById('j-feed');
     feed.innerHTML = renderTodayEditor(null) + renderPastEntries(journalEntries);
-    attachJournalHandlers();
+    attachJournalHandlers(journalGoals, journalStats);
   }
 
   function renderJStats(stats) {
@@ -2902,7 +2904,7 @@
     for (let i = 0; i < firstDay; i++) cells += `<div class="j-cal-empty"></div>`;
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const level = stats.calendar[dateStr] ?? 0;
+      const level = stats?.calendar?.[dateStr] ?? 0;
       const cls = level === 2 ? 'j-cal-rich' : level === 1 ? 'j-cal-entry' : 'j-cal-none';
       const todayCls = dateStr === todayStr ? ' j-cal-today' : '';
       const click = level > 0 ? `onclick="applyJournalFilter('date:${dateStr}')"` : '';
@@ -2999,8 +3001,9 @@
   async function loadJournalAsync(entries) {
     // Load portfolio positions and quotes, then update P&L and movers
     try {
-      const positions = await get('/api/portfolio/positions');
-      if (!positions || positions.length === 0) return;
+      const posData = await get('/api/portfolio/positions');
+      const positions = posData?.positions || [];
+      if (positions.length === 0) return;
 
       const quotes = await Promise.allSettled(
         positions.map(p => get(`/api/quotes/${p.ticker}`)));

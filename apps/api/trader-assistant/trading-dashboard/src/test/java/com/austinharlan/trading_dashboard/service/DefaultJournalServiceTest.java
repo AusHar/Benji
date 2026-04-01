@@ -207,8 +207,8 @@ class DefaultJournalServiceTest {
     when(goalRepo.findAllByUserId(USER_ID)).thenReturn(List.of(goal));
     when(entryRepo.countDistinctEntryDatesInMonthByUserId(
             org.mockito.ArgumentMatchers.eq(USER_ID),
-            org.mockito.ArgumentMatchers.anyInt(),
-            org.mockito.ArgumentMatchers.anyInt()))
+            org.mockito.ArgumentMatchers.any(java.time.LocalDate.class),
+            org.mockito.ArgumentMatchers.any(java.time.LocalDate.class)))
         .thenReturn(0L);
 
     JournalService.GoalWithProgress gwp = service.listGoals().getFirst();
@@ -224,8 +224,8 @@ class DefaultJournalServiceTest {
     when(goalRepo.findAllByUserId(USER_ID)).thenReturn(List.of(goal));
     when(entryRepo.countDistinctEntryDatesInMonthByUserId(
             org.mockito.ArgumentMatchers.eq(USER_ID),
-            org.mockito.ArgumentMatchers.anyInt(),
-            org.mockito.ArgumentMatchers.anyInt()))
+            org.mockito.ArgumentMatchers.any(java.time.LocalDate.class),
+            org.mockito.ArgumentMatchers.any(java.time.LocalDate.class)))
         .thenReturn(12L);
 
     JournalService.GoalWithProgress gwp = service.listGoals().getFirst();

@@ -7,6 +7,10 @@ plugins {
 	id 'org.openapi.generator' version '7.7.0'
 }
 
+jar {
+    enabled = false
+}
+
 group = 'com.austinharlan'
 version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'

@@ -59,15 +59,7 @@ public class DefaultPortfolioService implements PortfolioService {
     PortfolioPositionEntity entity =
         repository
             .findByUserIdAndTicker(userId, ticker)
-            .map(
-                existing -> {
-                  existing.setQty(quantity);
-                  existing.setBasis(totalBasis);
-                  return existing;
-                })
-            .orElseGet(
-                () ->
-                    new PortfolioPositionEntity(userId, ticker, BigDecimal.ZERO, BigDecimal.ZERO));
+            .orElseGet(() -> new PortfolioPositionEntity(userId, ticker, quantity, totalBasis));
     entity.setQty(quantity);
     entity.setBasis(totalBasis);
     return toHolding(repository.save(entity));
