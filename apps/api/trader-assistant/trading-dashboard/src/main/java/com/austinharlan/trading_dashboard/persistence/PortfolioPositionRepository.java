@@ -3,6 +3,7 @@ package com.austinharlan.trading_dashboard.persistence;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface PortfolioPositionRepository extends JpaRepository<PortfolioPositionEntity, Long> {
 
@@ -10,7 +11,9 @@ public interface PortfolioPositionRepository extends JpaRepository<PortfolioPosi
 
   Optional<PortfolioPositionEntity> findByUserIdAndTicker(Long userId, String ticker);
 
+  @Transactional
   void deleteByUserIdAndTicker(Long userId, String ticker);
 
+  @Transactional
   void deleteAllByUserId(Long userId);
 }

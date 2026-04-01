@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity, Long> {
 
@@ -43,5 +44,6 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity
       @Param("startDate") LocalDate startDate,
       @Param("endDate") LocalDate endDate);
 
+  @Transactional
   void deleteAllByUserId(Long userId);
 }
