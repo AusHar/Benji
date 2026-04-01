@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
 
@@ -31,5 +32,6 @@ public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
       "SELECT t FROM TradeEntity t WHERE t.userId = :userId ORDER BY t.tradeDate ASC, t.createdAt ASC")
   List<TradeEntity> findAllChronologicalByUserId(@Param("userId") Long userId);
 
+  @Transactional
   void deleteAllByUserId(Long userId);
 }
