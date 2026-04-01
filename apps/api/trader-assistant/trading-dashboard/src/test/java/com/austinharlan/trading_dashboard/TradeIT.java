@@ -40,7 +40,7 @@ class TradeIT extends DatabaseIntegrationTest {
 
   @AfterEach
   void cleanup() {
-    tradeRepository.deleteAll();
+    tradeRepository.deleteAllByUserId(testUserId);
   }
 
   @Test

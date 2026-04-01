@@ -55,12 +55,20 @@ class MultiTenancyIT extends DatabaseIntegrationTest {
           if (userAKey != null) {
             userRepository
                 .findByApiKey(userAKey)
-                .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
+                .ifPresent(
+                    u -> {
+                      portfolioRepository.deleteAllByUserId(u.getId());
+                      userRepository.delete(u);
+                    });
           }
           if (userBKey != null) {
             userRepository
                 .findByApiKey(userBKey)
-                .ifPresent(u -> portfolioRepository.deleteAllByUserId(u.getId()));
+                .ifPresent(
+                    u -> {
+                      portfolioRepository.deleteAllByUserId(u.getId());
+                      userRepository.delete(u);
+                    });
           }
         });
   }

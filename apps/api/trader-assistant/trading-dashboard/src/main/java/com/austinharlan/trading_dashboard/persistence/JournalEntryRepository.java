@@ -36,9 +36,12 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntryEntity
   List<Object[]> countByTagAndUserId(@Param("userId") Long userId);
 
   @Query(
-      "SELECT COUNT(DISTINCT e.entryDate) FROM JournalEntryEntity e WHERE e.userId = :userId AND YEAR(e.entryDate) = :year AND MONTH(e.entryDate) = :month")
+      "SELECT COUNT(DISTINCT e.entryDate) FROM JournalEntryEntity e "
+          + "WHERE e.userId = :userId AND e.entryDate >= :startDate AND e.entryDate < :endDate")
   long countDistinctEntryDatesInMonthByUserId(
-      @Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
+      @Param("userId") Long userId,
+      @Param("startDate") LocalDate startDate,
+      @Param("endDate") LocalDate endDate);
 
   void deleteAllByUserId(Long userId);
 }

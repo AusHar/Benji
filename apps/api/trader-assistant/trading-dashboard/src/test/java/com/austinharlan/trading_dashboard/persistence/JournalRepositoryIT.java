@@ -114,7 +114,9 @@ class JournalRepositoryIT extends DatabaseIntegrationTest {
         new JournalEntryEntity(
             testUserId, "<p>c</p>", LocalDate.of(2026, 4, 1), Set.of(), Set.of()));
 
-    long marchCount = entryRepo.countDistinctEntryDatesInMonthByUserId(testUserId, 2026, 3);
+    long marchCount =
+        entryRepo.countDistinctEntryDatesInMonthByUserId(
+            testUserId, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 1));
 
     assertThat(marchCount).isEqualTo(2);
   }

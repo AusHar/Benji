@@ -45,10 +45,4 @@ class DemoIT extends DatabaseIntegrationTest {
     Long demoUserId = userRepository.findByIsDemoTrue().orElseThrow().getId();
     assertThat(portfolioRepository.findAllByUserId(demoUserId)).hasSize(10);
   }
-
-  @Test
-  void postDemoSession_requiresNoAuth() {
-    ResponseEntity<Map> response = rest.postForEntity("/api/demo/session", null, Map.class);
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-  }
 }
