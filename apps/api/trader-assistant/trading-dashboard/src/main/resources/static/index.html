@@ -61,7 +61,7 @@
       0%,100% { box-shadow: 0 0 4px var(--green), 0 0 8px rgba(78,221,138,.4); }
       50%      { box-shadow: 0 0 8px var(--green), 0 0 18px rgba(78,221,138,.6), 0 0 28px rgba(78,221,138,.2); }
     }
-    @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(var(--scroll-w)); } }
 
     /* ── Sidebar ─────────────────────────────── */
     .sidebar {
@@ -639,7 +639,7 @@
     }
     @keyframes ticker-scroll {
       0% { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
+      100% { transform: translateX(var(--scroll-w)); }
     }
     .market-ticker-item { color: var(--text-muted); }
     .market-ticker-item .up { color: var(--green); }
@@ -1323,7 +1323,16 @@
     const items = tickers.map(t =>
       `<span class="market-ticker-item">${t.sym} <span class="${t.dir}">${t.pct}%</span></span>`
     ).join('');
-    tape.innerHTML = items + items; // duplicate for seamless loop
+    // Measure one set, duplicate enough to fill 2x viewport
+    tape.style.animation = 'none';
+    tape.innerHTML = items;
+    const oneW = tape.scrollWidth;
+    const viewW = tape.parentElement.offsetWidth || window.innerWidth;
+    const copies = Math.ceil((viewW * 2) / oneW) + 1;
+    tape.innerHTML = items.repeat(copies);
+    tape.style.setProperty('--scroll-w', `-${oneW}px`);
+    void tape.offsetWidth;
+    tape.style.animation = '';
 
     setTimeout(() => ov.classList.add('phase-loading'), 500);
     setTimeout(() => ov.classList.add('phase-stable'), 1600);
@@ -3722,6 +3731,18 @@
     }).join('');
   }
 
+  function fillTickerTrack(track, html) {
+    track.style.animation = 'none';
+    track.innerHTML = html;
+    const oneSetW = track.scrollWidth;
+    const viewW = track.parentElement.offsetWidth;
+    const copies = Math.ceil((viewW * 2) / oneSetW) + 1;
+    track.innerHTML = html.repeat(copies);
+    track.style.setProperty('--scroll-w', `-${oneSetW}px`);
+    void track.offsetWidth; // force reflow
+    track.style.animation = '';
+  }
+
   async function loadTicker() {
     const results = await Promise.allSettled(
       TICKER_SYMBOLS.map(t => get('/api/quotes/' + encodeURIComponent(t.symbol)))
@@ -3736,10 +3757,9 @@
 
     const track = document.getElementById('tickerTrack');
     const html  = buildTickerItems(quotes);
-    track.innerHTML = html + html; // duplicate for seamless loop
     document.getElementById('tickerBar').style.display = 'flex';
+    fillTickerTrack(track, html);
 
-    // Adjust animation speed proportionally to number of items
     const duration = Math.max(20, quotes.length * 6);
     track.style.animationDuration = duration + 's';
   }
