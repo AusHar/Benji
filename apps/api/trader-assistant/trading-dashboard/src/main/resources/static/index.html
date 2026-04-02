@@ -1323,16 +1323,7 @@
     const items = tickers.map(t =>
       `<span class="market-ticker-item">${t.sym} <span class="${t.dir}">${t.pct}%</span></span>`
     ).join('');
-    // Measure one set, duplicate enough to fill 2x viewport
-    tape.style.animation = 'none';
-    tape.innerHTML = items;
-    const oneW = tape.scrollWidth;
-    const viewW = tape.parentElement.offsetWidth || window.innerWidth;
-    const copies = Math.ceil((viewW * 2) / oneW) + 1;
-    tape.innerHTML = items.repeat(copies);
-    tape.style.setProperty('--scroll-w', `-${oneW}px`);
-    void tape.offsetWidth;
-    tape.style.animation = '';
+    fillTickerTrack(tape, items);
 
     setTimeout(() => ov.classList.add('phase-loading'), 500);
     setTimeout(() => ov.classList.add('phase-stable'), 1600);
@@ -3733,13 +3724,18 @@
 
   function fillTickerTrack(track, html) {
     track.style.animation = 'none';
+    // Measure one set, then two — the difference is the true scroll
+    // distance including the gap between the end of set 1 and start of set 2.
     track.innerHTML = html;
-    const oneSetW = track.scrollWidth;
-    const viewW = track.parentElement.offsetWidth;
-    const copies = Math.ceil((viewW * 2) / oneSetW) + 1;
+    const oneW = track.scrollWidth;
+    track.innerHTML = html.repeat(2);
+    const scrollDist = track.scrollWidth - oneW;
+    // Enough copies so content extends past viewport + one full scroll
+    const viewW = track.parentElement.offsetWidth || window.innerWidth;
+    const copies = Math.ceil((viewW + scrollDist) / scrollDist) + 1;
     track.innerHTML = html.repeat(copies);
-    track.style.setProperty('--scroll-w', `-${oneSetW}px`);
-    void track.offsetWidth; // force reflow
+    track.style.setProperty('--scroll-w', `-${scrollDist}px`);
+    void track.offsetWidth;
     track.style.animation = '';
   }
 
