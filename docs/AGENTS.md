@@ -43,6 +43,6 @@
 - Cache settings live under com.austinharlan.trading_dashboard.config—avoid introducing unbounded caches.
 
 ## Runtime Profiles
-- `dev`: Local development; may use H2 or fake providers.
-- `test`: Used in automated tests; disables DB auto-config or uses Testcontainers.
-- `prod`: Production configuration; Postgres with Flyway migrations.
+- `dev`: Local development; H2 in-memory, `FakeMarketDataProvider`, `DevSecurityConfig` (all requests permitted), `DevUserFilter` + `DevDataSeeder` (auto-seeds dev/demo users).
+- `test`: Automated tests; H2 in-memory with Flyway enabled, Testcontainers Postgres overrides datasource at runtime. `demo.cooldown-ms=0` disables rate limiting.
+- `prod`: Production; PostgreSQL with Flyway, `ApiKeyAuthFilter` (user lookup via `UserRepository`), `ProdSecretsValidator`.

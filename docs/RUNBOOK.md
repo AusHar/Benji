@@ -2,9 +2,9 @@
 
 ## 1. Service Overview
 Benji Trader Assistant is a Spring Boot API deployed to AWS Lightsail (Ubuntu 22.04) that aggregates
-market data, portfolio balances, and personal finance signals. It exposes REST endpoints under `/api/*`,
+market data, portfolio balances, trade tracking, trading journal, and personal finance signals. It exposes REST endpoints under `/api/*`,
 uses Postgres for persistence, and integrates with Yahoo Finance for market data (no API key required). A single-file SPA is served
-from the JAR at the root path.
+from the JAR at the root path. The app is multi-tenant — all data is scoped by user_id. A demo mode allows visitors to explore with isolated sample data.
 
 ## 2. Environments
 - **Local (dev):** Run via `./gradlew bootRun` with the `dev` profile; uses fake market data and in-memory H2 storage.
@@ -31,9 +31,11 @@ Prod startup validates required secrets and rejects placeholder values (e.g., `c
 ## 5. Deployment Procedure
 Pushes to `main` auto-deploy via GitHub Actions (`ci.yml`):
 1. Gradle builds and tests the JAR (`spotlessCheck build --no-daemon`).
-2. JAR is rsynced to `ubuntu@107.22.236.28:/opt/benji/benji.jar`.
-3. `sudo systemctl restart benji` is run over SSH.
-4. CI polls `https://port.adhdquants.com/actuator/health` for up to ~130 seconds (30s sleep + 10 retries × 10s).
+2. Previous JAR is backed up on the server (`benji.jar.prev`).
+3. New JAR is rsynced to `ubuntu@107.22.236.28:/opt/benji/benji.jar`.
+4. `sudo systemctl restart benji` is run over SSH.
+5. CI polls `https://port.adhdquants.com/actuator/health` (20 attempts × 15s = up to 5 minutes).
+6. **On health check failure:** CI automatically rolls back to `benji.jar.prev` and restarts the service.
 
 To deploy manually:
 ```bash
@@ -43,8 +45,9 @@ sudo journalctl -u benji -f
 ```
 
 ## 6. Rollback Procedure
-- Revert the commit on `main` and push — CI will redeploy the previous JAR.
-- Or SSH in and replace `/opt/benji/benji.jar` with the prior JAR, then `sudo systemctl restart benji`.
+- **Automatic:** CI rolls back on health check failure (see above).
+- **Manual (git):** Revert the commit on `main` and push — CI will redeploy the previous JAR.
+- **Manual (SSH):** `ssh ubuntu@107.22.236.28` then `cp /opt/benji/benji.jar.prev /opt/benji/benji.jar && sudo systemctl restart benji`.
 
 ## 7. Troubleshooting
 
@@ -61,6 +64,12 @@ sudo journalctl -u benji -f
 
 ### Quote endpoint returning stale data
 - Cache TTLs: quotes 30s, overviews 4h, history 1h, news 15m. Restart to flush.
+
+### Demo mode issues
+- Demo endpoint: `POST /api/demo/session` (public, no auth). Returns `{"apiKey": "demo"}`.
+- Rate limited to one reset per 5 seconds (configurable via `demo.cooldown-ms`).
+- If demo data appears corrupt or missing, hit the endpoint to reset — it deletes and reseeds all demo user data (portfolio, trades, finance, journal).
+- Demo user is isolated from the owner/admin user — demo resets do not affect real data.
 
 ## 8. Onboarding Checklist
 - Install Java 21, copy `ENV.example` and populate variables.

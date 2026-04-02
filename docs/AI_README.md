@@ -23,10 +23,11 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 
 ## Conventions & Rules
 - **Layering:** `controller → service → repository`. *No* domain logic in controllers.
-- **DTOs:** Only at boundaries; generated from OpenAPI. Map internal ↔ external with MapStruct.
+- **DTOs:** Only at boundaries; generated from OpenAPI. Map internal ↔ external with dedicated mapper methods in services.
 - **Errors:** Throw domain exceptions; map to HTTP via `@ControllerAdvice`. Use a standard error body `{ code, message }`.
 - **Nulls:** Validate inputs with `jakarta.validation` on DTOs. Fail fast.
-- **Transactions:** Service layer only. Keep repos simple.
+- **Transactions:** Service layer only. Keep repos simple. Note: Spring Data JPA derived delete methods (e.g., `deleteAllByUserId`) need explicit `@Transactional`.
+- **Multi-tenancy:** All data access must be scoped by `user_id`. Use `UserContext.current().userId()` in services.
 - **Time:** Use `Instant` (UTC). No `java.util.Date`.
 - **Config:** No secrets in source. Use env vars; see `ENV.example`.
 - **Logging:** Key:value, one line. No PII. Include `requestId` when available.
@@ -36,7 +37,6 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 - Unit tests for services (happy + edge cases).
 - Integration tests for controllers (Testcontainers Postgres when DB involved).
 - OpenAPI spec updated; `./gradlew openApiGenerate` is clean; build is green.
-- `/http/*.http` example added/updated for new/changed endpoints.
 - No TODOs or dead code. Spotless passes.
 
 ## Tasks the AI Should Perform
@@ -55,10 +55,12 @@ Build a reliable trading/analysis backend with a thin web UI. Priorities: **corr
 docs/PRD.md
 docs/ARCHITECTURE.md
 apps/api/trader-assistant/trading-dashboard/openAPI.yaml
-http/                 # IntelliJ .http examples (curl-like)
-src/main/java/...     # app code
-src/test/java/...     # unit + integration tests
-src/main/resources/application.properties (or application.yml)
+src/main/java/...                           # app code
+src/test/java/...                           # unit + integration tests
+src/main/resources/application.yml          # profile configs (dev/test/prod)
+src/main/resources/static/index.html        # single-file SPA (vanilla HTML/CSS/JS)
+src/main/resources/db/migration/            # Flyway migrations V1–V5
+src/test/resources/application.properties   # test overrides (management password, demo cooldown)
 ```
 
 ## Build & Codegen
@@ -78,12 +80,14 @@ POSTGRES_USER=trader
 POSTGRES_PASSWORD=changeme
 SPRING_PROFILES_ACTIVE=dev
 SERVER_PORT=8080
+TRADING_API_KEY=replace_me          # API key for prod auth
+MANAGEMENT_PASSWORD=change_me       # Actuator basic auth (required, no default)
 ```
 
 ## Prompting Hints (for AI tools)
 - Reference the **PRD** for scope and acceptance criteria.
 - Follow **Conventions & Rules** strictly before optimizing performance.
-- When adding an endpoint: update `apps/api/trader-assistant/trading-dashboard/openAPI.yaml`, run codegen, implement interface, add `/http/` sample, write tests.
+- When adding an endpoint: update `apps/api/trader-assistant/trading-dashboard/openAPI.yaml`, run codegen, implement interface, write tests.
 - If something is ambiguous, propose a small ADR in `docs/adr/` and proceed with the simplest option.
 
 ## Quality Bar

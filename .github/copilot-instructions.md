@@ -12,16 +12,17 @@ Keep these priorities in mind: correctness → tests → clarity → performance
 
 ## Important files and paths
 - API & app code: `apps/api/trader-assistant/trading-dashboard/src/main/java/...` (packages under `com.austinharlan.trading_dashboard`).
-- Config & migrations: `src/main/resources/application.properties|application.yml` and `src/main/resources/db/migration` (Flyway).
+- Key packages: `controllers/`, `service/`, `marketdata/`, `persistence/`, `config/`, `trades/`, `finance/`, `portfolio/`
+- Config & migrations: `src/main/resources/application.yml` and `src/main/resources/db/migration` (Flyway V1–V5).
 - OpenAPI spec: `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` (source of DTOs and generated interfaces).
-- Frontend SPA: `apps/api/trader-assistant/trading-dashboard/src/main/resources/static/index.html` (single file, no build step).
-- Examples: `http/` (curl-like `.http` files) — update samples when you add/change endpoints.
+- Frontend SPA: `apps/api/trader-assistant/trading-dashboard/src/main/resources/static/index.html` (single file, no build step, vanilla HTML/CSS/JS).
 - Docs that govern behavior: `docs/AI_README.md`, `docs/AGENTS.md`, and `docs/ARCHITECTURE.md`.
 
 ## Coding conventions specific to this repo
 - Layering: controller → service → provider/repository. Keep domain logic out of controllers.
-- DTOs: generated from OpenAPI. Do not hand-edit generated DTOs; map internal models using MapStruct or dedicated mappers.
-- Transactions belong in the service layer only; repositories are thin data access layers.
+- DTOs: generated from OpenAPI. Do not hand-edit generated DTOs; map internal models using dedicated mapper methods in services.
+- Multi-tenancy: all data access must be scoped by `user_id`. Use `UserContext.current().userId()` in services.
+- Transactions belong in the service layer only; repositories are thin data access layers. Note: Spring Data JPA derived delete methods need explicit `@Transactional`.
 - Tests: unit tests are `*Test.java`, integration tests `*IT.java`. Integration tests may use Testcontainers (Postgres).
 - Formatting: Spotless + Google Java Format. Use `./gradlew spotlessApply` to format and `./gradlew spotlessCheck` to verify.
 
@@ -33,18 +34,19 @@ Keep these priorities in mind: correctness → tests → clarity → performance
 - Lint/format & security scan: `./gradlew spotlessCheck test dependencyCheckAnalyze`
 
 ## Implementation checklist for adding or changing an endpoint
-1. Update `docs/openapi.yaml` with the new contract or change.
+1. Update `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` with the new contract or change.
 2. Run `./gradlew openApiGenerate` to regenerate interfaces/DTOs.
 3. Implement the generated controller interface or service (put business logic in `service` layer).
-4. Add unit tests for services (`*Test`) and integration tests (`*IT`) when DB or full context is required.
-5. Update or add `.http` example in `http/` showing expected request/response.
-6. Run `./gradlew clean build` and ensure Spotless passes and no dependency warnings.
+4. Ensure all data access is scoped by `userId` for multi-tenancy.
+5. Add unit tests for services (`*Test`) and integration tests (`*IT`) when DB or full context is required.
+6. Run `./gradlew spotlessApply` then `./gradlew build` and ensure Spotless passes and all tests green.
 
 ## Things to avoid
 - Do not place domain/business logic in controllers.
 - Do not commit secrets — see `ENV.example` for required env vars.
 - Do not bypass OpenAPI generation; maintain the spec as the source of truth.
-- Avoid adding keys or secrets directly in code; use environment variables or secure vaults once production readiness is a concern.
+- Do not add frameworks or build tools to the frontend — it's vanilla HTML/CSS/JS by design.
+- Avoid adding keys or secrets directly in code; use environment variables.
 
 ## Observability & runtime notes
 - Actuator endpoints are available (health/metrics). Use `localhost:8080/actuator/health` when running locally.
