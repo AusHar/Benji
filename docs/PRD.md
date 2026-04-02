@@ -66,10 +66,29 @@
 +- Portfolio ingestion, expense tracking endpoints, and analytics calculations.
 +- API key auth enforcement, actuator credentials, and production deployment on AWS Lightsail.
 +
-+### Phase 3 – Production Hardening (Current)
++### Phase 3 – Production Hardening (Complete)
 +- Live sparkline data (1D/5D/3M candle history via Yahoo Finance).
 +- News feed per ticker in expanded watchlist tiles.
 +- Monitoring/alerting, synthetic checks, and disaster recovery plan.
++
++### Phase 4 – Multi-Tenancy, Trade Tracking & Journal (Complete)
++- Multi-tenancy: `user_id` column on all tables (Flyway V5), `UserContext` identity propagation, `ApiKeyAuthFilter` user lookup.
++- Demo mode: isolated demo user with resettable sample data, public `POST /api/demo/session` with rate limiting.
++- Admin user creation: `POST /api/admin/users` (admin-only).
++- Trade tracking: log BUY/SELL trades, closed-trade P&L matching, stats (win rate, streaks, top tickers), P&L history, trade calendar.
++- Trading journal: freeform entries with auto-extracted $tickers and #tags, goals with progress tracking, streak/heatmap stats.
++- Terminal dark redesign: IBM Plex Mono, neon green accent, interactive watchlist tiles with sparklines.
++
++### Phase 5 – Stability Hardening & UI Polish (Complete)
++- Frontend bug fixes: journal position loading, chart/news DOM race, demo sign-out cleanup, input validation.
++- Build hardening: disabled plain JAR, CI rollback on failed health check.
++- Backend fixes: `@Transactional` on derived delete queries, portable JPQL, demo rate limiting.
++- Test reliability: scoped test cleanup, duplicate test removal.
++- UI polish: market opening animation (CSS transitions + SVG line-draw), unified continuous ticker tape, accessibility improvements (color contrast, touch targets, landmarks).
++
++### Phase 6 – Current
++- Historical price intelligence and optimal timing analysis.
++- Enhanced portfolio analytics and risk indicators.
 +
 +## 6. Dependencies & Assumptions
 +- External market data from Yahoo Finance (no API key required).
@@ -94,4 +113,23 @@
 +  RespondQuotes --> DashboardUI[Dashboard UI]
 +```
 +
-+Additional flows for portfolio ingestion and expense tracking will be documented as those features mature.
++### Demo Mode Flow
++```mermaid
++flowchart TD
++  Visitor((Visitor)) -->|Try Demo| DemoAPI[POST /api/demo/session]
++  DemoAPI -->|Rate limit check| DemoService[DemoService.resetDemoData]
++  DemoService -->|Delete + reseed| DB[(Postgres)]
++  DemoService -->|Return apiKey: demo| Visitor
++  Visitor -->|Use demo key| Dashboard[Dashboard UI]
++```
++
++### Trade Tracking Flow
++```mermaid
++flowchart TD
++  User((User)) -->|Log trade| TradeAPI[POST /api/trades]
++  TradeAPI --> TradeService[TradeService]
++  TradeService -->|Scoped by userId| DB[(Postgres)]
++  User -->|View stats| StatsAPI[GET /api/trades/stats]
++  StatsAPI --> TradeService
++  TradeService -->|Match closed trades| PnL[P&L Calculation]
++```

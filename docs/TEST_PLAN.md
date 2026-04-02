@@ -5,10 +5,11 @@
 > Goal: catch regressions early, prove behavior matches the PRD and OpenAPI, and keep refactors safe.
 
 ## Scope & Priorities
-1) **Services (unit)** – business rules, edge cases, null/empty handling.
+1) **Services (unit)** – business rules, edge cases, null/empty handling (quotes, trades, journal, portfolio, finance, demo).
 2) **Controllers (integration)** – request/response shapes match OpenAPI; error mapping.
-3) **Repositories (integration)** – DB queries behave with realistic data.
-4) **Contracts** – generated DTOs align with `docs/openapi.yaml`.
+3) **Repositories (integration)** – DB queries behave with realistic data; multi-tenant isolation verified.
+4) **Contracts** – generated DTOs align with `apps/api/trader-assistant/trading-dashboard/openAPI.yaml`.
+5) **Multi-tenancy** – data isolation between users (covered by `MultiTenancyIT`).
 
 ## Tools
 - **JUnit 5**, **Mockito** for unit tests
@@ -41,11 +42,17 @@
 - **Null tolerance**: service guards and preconditions
 
 ## Running Tests
+
+All commands run from `apps/api/trader-assistant/trading-dashboard`:
+
 ```bash
-make test       # unit tests
-make it         # integration tests (uses test profile)
-make build      # full build
+./gradlew test                                        # all tests (unit + integration)
+./gradlew test --tests "*.QuoteControllerTest"        # single test class
+./gradlew test --tests "*.TradeIT.shouldLogTrade"     # single test method
+./gradlew spotlessCheck build --no-daemon             # full CI build (format check + tests)
 ```
+
+Integration tests (`*IT.java`) use Testcontainers Postgres and require Docker. They are skipped locally when Docker is unavailable (`disabledWithoutDocker = true`) but always run in CI.
 
 ## Unit Test Example (Service)
 ```java
@@ -91,48 +98,36 @@ class QuoteControllerIT {
 ```
 
 ## Repository Integration Example (with Postgres)
+
+Integration tests extend `DatabaseIntegrationTest`, which manages a shared Testcontainers Postgres container and applies Flyway migrations:
+
 ```java
-@SpringBootTest
-@Testcontainers
-class PortfolioRepositoryIT {
-    @Container static PostgreSQLContainer<?> pg = new PostgreSQLContainer<>("postgres:16");
+class PortfolioPositionRepositoryIT extends DatabaseIntegrationTest {
 
-    @DynamicPropertySource
-    static void db(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", pg::getJdbcUrl);
-        r.add("spring.datasource.username", pg::getUsername);
-        r.add("spring.datasource.password", pg::getPassword);
-    }
-
-    @Autowired PortfolioRepository repo;
+    @Autowired PortfolioPositionRepository repo;
 
     @Test
     void shouldPersistAndLoadPosition() {
-        var p = new PositionEntity("AAPL", new BigDecimal("10"));
+        var p = new PortfolioPositionEntity(testUserId, "AAPL", new BigDecimal("10"), new BigDecimal("1500"));
         repo.save(p);
-        assertThat(repo.findBySymbol("AAPL")).isPresent();
+        assertThat(repo.findByUserIdAndTicker(testUserId, "AAPL")).isPresent();
     }
 }
 ```
 
-## HTTP Examples Directory
-- Add `.http` files under `/http/` mirroring endpoints (Codex reuses them):
-```
-http/quotes.http
-GET http://localhost:8080/quotes/AAPL
-Accept: application/json
-```
+The `DatabaseIntegrationTest` base class provides `testUserId` and handles Testcontainers lifecycle. Use `@ActiveProfiles("test")` for the test profile.
 
-## CI Guidance (optional, later)
-- Run `make check` on PRs; fail on test/lint errors
-- Upload JUnit XML; keep flaky tests out of main
+## CI Guidance
+- CI runs `./gradlew spotlessCheck build --no-daemon` on every push and PR.
+- Test reports and spotless reports are uploaded as GitHub Actions artifacts.
+- Integration tests always run in CI (Docker available in GitHub Actions runners).
 
 ## When Adding/Changing an Endpoint
-1) Update `docs/openapi.yaml` (add `operationId`, responses, Error schema)
-2) `make codegen`
+1) Update `apps/api/trader-assistant/trading-dashboard/openAPI.yaml` (add `operationId`, responses, Error schema)
+2) `./gradlew openApiGenerate`
 3) Implement interface in controller
 4) Add/adjust unit + integration tests
-5) Add/refresh `/http/*.http` example
+5) Ensure all data access is scoped by `userId` for multi-tenancy
 
 ---
 **Definition of Done for tests**: behavior matches PRD + OpenAPI, tests are deterministic, and meaningful assertions protect the public contract.
