@@ -3724,17 +3724,19 @@
 
   function fillTickerTrack(track, html) {
     track.style.animation = 'none';
-    // Measure one set, then two — the difference is the true scroll
-    // distance including the gap between the end of set 1 and start of set 2.
+    // Measure natural width of one set (max-content prevents flex shrink)
     track.innerHTML = html;
-    const oneW = track.scrollWidth;
-    track.innerHTML = html.repeat(2);
-    const scrollDist = track.scrollWidth - oneW;
-    // Enough copies so content extends past viewport + one full scroll
-    const viewW = track.parentElement.offsetWidth || window.innerWidth;
-    const copies = Math.ceil((viewW + scrollDist) / scrollDist) + 1;
+    track.style.width = 'max-content';
+    const natural = track.offsetWidth;
+    track.style.width = '';
+    // Add one column-gap for the space between the last and first item at the seam
+    const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+    const setWidth = natural + gap;
+    // Duplicate enough to fill viewport + one full scroll cycle
+    const viewW = window.innerWidth;
+    const copies = Math.ceil(viewW / setWidth) + 2;
     track.innerHTML = html.repeat(copies);
-    track.style.setProperty('--scroll-w', `-${scrollDist}px`);
+    track.style.setProperty('--scroll-w', `-${setWidth}px`);
     void track.offsetWidth;
     track.style.animation = '';
   }
