@@ -578,6 +578,73 @@
       display: flex; align-items: center; justify-content: center;
       z-index: 1000;
     }
+
+    /* Market Opening animation */
+    .market-boot {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2;
+      opacity: 1;
+      transition: opacity .6s ease;
+    }
+    .overlay.phase-loading .market-boot { opacity: 0; pointer-events: none; }
+    .market-boot-text {
+      font-size: 10px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--text-muted); opacity: .6;
+      animation: boot-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes boot-pulse { 0%,100%{ opacity:.4 } 50%{ opacity:.8 } }
+
+    .market-chart {
+      position: absolute; inset: 0; z-index: 0;
+      opacity: 0;
+      transition: opacity .8s ease;
+    }
+    .overlay.phase-loading .market-chart { opacity: 1; }
+    .market-chart-line {
+      stroke: var(--green);
+      stroke-width: .4;
+      fill: none;
+      stroke-dasharray: 200;
+      stroke-dashoffset: 200;
+      filter: drop-shadow(0 0 6px rgba(78,221,138,.3));
+    }
+    .overlay.phase-loading .market-chart-line {
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1.4s ease-out;
+    }
+    .market-chart-fill {
+      fill: url(#chartGrad);
+      opacity: 0;
+    }
+    .overlay.phase-stable .market-chart-fill {
+      opacity: 1;
+      transition: opacity 1s ease .2s;
+    }
+
+    .market-ticker {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      z-index: 1;
+      background: linear-gradient(180deg, transparent, rgba(5,10,7,.9));
+      padding: 10px 0;
+      transform: translateY(100%);
+      transition: transform .8s cubic-bezier(.22,1,.36,1);
+    }
+    .overlay.phase-loading .market-ticker { transform: translateY(0); }
+    .market-ticker-track {
+      display: flex; gap: 32px;
+      font-size: 10px; letter-spacing: 1px;
+      white-space: nowrap;
+      animation: ticker-scroll 20s linear infinite;
+    }
+    @keyframes ticker-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .market-ticker-item { color: var(--text-muted); }
+    .market-ticker-item .up { color: var(--green); }
+    .market-ticker-item .down { color: var(--red); }
+
     .lock-box {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -586,6 +653,14 @@
       width: 340px;
       box-shadow: var(--glow-ring);
       display: flex; flex-direction: column; gap: 20px;
+      z-index: 3;
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .overlay.phase-login .lock-box {
+      opacity: 1;
+      transform: translateY(0);
     }
     .lock-title {
       font-family: var(--serif);
@@ -893,6 +968,29 @@
 
 <!-- Unlock -->
 <div class="overlay" id="overlay">
+
+  <!-- Market Opening: boot text -->
+  <div class="market-boot">
+    <p class="market-boot-text">Initializing market data</p>
+  </div>
+
+  <!-- Market Opening: background chart -->
+  <svg class="market-chart" viewBox="0 0 100 50" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(78,221,138,.12)"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </linearGradient>
+    </defs>
+    <path class="market-chart-line" d="M0,42 C8,40 12,38 18,34 C24,30 28,33 34,28 C40,23 44,26 50,22 C56,18 60,20 66,16 C72,12 76,14 82,11 C88,8 92,10 100,6"/>
+    <path class="market-chart-fill" d="M0,42 C8,40 12,38 18,34 C24,30 28,33 34,28 C40,23 44,26 50,22 C56,18 60,20 66,16 C72,12 76,14 82,11 C88,8 92,10 100,6 L100,50 L0,50 Z"/>
+  </svg>
+
+  <!-- Market Opening: ticker tape -->
+  <div class="market-ticker">
+    <div class="market-ticker-track" id="tickerTape"></div>
+  </div>
+
   <div class="lock-box">
     <div class="lock-title">Benji</div>
     <div class="lock-sub">Your personal financial assistant</div>
@@ -1204,7 +1302,32 @@
   /* ── Auth ───────────────────────────────── */
   function boot() {
     const k = sessionStorage.getItem('KEY') || localStorage.getItem('benji_k');
-    if (k) { KEY = k; launch(); }
+    if (k) { KEY = k; launch(); return; }
+    runMarketOpen();
+  }
+
+  function runMarketOpen() {
+    const ov = document.getElementById('overlay');
+    // Seed ticker tape
+    const tickers = [
+      { sym: 'AAPL', pct: '+1.24', dir: 'up' },
+      { sym: 'TSLA', pct: '-0.87', dir: 'down' },
+      { sym: 'NVDA', pct: '+2.41', dir: 'up' },
+      { sym: 'MSFT', pct: '+0.55', dir: 'up' },
+      { sym: 'GOOG', pct: '-0.32', dir: 'down' },
+      { sym: 'AMD', pct: '+1.78', dir: 'up' },
+      { sym: 'META', pct: '+0.93', dir: 'up' },
+      { sym: 'AMZN', pct: '-0.15', dir: 'down' },
+    ];
+    const tape = document.getElementById('tickerTape');
+    const items = tickers.map(t =>
+      `<span class="market-ticker-item">${t.sym} <span class="${t.dir}">${t.pct}%</span></span>`
+    ).join('');
+    tape.innerHTML = items + items; // duplicate for seamless loop
+
+    setTimeout(() => ov.classList.add('phase-loading'), 500);
+    setTimeout(() => ov.classList.add('phase-stable'), 1600);
+    setTimeout(() => ov.classList.add('phase-login'), 2200);
   }
 
   async function startDemo() {
@@ -1240,8 +1363,11 @@
     localStorage.removeItem('benji_watchlist');
     document.getElementById('demoBanner').style.display = 'none';
     document.body.classList.remove('demo-mode');
-    document.getElementById('overlay').style.display = 'flex';
+    const ov = document.getElementById('overlay');
+    ov.className = 'overlay'; // reset animation phases
+    ov.style.display = 'flex';
     document.getElementById('app').style.display = 'none';
+    runMarketOpen();
   }
 
   function toggleKeyVis() {
