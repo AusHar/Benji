@@ -24,15 +24,19 @@ public class TradeController implements TradesApi {
   }
 
   @Override
-  public ResponseEntity<Trade> logTrade(@Valid LogTradeRequest logTradeRequest) {
+  public ResponseEntity<Trade> logTrade(@Valid LogTradeRequest req) {
     TradeEntity entity =
         tradeService.logTrade(
-            logTradeRequest.getTicker().toUpperCase().strip(),
-            logTradeRequest.getSide().getValue(),
-            BigDecimal.valueOf(logTradeRequest.getQuantity()),
-            BigDecimal.valueOf(logTradeRequest.getPricePerShare()),
-            logTradeRequest.getTradeDate(),
-            logTradeRequest.getNotes());
+            req.getTicker().toUpperCase().strip(),
+            req.getSide().getValue(),
+            req.getQuantity() != null ? BigDecimal.valueOf(req.getQuantity()) : null,
+            req.getPricePerShare() != null ? BigDecimal.valueOf(req.getPricePerShare()) : null,
+            req.getTradeDate(),
+            req.getNotes(),
+            req.getAssetType() != null ? req.getAssetType().getValue() : null,
+            req.getOptionType() != null ? req.getOptionType().getValue() : null,
+            req.getStrikePrice() != null ? BigDecimal.valueOf(req.getStrikePrice()) : null,
+            req.getExpirationDate());
     return ResponseEntity.status(201).body(toDto(entity));
   }
 
@@ -89,22 +93,7 @@ public class TradeController implements TradesApi {
   public ResponseEntity<ClosedTradeListResponse> listClosedTrades() {
     List<ClosedTrade> closed = tradeService.getClosedTrades();
     ClosedTradeListResponse response =
-        new ClosedTradeListResponse()
-            .closedTrades(
-                closed.stream()
-                    .map(
-                        ct ->
-                            new com.austinharlan.tradingdashboard.dto.ClosedTrade()
-                                .ticker(ct.ticker())
-                                .quantity(ct.quantity().doubleValue())
-                                .buyPrice(ct.buyPrice().doubleValue())
-                                .sellPrice(ct.sellPrice().doubleValue())
-                                .buyDate(ct.buyDate())
-                                .sellDate(ct.sellDate())
-                                .pnl(ct.pnl().doubleValue())
-                                .pnlPercent(ct.pnlPercent().doubleValue())
-                                .holdDays((int) ct.holdDays()))
-                    .toList());
+        new ClosedTradeListResponse().closedTrades(closed.stream().map(this::toClosedDto).toList());
     return ResponseEntity.ok(response);
   }
 
@@ -142,15 +131,60 @@ public class TradeController implements TradesApi {
     return ResponseEntity.ok(response);
   }
 
-  private Trade toDto(TradeEntity entity) {
-    return new Trade()
-        .id(entity.getId())
-        .ticker(entity.getTicker())
-        .side(Trade.SideEnum.fromValue(entity.getSide()))
-        .quantity(entity.getQuantity().doubleValue())
-        .pricePerShare(entity.getPricePerShare().doubleValue())
-        .tradeDate(entity.getTradeDate())
-        .notes(entity.getNotes())
-        .createdAt(OffsetDateTime.ofInstant(entity.getCreatedAt(), ZoneOffset.UTC));
+  private Trade toDto(TradeEntity e) {
+    Trade dto =
+        new Trade()
+            .id(e.getId())
+            .ticker(e.getTicker())
+            .side(Trade.SideEnum.fromValue(e.getSide()))
+            .quantity(e.getQuantity().doubleValue())
+            .pricePerShare(e.getPricePerShare().doubleValue())
+            .tradeDate(e.getTradeDate())
+            .notes(e.getNotes())
+            .createdAt(OffsetDateTime.ofInstant(e.getCreatedAt(), ZoneOffset.UTC))
+            .assetType(Trade.AssetTypeEnum.fromValue(e.getAssetType()))
+            .multiplier(e.getMultiplier());
+    if (e.getOptionType() != null) {
+      dto.optionType(Trade.OptionTypeEnum.fromValue(e.getOptionType()));
+    }
+    if (e.getStrikePrice() != null) {
+      dto.strikePrice(e.getStrikePrice().doubleValue());
+    }
+    if (e.getExpirationDate() != null) {
+      dto.expirationDate(e.getExpirationDate());
+    }
+    if (e.getLinkedTradeId() != null) {
+      dto.linkedTradeId(e.getLinkedTradeId());
+    }
+    return dto;
+  }
+
+  private com.austinharlan.tradingdashboard.dto.ClosedTrade toClosedDto(ClosedTrade ct) {
+    var dto =
+        new com.austinharlan.tradingdashboard.dto.ClosedTrade()
+            .ticker(ct.ticker())
+            .quantity(ct.quantity().doubleValue())
+            .buyPrice(ct.buyPrice().doubleValue())
+            .sellPrice(ct.sellPrice().doubleValue())
+            .buyDate(ct.buyDate())
+            .sellDate(ct.sellDate())
+            .pnl(ct.pnl().doubleValue())
+            .pnlPercent(ct.pnlPercent().doubleValue())
+            .holdDays((int) ct.holdDays())
+            .assetType(
+                com.austinharlan.tradingdashboard.dto.ClosedTrade.AssetTypeEnum.fromValue(
+                    ct.assetType()));
+    if (ct.optionType() != null) {
+      dto.optionType(
+          com.austinharlan.tradingdashboard.dto.ClosedTrade.OptionTypeEnum.fromValue(
+              ct.optionType()));
+    }
+    if (ct.strikePrice() != null) {
+      dto.strikePrice(ct.strikePrice().doubleValue());
+    }
+    if (ct.expirationDate() != null) {
+      dto.expirationDate(ct.expirationDate());
+    }
+    return dto;
   }
 }
