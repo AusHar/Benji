@@ -1225,6 +1225,13 @@
     <h3>Log Trade</h3>
     <div class="field-group">
       <div>
+        <div class="field-label">Asset Type</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-sm lt-asset-btn active" data-asset="EQUITY" onclick="setAssetType('EQUITY')" style="flex:1">EQUITY</button>
+          <button class="btn btn-sm lt-asset-btn" data-asset="OPTION" onclick="setAssetType('OPTION')" style="flex:1">OPTION</button>
+        </div>
+      </div>
+      <div>
         <div class="field-label">Ticker</div>
         <input class="field" id="lt-ticker" type="text" placeholder="e.g. AAPL" autocomplete="off" style="text-transform:uppercase">
       </div>
@@ -1234,14 +1241,33 @@
           <button class="btn btn-sm lt-side-btn active" data-side="BUY" onclick="setTradeSide('BUY')" style="flex:1">BUY</button>
           <button class="btn btn-sm lt-side-btn" data-side="SELL" onclick="setTradeSide('SELL')" style="flex:1">SELL</button>
         </div>
+        <div id="lt-resolve-row" style="display:none;margin-top:4px;">
+          <div class="field-label" style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Resolve</div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-sm lt-side-btn" data-side="EXPIRE" onclick="setTradeSide('EXPIRE')" style="flex:1;opacity:.7;font-size:9px">EXPIRE</button>
+            <button class="btn btn-sm lt-side-btn" data-side="EXERCISE" onclick="setTradeSide('EXERCISE')" style="flex:1;opacity:.7;font-size:9px">EXERCISE</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="field-label">Quantity</div>
+      <div id="lt-option-fields" style="display:none">
+        <div class="field-label">Type</div>
+        <div style="display:flex;gap:4px;margin-bottom:8px;">
+          <button class="btn btn-sm lt-otype-btn active" data-otype="CALL" onclick="setOptionType('CALL')" style="flex:1">CALL</button>
+          <button class="btn btn-sm lt-otype-btn" data-otype="PUT" onclick="setOptionType('PUT')" style="flex:1">PUT</button>
+        </div>
+        <div class="field-label">Strike ($)</div>
+        <input class="field" id="lt-strike" type="number" placeholder="200.00" min="0.0001" step="any" style="margin-bottom:8px;">
+        <div class="field-label">Expiration</div>
+        <input class="field" id="lt-expiration" type="date">
+      </div>
+      <div id="lt-qty-wrap">
+        <div class="field-label" id="lt-qty-label">Quantity</div>
         <input class="field" id="lt-qty" type="number" placeholder="10" min="0.0001" step="any">
       </div>
-      <div>
-        <div class="field-label">Price / Share ($)</div>
+      <div id="lt-price-wrap">
+        <div class="field-label" id="lt-price-label">Price / Share ($)</div>
         <input class="field" id="lt-price" type="number" placeholder="163.42" min="0.0001" step="any">
+        <div id="lt-total-hint" style="display:none;font-size:9px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
       <div>
         <div class="field-label">Date</div>
@@ -2292,25 +2318,85 @@
 
   /* ── Log Trade modal ──────────────────── */
   let _tradeSide = 'BUY';
+  let _tradeAssetType = 'EQUITY';
+  let _tradeOptionType = 'CALL';
+
+  function setAssetType(type) {
+    _tradeAssetType = type;
+    document.querySelectorAll('.lt-asset-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.asset === type);
+    });
+    const isOption = type === 'OPTION';
+    document.getElementById('lt-option-fields').style.display = isOption ? '' : 'none';
+    document.getElementById('lt-resolve-row').style.display = isOption ? '' : 'none';
+    document.getElementById('lt-qty-label').textContent = isOption ? 'Contracts' : 'Quantity';
+    document.getElementById('lt-price-label').textContent = isOption ? 'Premium ($)' : 'Price / Share ($)';
+    updateTotalHint();
+    updateFieldVisibility();
+  }
+
+  function setOptionType(type) {
+    _tradeOptionType = type;
+    document.querySelectorAll('.lt-otype-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.otype === type);
+    });
+  }
+
+  function updateFieldVisibility() {
+    const side = _tradeSide;
+    const isExpire = side === 'EXPIRE';
+    const isExercise = side === 'EXERCISE';
+    document.getElementById('lt-qty-wrap').style.display = isExpire ? 'none' : '';
+    document.getElementById('lt-price-wrap').style.display = (isExpire || isExercise) ? 'none' : '';
+  }
+
+  function updateTotalHint() {
+    const hint = document.getElementById('lt-total-hint');
+    if (_tradeAssetType !== 'OPTION' || ['EXPIRE', 'EXERCISE'].includes(_tradeSide)) {
+      hint.style.display = 'none';
+      return;
+    }
+    const qty = parseFloat(document.getElementById('lt-qty').value) || 0;
+    const price = parseFloat(document.getElementById('lt-price').value) || 0;
+    if (qty > 0 && price > 0) {
+      const total = qty * price * 100;
+      hint.textContent = `${qty} × $${price.toFixed(2)} × 100 = $${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+  document.getElementById('lt-qty').addEventListener('input', updateTotalHint);
+  document.getElementById('lt-price').addEventListener('input', updateTotalHint);
 
   function setTradeSide(side) {
     _tradeSide = side;
     document.querySelectorAll('.lt-side-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.side === side);
     });
+    updateFieldVisibility();
+    updateTotalHint();
   }
 
   function openLogTrade() {
     _tradeSide = 'BUY';
+    _tradeAssetType = 'EQUITY';
+    _tradeOptionType = 'CALL';
     document.getElementById('lt-ticker').value = '';
     document.getElementById('lt-qty').value = '';
     document.getElementById('lt-price').value = '';
     document.getElementById('lt-date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('lt-notes').value = '';
+    document.getElementById('lt-strike').value = '';
+    document.getElementById('lt-expiration').value = '';
     document.getElementById('lt-err').textContent = '';
     document.getElementById('lt-link-prompt').style.display = 'none';
     document.getElementById('lt-actions').style.display = '';
+    document.getElementById('lt-total-hint').style.display = 'none';
+    setAssetType('EQUITY');
     setTradeSide('BUY');
+    setOptionType('CALL');
     document.getElementById('logTradeModal').classList.add('open');
     document.getElementById('lt-ticker').focus();
   }
@@ -2327,40 +2413,64 @@
     const notes = document.getElementById('lt-notes').value.trim() || null;
     const errEl = document.getElementById('lt-err');
     const btn = document.getElementById('lt-submit');
+    const isOption = _tradeAssetType === 'OPTION';
+    const isExpire = _tradeSide === 'EXPIRE';
+    const isExercise = _tradeSide === 'EXERCISE';
 
     if (!ticker) { errEl.textContent = 'Ticker is required.'; return; }
-    if (!(qty > 0)) { errEl.textContent = 'Quantity must be greater than 0.'; return; }
-    if (!(price > 0)) { errEl.textContent = 'Price must be greater than 0.'; return; }
+    if (!isExpire && !(qty > 0)) { errEl.textContent = (isOption ? 'Contracts' : 'Quantity') + ' must be greater than 0.'; return; }
+    if (!isExpire && !isExercise && !(price > 0)) { errEl.textContent = (isOption ? 'Premium' : 'Price') + ' must be greater than 0.'; return; }
     if (!date) { errEl.textContent = 'Date is required.'; return; }
+
+    if (isOption) {
+      const strike = parseFloat(document.getElementById('lt-strike').value);
+      const exp = document.getElementById('lt-expiration').value;
+      if (!(strike > 0)) { errEl.textContent = 'Strike price is required.'; return; }
+      if (!exp) { errEl.textContent = 'Expiration date is required.'; return; }
+    }
 
     btn.disabled = true;
     errEl.textContent = '';
+
+    const body = { ticker, side: _tradeSide, tradeDate: date, notes };
+    if (!isExpire) body.quantity = qty;
+    if (!isExpire && !isExercise) body.pricePerShare = price;
+    if (isExercise) body.quantity = qty;
+
+    if (isOption) {
+      body.assetType = 'OPTION';
+      body.optionType = _tradeOptionType;
+      body.strikePrice = parseFloat(document.getElementById('lt-strike').value);
+      body.expirationDate = document.getElementById('lt-expiration').value;
+    }
+
     try {
       const r = await fetch('/api/trades', {
         method: 'POST',
         headers: { 'X-API-KEY': KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, side: _tradeSide, quantity: qty, pricePerShare: price, tradeDate: date, notes }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        errEl.textContent = body.message || 'Failed to log trade.';
+        const respBody = await r.json().catch(() => ({}));
+        errEl.textContent = respBody.message || 'Failed to log trade.';
         return;
       }
 
-      // Check if ticker matches an existing position
-      const posRes = await get('/api/portfolio/positions').catch(() => null);
-      const positions = posRes?.positions || [];
-      const existing = positions.find(p => p.ticker === ticker);
-
-      if (existing) {
-        showPositionLinkPrompt(ticker, _tradeSide, qty, price, existing);
-      } else {
-        closeLogTrade();
-        loadTrades();
+      if (!isOption) {
+        const posRes = await get('/api/portfolio/positions').catch(() => null);
+        const positions = posRes?.positions || [];
+        const existing = positions.find(p => p.ticker === ticker);
+        if (existing) {
+          showPositionLinkPrompt(ticker, _tradeSide, qty, price, existing);
+          return;
+        }
       }
+
+      closeLogTrade();
+      loadTrades();
     } catch (err) {
       console.error('Log trade error', err);
-      errEl.textContent = 'Network error — check your connection.';
+      errEl.textContent = 'Network error.';
     } finally {
       btn.disabled = false;
     }
