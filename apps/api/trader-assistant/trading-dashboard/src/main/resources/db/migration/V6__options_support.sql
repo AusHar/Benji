@@ -9,10 +9,10 @@ ALTER TABLE trades ADD COLUMN expiration_date DATE;
 ALTER TABLE trades ADD COLUMN multiplier INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE trades ADD COLUMN linked_trade_id BIGINT;
 
--- 2. Expand side constraint: drop old, add new
--- The V4 inline CHECK is unnamed in H2 but named in Postgres.
--- Use a column redefine approach that works in both:
-ALTER TABLE trades ALTER COLUMN side VARCHAR(8) NOT NULL;
+-- 2. Expand side column to fit 'EXERCISE' (8 chars)
+-- Drop the V4 inline CHECK first (Postgres auto-names it trades_side_check)
+ALTER TABLE trades DROP CONSTRAINT IF EXISTS trades_side_check;
+ALTER TABLE trades ALTER COLUMN side TYPE VARCHAR(8);
 
 -- 3. Add new constraints
 ALTER TABLE trades ADD CONSTRAINT trades_asset_type_check
