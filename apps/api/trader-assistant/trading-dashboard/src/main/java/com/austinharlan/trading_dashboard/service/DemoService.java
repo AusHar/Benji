@@ -98,6 +98,74 @@ public class DemoService {
     trade(userId, "2026-03-10", "TSLA", "SELL", "15", "232.50", "-$187.50 cut loss");
     trade(userId, "2026-03-17", "AMD", "BUY", "40", "108.75", "Dip buy");
     trade(userId, "2026-03-21", "AMD", "SELL", "40", "115.20", "+$258 quick flip");
+
+    // Options trades
+    optionTrade(
+        userId,
+        "2026-02-10",
+        "AAPL",
+        "SELL",
+        "1",
+        "6.20",
+        "Covered call against AAPL shares",
+        "CALL",
+        "200",
+        "2026-04-18");
+    optionTrade(
+        userId,
+        "2026-03-05",
+        "AAPL",
+        "BUY",
+        "1",
+        "3.50",
+        "Bought back covered call on dip, +$270",
+        "CALL",
+        "200",
+        "2026-04-18");
+    optionTrade(
+        userId,
+        "2026-01-15",
+        "NVDA",
+        "BUY",
+        "1",
+        "4.80",
+        "Bullish call on AI thesis",
+        "CALL",
+        "130",
+        "2026-03-21");
+    optionTrade(
+        userId,
+        "2026-02-20",
+        "NVDA",
+        "SELL",
+        "1",
+        "8.50",
+        "Took profit on NVDA call, +$370",
+        "CALL",
+        "130",
+        "2026-03-21");
+    optionTrade(
+        userId,
+        "2026-02-05",
+        "TSLA",
+        "BUY",
+        "1",
+        "3.25",
+        "Hedge against TSLA downturn",
+        "PUT",
+        "220",
+        "2026-03-21");
+    optionTrade(
+        userId,
+        "2026-03-21",
+        "TSLA",
+        "EXPIRE",
+        "1",
+        "0",
+        "TSLA put expired worthless, -$325",
+        "PUT",
+        "220",
+        "2026-03-21");
   }
 
   private void trade(
@@ -117,6 +185,33 @@ public class DemoService {
             new BigDecimal(price),
             LocalDate.parse(date),
             notes));
+  }
+
+  private void optionTrade(
+      Long userId,
+      String date,
+      String ticker,
+      String side,
+      String qty,
+      String price,
+      String notes,
+      String optionType,
+      String strike,
+      String expDate) {
+    tradeRepository.save(
+        new TradeEntity(
+            userId,
+            ticker,
+            side,
+            new BigDecimal(qty),
+            new BigDecimal(price),
+            LocalDate.parse(date),
+            notes,
+            "OPTION",
+            optionType,
+            new BigDecimal(strike),
+            LocalDate.parse(expDate),
+            100));
   }
 
   private void seedFinanceTransactions(Long userId) {
