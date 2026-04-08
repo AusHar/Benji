@@ -12,4 +12,8 @@ public record ClosedTrade(
     LocalDate sellDate,
     BigDecimal pnl,
     BigDecimal pnlPercent,
-    long holdDays) {}
+    long holdDays,
+    String assetType,
+    String optionType,
+    BigDecimal strikePrice,
+    LocalDate expirationDate) {}
