@@ -1225,6 +1225,13 @@
     <h3>Log Trade</h3>
     <div class="field-group">
       <div>
+        <div class="field-label">Asset Type</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-sm lt-asset-btn active" data-asset="EQUITY" onclick="setAssetType('EQUITY')" style="flex:1">EQUITY</button>
+          <button class="btn btn-sm lt-asset-btn" data-asset="OPTION" onclick="setAssetType('OPTION')" style="flex:1">OPTION</button>
+        </div>
+      </div>
+      <div>
         <div class="field-label">Ticker</div>
         <input class="field" id="lt-ticker" type="text" placeholder="e.g. AAPL" autocomplete="off" style="text-transform:uppercase">
       </div>
@@ -1234,14 +1241,33 @@
           <button class="btn btn-sm lt-side-btn active" data-side="BUY" onclick="setTradeSide('BUY')" style="flex:1">BUY</button>
           <button class="btn btn-sm lt-side-btn" data-side="SELL" onclick="setTradeSide('SELL')" style="flex:1">SELL</button>
         </div>
+        <div id="lt-resolve-row" style="display:none;margin-top:4px;">
+          <div class="field-label" style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Resolve</div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-sm lt-side-btn" data-side="EXPIRE" onclick="setTradeSide('EXPIRE')" style="flex:1;opacity:.7;font-size:9px">EXPIRE</button>
+            <button class="btn btn-sm lt-side-btn" data-side="EXERCISE" onclick="setTradeSide('EXERCISE')" style="flex:1;opacity:.7;font-size:9px">EXERCISE</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="field-label">Quantity</div>
+      <div id="lt-option-fields" style="display:none">
+        <div class="field-label">Type</div>
+        <div style="display:flex;gap:4px;margin-bottom:8px;">
+          <button class="btn btn-sm lt-otype-btn active" data-otype="CALL" onclick="setOptionType('CALL')" style="flex:1">CALL</button>
+          <button class="btn btn-sm lt-otype-btn" data-otype="PUT" onclick="setOptionType('PUT')" style="flex:1">PUT</button>
+        </div>
+        <div class="field-label">Strike ($)</div>
+        <input class="field" id="lt-strike" type="number" placeholder="200.00" min="0.0001" step="any" style="margin-bottom:8px;">
+        <div class="field-label">Expiration</div>
+        <input class="field" id="lt-expiration" type="date">
+      </div>
+      <div id="lt-qty-wrap">
+        <div class="field-label" id="lt-qty-label">Quantity</div>
         <input class="field" id="lt-qty" type="number" placeholder="10" min="0.0001" step="any">
       </div>
-      <div>
-        <div class="field-label">Price / Share ($)</div>
+      <div id="lt-price-wrap">
+        <div class="field-label" id="lt-price-label">Price / Share ($)</div>
         <input class="field" id="lt-price" type="number" placeholder="163.42" min="0.0001" step="any">
+        <div id="lt-total-hint" style="display:none;font-size:9px;color:var(--text-muted);margin-top:2px;"></div>
       </div>
       <div>
         <div class="field-label">Date</div>
@@ -2192,14 +2218,24 @@
             ${closed.map(ct => {
               const cls = ct.pnl >= 0 ? 'td-pos' : 'td-neg';
               const sign = ct.pnl >= 0 ? '+' : '';
+              const isOption = ct.assetType === 'OPTION';
+              const buyDisplay = ct.buyPrice === 0 ? '$0 EXP' : money(ct.buyPrice);
+              const sellDisplay = ct.sellPrice === 0 ? '$0 EXP' : money(ct.sellPrice);
+              const qtyLabel = isOption ? num(ct.quantity) + 'c' : num(ct.quantity);
+              let optionLine = '';
+              if (isOption) {
+                const typeChar = ct.optionType === 'CALL' ? 'Call' : 'Put';
+                const expStr = ct.expirationDate ? new Date(ct.expirationDate + 'T00:00:00').toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'2-digit'}) : '';
+                optionLine = `<tr><td colspan="6" style="padding:0 0 6px 8px;border:none;font-size:9px;color:var(--text-muted);">$${ct.strikePrice} ${typeChar} ${expStr}</td></tr>`;
+              }
               return `<tr>
                 <td class="${cls}"><strong>${ct.ticker}</strong></td>
-                <td>${num(ct.quantity)}</td>
-                <td>${money(ct.buyPrice)}</td>
-                <td>${money(ct.sellPrice)}</td>
+                <td>${qtyLabel}</td>
+                <td>${buyDisplay}</td>
+                <td>${sellDisplay}</td>
                 <td class="${cls}">${sign}${money(ct.pnl)}</td>
                 <td>${ct.holdDays}d</td>
-              </tr>`;
+              </tr>${optionLine}`;
             }).join('')}
           </tbody>
         </table></div>`;
@@ -2292,25 +2328,85 @@
 
   /* ── Log Trade modal ──────────────────── */
   let _tradeSide = 'BUY';
+  let _tradeAssetType = 'EQUITY';
+  let _tradeOptionType = 'CALL';
+
+  function setAssetType(type) {
+    _tradeAssetType = type;
+    document.querySelectorAll('.lt-asset-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.asset === type);
+    });
+    const isOption = type === 'OPTION';
+    document.getElementById('lt-option-fields').style.display = isOption ? '' : 'none';
+    document.getElementById('lt-resolve-row').style.display = isOption ? '' : 'none';
+    document.getElementById('lt-qty-label').textContent = isOption ? 'Contracts' : 'Quantity';
+    document.getElementById('lt-price-label').textContent = isOption ? 'Premium ($)' : 'Price / Share ($)';
+    updateTotalHint();
+    updateFieldVisibility();
+  }
+
+  function setOptionType(type) {
+    _tradeOptionType = type;
+    document.querySelectorAll('.lt-otype-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.otype === type);
+    });
+  }
+
+  function updateFieldVisibility() {
+    const side = _tradeSide;
+    const isExpire = side === 'EXPIRE';
+    const isExercise = side === 'EXERCISE';
+    document.getElementById('lt-qty-wrap').style.display = isExpire ? 'none' : '';
+    document.getElementById('lt-price-wrap').style.display = (isExpire || isExercise) ? 'none' : '';
+  }
+
+  function updateTotalHint() {
+    const hint = document.getElementById('lt-total-hint');
+    if (_tradeAssetType !== 'OPTION' || ['EXPIRE', 'EXERCISE'].includes(_tradeSide)) {
+      hint.style.display = 'none';
+      return;
+    }
+    const qty = parseFloat(document.getElementById('lt-qty').value) || 0;
+    const price = parseFloat(document.getElementById('lt-price').value) || 0;
+    if (qty > 0 && price > 0) {
+      const total = qty * price * 100;
+      hint.textContent = `${qty} × $${price.toFixed(2)} × 100 = $${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
+  }
+
+  document.getElementById('lt-qty').addEventListener('input', updateTotalHint);
+  document.getElementById('lt-price').addEventListener('input', updateTotalHint);
 
   function setTradeSide(side) {
     _tradeSide = side;
     document.querySelectorAll('.lt-side-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.side === side);
     });
+    updateFieldVisibility();
+    updateTotalHint();
   }
 
   function openLogTrade() {
     _tradeSide = 'BUY';
+    _tradeAssetType = 'EQUITY';
+    _tradeOptionType = 'CALL';
     document.getElementById('lt-ticker').value = '';
     document.getElementById('lt-qty').value = '';
     document.getElementById('lt-price').value = '';
     document.getElementById('lt-date').value = new Date().toISOString().slice(0, 10);
     document.getElementById('lt-notes').value = '';
+    document.getElementById('lt-strike').value = '';
+    document.getElementById('lt-expiration').value = '';
     document.getElementById('lt-err').textContent = '';
     document.getElementById('lt-link-prompt').style.display = 'none';
     document.getElementById('lt-actions').style.display = '';
+    document.getElementById('lt-total-hint').style.display = 'none';
+    setAssetType('EQUITY');
     setTradeSide('BUY');
+    setOptionType('CALL');
     document.getElementById('logTradeModal').classList.add('open');
     document.getElementById('lt-ticker').focus();
   }
@@ -2327,42 +2423,224 @@
     const notes = document.getElementById('lt-notes').value.trim() || null;
     const errEl = document.getElementById('lt-err');
     const btn = document.getElementById('lt-submit');
+    const isOption = _tradeAssetType === 'OPTION';
+    const isExpire = _tradeSide === 'EXPIRE';
+    const isExercise = _tradeSide === 'EXERCISE';
 
     if (!ticker) { errEl.textContent = 'Ticker is required.'; return; }
-    if (!(qty > 0)) { errEl.textContent = 'Quantity must be greater than 0.'; return; }
-    if (!(price > 0)) { errEl.textContent = 'Price must be greater than 0.'; return; }
+    if (!isExpire && !(qty > 0)) { errEl.textContent = (isOption ? 'Contracts' : 'Quantity') + ' must be greater than 0.'; return; }
+    if (!isExpire && !isExercise && !(price > 0)) { errEl.textContent = (isOption ? 'Premium' : 'Price') + ' must be greater than 0.'; return; }
     if (!date) { errEl.textContent = 'Date is required.'; return; }
+
+    if (isOption) {
+      const strike = parseFloat(document.getElementById('lt-strike').value);
+      const exp = document.getElementById('lt-expiration').value;
+      if (!(strike > 0)) { errEl.textContent = 'Strike price is required.'; return; }
+      if (!exp) { errEl.textContent = 'Expiration date is required.'; return; }
+    }
 
     btn.disabled = true;
     errEl.textContent = '';
+
+    // For EXPIRE/EXERCISE, show confirmation before submitting
+    if (isExpire || isExercise) {
+      try {
+        await showCloseConfirmation(ticker, isExpire, isExercise, qty, date, notes);
+      } catch (err) {
+        if (err !== 'cancelled') { errEl.textContent = err.message || 'Failed to load trade data.'; }
+      } finally {
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    const body = { ticker, side: _tradeSide, tradeDate: date, notes };
+    if (!isExpire) body.quantity = qty;
+    if (!isExpire && !isExercise) body.pricePerShare = price;
+
+    if (isOption) {
+      body.assetType = 'OPTION';
+      body.optionType = _tradeOptionType;
+      body.strikePrice = parseFloat(document.getElementById('lt-strike').value);
+      body.expirationDate = document.getElementById('lt-expiration').value;
+    }
+
     try {
       const r = await fetch('/api/trades', {
         method: 'POST',
         headers: { 'X-API-KEY': KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, side: _tradeSide, quantity: qty, pricePerShare: price, tradeDate: date, notes }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        errEl.textContent = body.message || 'Failed to log trade.';
+        const respBody = await r.json().catch(() => ({}));
+        errEl.textContent = respBody.message || 'Failed to log trade.';
         return;
       }
 
-      // Check if ticker matches an existing position
-      const posRes = await get('/api/portfolio/positions').catch(() => null);
-      const positions = posRes?.positions || [];
-      const existing = positions.find(p => p.ticker === ticker);
-
-      if (existing) {
-        showPositionLinkPrompt(ticker, _tradeSide, qty, price, existing);
-      } else {
-        closeLogTrade();
-        loadTrades();
+      if (!isOption) {
+        const posRes = await get('/api/portfolio/positions').catch(() => null);
+        const positions = posRes?.positions || [];
+        const existing = positions.find(p => p.ticker === ticker);
+        if (existing) {
+          showPositionLinkPrompt(ticker, _tradeSide, qty, price, existing);
+          return;
+        }
       }
+
+      closeLogTrade();
+      loadTrades();
     } catch (err) {
       console.error('Log trade error', err);
-      errEl.textContent = 'Network error — check your connection.';
+      errEl.textContent = 'Network error.';
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  async function showCloseConfirmation(ticker, isExpire, isExercise, qty, date, notes) {
+    const strike = parseFloat(document.getElementById('lt-strike').value);
+    const exp = document.getElementById('lt-expiration').value;
+    const optType = _tradeOptionType;
+    const typeLabel = optType === 'CALL' ? 'Call' : 'Put';
+    const expLabel = new Date(exp + 'T00:00:00').toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'2-digit'});
+    const contractLabel = `${ticker} $${strike} ${typeLabel} ${expLabel}`;
+
+    // Fetch all trades for this ticker to compute open position
+    const tradeRes = await get('/api/trades?ticker=' + ticker).catch(() => null);
+    if (!tradeRes) throw new Error('Failed to load trade data.');
+    const trades = tradeRes.trades || [];
+
+    // Filter for matching contract key
+    const contractTrades = trades.filter(t =>
+      t.assetType === 'OPTION' &&
+      t.optionType === optType &&
+      Math.abs((t.strikePrice || 0) - strike) < 0.01 &&
+      t.expirationDate === exp
+    );
+
+    let buyQty = 0, sellQty = 0, closeQty = 0;
+    contractTrades.forEach(t => {
+      if (t.side === 'BUY') buyQty += t.quantity;
+      else if (t.side === 'SELL') sellQty += t.quantity;
+      else if (t.side === 'EXPIRE' || t.side === 'EXERCISE') closeQty += t.quantity;
+    });
+
+    const remaining = Math.abs(buyQty - sellQty) - closeQty;
+    const position = buyQty > sellQty ? 'LONG' : 'SHORT';
+
+    // Build confirmation content
+    const prompt = document.getElementById('lt-link-prompt');
+    document.getElementById('lt-actions').style.display = 'none';
+
+    let html = `<div style="margin-top:16px;background:rgba(78,221,138,.06);border:1px dashed rgba(78,221,138,.2);border-radius:6px;padding:12px;">`;
+
+    if (remaining <= 0) {
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        No open contracts found for<br><strong>${contractLabel}</strong><br>
+        <span style="font-size:9px;">You may need to log trades first.</span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+        <button class="btn btn-sm" onclick="cancelCloseConfirmation()">OK</button>
+      </div>`;
+      html += `</div>`;
+      prompt.innerHTML = html;
+      prompt.style.display = '';
+      throw 'cancelled';
+    }
+
+    if (isExpire) {
+      html += `<div style="font-size:10px;color:var(--green);margin-bottom:8px;text-align:center;">Confirm Expiration</div>`;
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        <strong>${remaining}</strong> ${position} contract${remaining !== 1 ? 's' : ''} open<br>
+        ${contractLabel}<br><br>
+        All contracts close at $0.
+      </div>`;
+    }
+
+    if (isExercise) {
+      html += `<div style="font-size:10px;color:var(--green);margin-bottom:8px;text-align:center;">Confirm ${position === 'SHORT' ? 'Assignment' : 'Exercise'}</div>`;
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        Closing <strong>${qty}</strong> of ${remaining} open ${position} contract${remaining !== 1 ? 's' : ''}<br>
+        ${contractLabel}
+      </div>`;
+
+      // Determine what equity trade will be created
+      const shares = qty * 100;
+      let eqSide;
+      if (optType === 'CALL') { eqSide = position === 'LONG' ? 'BUY' : 'SELL'; }
+      else { eqSide = position === 'LONG' ? 'SELL' : 'BUY'; }
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">
+        Auto-creates: <strong>${eqSide} ${shares} ${ticker}</strong> @ $${strike.toFixed(2)}
+      </div>`;
+
+      // Check equity position for this ticker
+      const equityTrades = trades.filter(t => t.assetType === 'EQUITY' || (!t.assetType && !t.optionType));
+      let eqBuys = 0, eqSells = 0;
+      equityTrades.forEach(t => {
+        if (t.side === 'BUY') eqBuys += t.quantity;
+        else if (t.side === 'SELL') eqSells += t.quantity;
+      });
+      const eqHeld = eqBuys - eqSells;
+
+      if (eqSide === 'SELL' && eqHeld < shares) {
+        if (eqHeld <= 0) {
+          html += `<div style="font-size:9px;color:#f5a623;text-align:center;margin-top:6px;">&#9888; No ${ticker} shares found — log a BUY first?</div>`;
+        } else {
+          html += `<div style="font-size:9px;color:#f5a623;text-align:center;margin-top:6px;">&#9888; Only ${num(eqHeld)} ${ticker} shares logged (need ${shares})</div>`;
+        }
+      } else if (eqSide === 'SELL' && eqHeld >= shares) {
+        html += `<div style="font-size:9px;color:var(--green);text-align:center;margin-top:6px;">&#10003; ${num(eqHeld)} ${ticker} shares held</div>`;
+      }
+    }
+
+    html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+      <button class="btn btn-sm" onclick="cancelCloseConfirmation()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="executeCloseSubmit()">Confirm</button>
+    </div></div>`;
+
+    prompt.innerHTML = html;
+    prompt.style.display = '';
+  }
+
+  function cancelCloseConfirmation() {
+    document.getElementById('lt-link-prompt').style.display = 'none';
+    document.getElementById('lt-actions').style.display = '';
+  }
+
+  async function executeCloseSubmit() {
+    const ticker = document.getElementById('lt-ticker').value.trim().toUpperCase();
+    const qty = parseFloat(document.getElementById('lt-qty').value);
+    const date = document.getElementById('lt-date').value;
+    const notes = document.getElementById('lt-notes').value.trim() || null;
+    const errEl = document.getElementById('lt-err');
+
+    const body = { ticker, side: _tradeSide, tradeDate: date, notes };
+    if (_tradeSide === 'EXERCISE') body.quantity = qty;
+    body.assetType = 'OPTION';
+    body.optionType = _tradeOptionType;
+    body.strikePrice = parseFloat(document.getElementById('lt-strike').value);
+    body.expirationDate = document.getElementById('lt-expiration').value;
+
+    try {
+      const r = await fetch('/api/trades', {
+        method: 'POST',
+        headers: { 'X-API-KEY': KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const respBody = await r.json().catch(() => ({}));
+        errEl.textContent = respBody.message || 'Failed to log trade.';
+        document.getElementById('lt-link-prompt').style.display = 'none';
+        document.getElementById('lt-actions').style.display = '';
+        return;
+      }
+      closeLogTrade();
+      loadTrades();
+    } catch (err) {
+      console.error('Close submit error', err);
+      errEl.textContent = 'Network error.';
+      document.getElementById('lt-link-prompt').style.display = 'none';
+      document.getElementById('lt-actions').style.display = '';
     }
   }
 

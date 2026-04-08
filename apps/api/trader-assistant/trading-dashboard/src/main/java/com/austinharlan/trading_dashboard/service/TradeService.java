@@ -12,10 +12,14 @@ public interface TradeService {
   TradeEntity logTrade(
       String ticker,
       String side,
-      BigDecimal quantity,
-      BigDecimal pricePerShare,
+      @Nullable BigDecimal quantity,
+      @Nullable BigDecimal pricePerShare,
       @Nullable LocalDate tradeDate,
-      @Nullable String notes);
+      @Nullable String notes,
+      @Nullable String assetType,
+      @Nullable String optionType,
+      @Nullable BigDecimal strikePrice,
+      @Nullable LocalDate expirationDate);
 
   List<TradeEntity> listTrades(
       @Nullable String ticker,

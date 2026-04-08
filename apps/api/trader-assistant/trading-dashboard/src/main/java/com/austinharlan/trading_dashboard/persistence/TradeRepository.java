@@ -13,13 +13,13 @@ public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
 
   @Query(
       """
-      SELECT t FROM TradeEntity t
-      WHERE t.userId = :userId
-        AND (:ticker IS NULL OR t.ticker = :ticker)
-        AND (:side IS NULL OR t.side = :side)
-        AND (:fromDate IS NULL OR t.tradeDate >= :fromDate)
-        AND (:toDate IS NULL OR t.tradeDate <= :toDate)
-      ORDER BY t.tradeDate DESC, t.createdAt DESC
+      select t from TradeEntity t
+      where t.userId = :userId
+        and (:ticker is null or t.ticker = :ticker)
+        and (:side is null or t.side = :side)
+        and (:fromDate is null or t.tradeDate >= :fromDate)
+        and (:toDate is null or t.tradeDate <= :toDate)
+      order by t.tradeDate desc, t.createdAt desc
       """)
   List<TradeEntity> findFilteredByUserId(
       @Param("userId") Long userId,
@@ -29,7 +29,11 @@ public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
       @Param("toDate") LocalDate toDate);
 
   @Query(
-      "SELECT t FROM TradeEntity t WHERE t.userId = :userId ORDER BY t.tradeDate ASC, t.createdAt ASC")
+      """
+      select t from TradeEntity t
+      where t.userId = :userId
+      order by t.tradeDate asc, t.createdAt asc
+      """)
   List<TradeEntity> findAllChronologicalByUserId(@Param("userId") Long userId);
 
   @Transactional

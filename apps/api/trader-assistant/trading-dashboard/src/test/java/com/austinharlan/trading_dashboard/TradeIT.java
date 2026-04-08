@@ -201,4 +201,96 @@ class TradeIT extends DatabaseIntegrationTest {
     assertThat(((Number) response.getBody().get("winRate")).doubleValue())
         .isCloseTo(100.0, within(0.1));
   }
+
+  @Test
+  void postOptionTrade_returns201WithOptionFields() {
+    String body =
+        """
+        {"ticker":"AAPL","side":"BUY","quantity":1,"pricePerShare":5.00,
+         "tradeDate":"2026-03-01","assetType":"OPTION","optionType":"CALL",
+         "strikePrice":200.0,"expirationDate":"2026-04-18"}
+        """;
+
+    ResponseEntity<Map> response =
+        rest.exchange("/api/trades", HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody()).containsEntry("assetType", "OPTION");
+    assertThat(response.getBody()).containsEntry("optionType", "CALL");
+    assertThat(((Number) response.getBody().get("strikePrice")).doubleValue())
+        .isCloseTo(200.0, within(0.01));
+    assertThat(((Number) response.getBody().get("multiplier")).intValue()).isEqualTo(100);
+  }
+
+  @Test
+  void closedOptionTrades_includesMultiplierInPnl() {
+    // BUY 1 AAPL $200 CALL @ $5
+    tradeRepository.save(
+        new TradeEntity(
+            testUserId,
+            "AAPL",
+            "BUY",
+            BigDecimal.ONE,
+            BigDecimal.valueOf(5),
+            LocalDate.of(2026, 1, 1),
+            null,
+            "OPTION",
+            "CALL",
+            BigDecimal.valueOf(200),
+            LocalDate.of(2026, 4, 18),
+            100));
+    // SELL 1 AAPL $200 CALL @ $8
+    tradeRepository.save(
+        new TradeEntity(
+            testUserId,
+            "AAPL",
+            "SELL",
+            BigDecimal.ONE,
+            BigDecimal.valueOf(8),
+            LocalDate.of(2026, 2, 1),
+            null,
+            "OPTION",
+            "CALL",
+            BigDecimal.valueOf(200),
+            LocalDate.of(2026, 4, 18),
+            100));
+
+    ResponseEntity<Map> response =
+        rest.exchange("/api/trades/closed", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    List<Map> closed = (List<Map>) response.getBody().get("closedTrades");
+    assertThat(closed).hasSize(1);
+    assertThat(((Number) closed.get(0).get("pnl")).doubleValue())
+        .isCloseTo(300.0, within(0.01)); // (8-5) * 1 * 100
+    assertThat(closed.get(0).get("assetType")).isEqualTo("OPTION");
+  }
+
+  @Test
+  void equityTrades_stillWorkUnchanged() {
+    // Existing equity flow should be backward compatible
+    String body =
+        """
+        {"ticker":"MSFT","side":"BUY","quantity":5,"pricePerShare":400.0,"tradeDate":"2026-03-01"}
+        """;
+
+    ResponseEntity<Map> response =
+        rest.exchange("/api/trades", HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getBody()).containsEntry("assetType", "EQUITY");
+    assertThat(((Number) response.getBody().get("multiplier")).intValue()).isEqualTo(1);
+  }
+
+  @Test
+  void postOptionTrade_rejectsExpireOnEquity() {
+    String body = """
+        {"ticker":"AAPL","side":"EXPIRE","assetType":"EQUITY"}
+        """;
+
+    ResponseEntity<Map> response =
+        rest.exchange("/api/trades", HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
 }

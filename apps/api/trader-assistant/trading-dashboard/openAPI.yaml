@@ -517,7 +517,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [BUY, SELL]
+            enum: [BUY, SELL, EXPIRE, EXERCISE]
         - name: from
           in: query
           required: false
@@ -1238,7 +1238,7 @@ components:
 
     LogTradeRequest:
       type: object
-      required: [ticker, side, quantity, pricePerShare]
+      required: [ticker, side]
       properties:
         ticker:
           type: string
@@ -1246,20 +1246,33 @@ components:
           maxLength: 12
         side:
           type: string
-          enum: [BUY, SELL]
+          enum: [BUY, SELL, EXPIRE, EXERCISE]
         quantity:
           type: number
           format: double
-          minimum: 0.0001
+          minimum: 0
         pricePerShare:
           type: number
           format: double
-          minimum: 0.0001
+          minimum: 0
         tradeDate:
           type: string
           format: date
         notes:
           type: string
+        assetType:
+          type: string
+          enum: [EQUITY, OPTION]
+        optionType:
+          type: string
+          enum: [CALL, PUT]
+        strikePrice:
+          type: number
+          format: double
+          minimum: 0.0001
+        expirationDate:
+          type: string
+          format: date
 
     Trade:
       type: object
@@ -1271,7 +1284,7 @@ components:
           type: string
         side:
           type: string
-          enum: [BUY, SELL]
+          enum: [BUY, SELL, EXPIRE, EXERCISE]
         quantity:
           type: number
           format: double
@@ -1286,6 +1299,23 @@ components:
         createdAt:
           type: string
           format: date-time
+        assetType:
+          type: string
+          enum: [EQUITY, OPTION]
+        optionType:
+          type: string
+          enum: [CALL, PUT]
+        strikePrice:
+          type: number
+          format: double
+        expirationDate:
+          type: string
+          format: date
+        multiplier:
+          type: integer
+        linkedTradeId:
+          type: integer
+          format: int64
 
     TradeListResponse:
       type: object
@@ -1323,6 +1353,18 @@ components:
           format: double
         holdDays:
           type: integer
+        assetType:
+          type: string
+          enum: [EQUITY, OPTION]
+        optionType:
+          type: string
+          enum: [CALL, PUT]
+        strikePrice:
+          type: number
+          format: double
+        expirationDate:
+          type: string
+          format: date
 
     ClosedTradeListResponse:
       type: object

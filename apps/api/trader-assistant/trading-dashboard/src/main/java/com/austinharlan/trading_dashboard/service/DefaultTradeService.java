@@ -29,15 +29,236 @@ public class DefaultTradeService implements TradeService {
   public TradeEntity logTrade(
       String ticker,
       String side,
-      BigDecimal quantity,
-      BigDecimal pricePerShare,
+      @Nullable BigDecimal quantity,
+      @Nullable BigDecimal pricePerShare,
       @Nullable LocalDate tradeDate,
-      @Nullable String notes) {
+      @Nullable String notes,
+      @Nullable String assetType,
+      @Nullable String optionType,
+      @Nullable BigDecimal strikePrice,
+      @Nullable LocalDate expirationDate) {
+
     long userId = UserContext.current().userId();
     LocalDate date = tradeDate != null ? tradeDate : LocalDate.now();
+    String type = assetType != null ? assetType : "EQUITY";
+    int multiplier = "OPTION".equals(type) ? 100 : 1;
+
+    validate(side, type, quantity, pricePerShare, optionType, strikePrice, expirationDate);
+
+    if ("EXPIRE".equals(side)) {
+      return handleExpire(userId, ticker, date, notes, optionType, strikePrice, expirationDate);
+    }
+    if ("EXERCISE".equals(side)) {
+      return handleExercise(
+          userId, ticker, date, notes, quantity, optionType, strikePrice, expirationDate);
+    }
+
     TradeEntity entity =
-        new TradeEntity(userId, ticker, side, quantity, pricePerShare, date, notes);
+        new TradeEntity(
+            userId,
+            ticker,
+            side,
+            quantity,
+            pricePerShare,
+            date,
+            notes,
+            type,
+            optionType,
+            strikePrice,
+            expirationDate,
+            multiplier);
     return repository.save(entity);
+  }
+
+  private void validate(
+      String side,
+      String assetType,
+      @Nullable BigDecimal quantity,
+      @Nullable BigDecimal pricePerShare,
+      @Nullable String optionType,
+      @Nullable BigDecimal strikePrice,
+      @Nullable LocalDate expirationDate) {
+
+    if ("EXPIRE".equals(side) || "EXERCISE".equals(side)) {
+      if (!"OPTION".equals(assetType)) {
+        throw new IllegalArgumentException(side + " is only valid for OPTION trades");
+      }
+      requireOptionFields(optionType, strikePrice, expirationDate);
+      if ("EXERCISE".equals(side)) {
+        requirePositive(quantity, "quantity");
+      }
+      return;
+    }
+
+    // BUY or SELL
+    requirePositive(quantity, "quantity");
+    requirePositive(pricePerShare, "pricePerShare");
+
+    if ("OPTION".equals(assetType)) {
+      requireOptionFields(optionType, strikePrice, expirationDate);
+    } else {
+      if (optionType != null || strikePrice != null || expirationDate != null) {
+        throw new IllegalArgumentException("Option fields must be null for EQUITY trades");
+      }
+    }
+  }
+
+  private void requireOptionFields(
+      @Nullable String optionType,
+      @Nullable BigDecimal strikePrice,
+      @Nullable LocalDate expirationDate) {
+    if (optionType == null || strikePrice == null || expirationDate == null) {
+      throw new IllegalArgumentException(
+          "optionType, strikePrice, and expirationDate are required for OPTION trades");
+    }
+  }
+
+  private void requirePositive(@Nullable BigDecimal value, String field) {
+    if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException(field + " must be greater than 0");
+    }
+  }
+
+  private TradeEntity handleExpire(
+      long userId,
+      String ticker,
+      LocalDate date,
+      @Nullable String notes,
+      String optionType,
+      BigDecimal strikePrice,
+      LocalDate expirationDate) {
+
+    List<TradeEntity> all = repository.findAllChronologicalByUserId(userId);
+    ContractKey key = new ContractKey(ticker, "OPTION", optionType, strikePrice, expirationDate);
+    BigDecimal remainingQty = computeRemainingQuantity(all, key);
+
+    if (remainingQty.compareTo(BigDecimal.ZERO) == 0) {
+      throw new IllegalArgumentException("No open lots found for this contract to expire");
+    }
+
+    TradeEntity expire =
+        new TradeEntity(
+            userId,
+            ticker,
+            "EXPIRE",
+            remainingQty,
+            BigDecimal.ZERO,
+            date,
+            notes,
+            "OPTION",
+            optionType,
+            strikePrice,
+            expirationDate,
+            100);
+    return repository.save(expire);
+  }
+
+  private TradeEntity handleExercise(
+      long userId,
+      String ticker,
+      LocalDate date,
+      @Nullable String notes,
+      BigDecimal quantity,
+      String optionType,
+      BigDecimal strikePrice,
+      LocalDate expirationDate) {
+
+    // Determine if long or short position by checking which side has open lots
+    List<TradeEntity> all = repository.findAllChronologicalByUserId(userId);
+    ContractKey key = new ContractKey(ticker, "OPTION", optionType, strikePrice, expirationDate);
+    BigDecimal remainingQty = computeRemainingQuantity(all, key);
+    if (remainingQty.compareTo(BigDecimal.ZERO) == 0) {
+      throw new IllegalArgumentException("No open lots found for this contract to exercise");
+    }
+    if (quantity.compareTo(remainingQty) > 0) {
+      throw new IllegalArgumentException(
+          "Exercise quantity " + quantity + " exceeds remaining open lots " + remainingQty);
+    }
+    boolean isLong = isLongPosition(all, key);
+
+    // Save the option EXERCISE trade
+    TradeEntity exercise =
+        new TradeEntity(
+            userId,
+            ticker,
+            "EXERCISE",
+            quantity,
+            BigDecimal.ZERO,
+            date,
+            notes,
+            "OPTION",
+            optionType,
+            strikePrice,
+            expirationDate,
+            100);
+    exercise = repository.save(exercise);
+
+    // Determine linked equity side and create it
+    BigDecimal shares = quantity.multiply(BigDecimal.valueOf(100));
+    String equitySide;
+    if ("CALL".equals(optionType)) {
+      equitySide = isLong ? "BUY" : "SELL";
+    } else {
+      equitySide = isLong ? "SELL" : "BUY";
+    }
+    String equityNotes =
+        String.format(
+            "Auto-created from %s exercise on %s $%s%s %s",
+            optionType,
+            ticker,
+            strikePrice.stripTrailingZeros().toPlainString(),
+            "CALL".equals(optionType) ? "C" : "P",
+            String.format("%tD", expirationDate));
+
+    TradeEntity equity =
+        new TradeEntity(userId, ticker, equitySide, shares, strikePrice, date, equityNotes);
+    equity = repository.save(equity);
+
+    // Link bidirectionally
+    exercise.setLinkedTradeId(equity.getId());
+    equity.setLinkedTradeId(exercise.getId());
+    repository.save(exercise);
+    repository.save(equity);
+
+    return exercise;
+  }
+
+  private boolean isLongPosition(List<TradeEntity> allTrades, ContractKey key) {
+    BigDecimal buyQty = BigDecimal.ZERO;
+    BigDecimal sellQty = BigDecimal.ZERO;
+    for (TradeEntity t : allTrades) {
+      if (!key.matches(t)) continue;
+      if ("BUY".equals(t.getSide())) {
+        buyQty = buyQty.add(t.getQuantity());
+      } else if ("SELL".equals(t.getSide())) {
+        sellQty = sellQty.add(t.getQuantity());
+      }
+    }
+    return buyQty.compareTo(sellQty) > 0;
+  }
+
+  private BigDecimal computeRemainingQuantity(List<TradeEntity> allTrades, ContractKey key) {
+    BigDecimal buyQty = BigDecimal.ZERO;
+    BigDecimal sellQty = BigDecimal.ZERO;
+    for (TradeEntity t : allTrades) {
+      if (!key.matches(t)) continue;
+      String s = t.getSide();
+      if ("BUY".equals(s)) {
+        buyQty = buyQty.add(t.getQuantity());
+      } else if ("SELL".equals(s)) {
+        sellQty = sellQty.add(t.getQuantity());
+      }
+      // EXPIRE/EXERCISE already matched against open lots, so they close qty too
+      if ("EXPIRE".equals(s) || "EXERCISE".equals(s)) {
+        // These reduce the majority side
+        if (buyQty.compareTo(sellQty) > 0) {
+          sellQty = sellQty.add(t.getQuantity());
+        } else {
+          buyQty = buyQty.add(t.getQuantity());
+        }
+      }
+    }
+    return buyQty.subtract(sellQty).abs();
   }
 
   @Override
@@ -183,69 +404,208 @@ public class DefaultTradeService implements TradeService {
         .toList();
   }
 
+  // ── Bidirectional Lot Matcher ────────────────────────────────────────────
+
   static List<ClosedTrade> computeClosedTrades(List<TradeEntity> trades) {
-    Map<String, List<TradeEntity>> byTicker =
+    Map<ContractKey, List<TradeEntity>> byContract =
         trades.stream()
             .collect(
-                Collectors.groupingBy(
-                    TradeEntity::getTicker, LinkedHashMap::new, Collectors.toList()));
+                Collectors.groupingBy(ContractKey::from, LinkedHashMap::new, Collectors.toList()));
+
     List<ClosedTrade> result = new ArrayList<>();
-    for (Map.Entry<String, List<TradeEntity>> entry : byTicker.entrySet()) {
-      String ticker = entry.getKey();
-      Deque<BuyLot> buyQueue = new ArrayDeque<>();
+    for (Map.Entry<ContractKey, List<TradeEntity>> entry : byContract.entrySet()) {
+      ContractKey key = entry.getKey();
+      Deque<Lot> buyQueue = new ArrayDeque<>();
+      Deque<Lot> sellQueue = new ArrayDeque<>();
+
       for (TradeEntity t : entry.getValue()) {
-        if ("BUY".equals(t.getSide())) {
-          buyQueue.addLast(new BuyLot(t.getQuantity(), t.getPricePerShare(), t.getTradeDate()));
-        } else {
-          BigDecimal sellRemaining = t.getQuantity();
-          while (sellRemaining.compareTo(BigDecimal.ZERO) > 0 && !buyQueue.isEmpty()) {
-            BuyLot lot = buyQueue.peekFirst();
-            BigDecimal matched = sellRemaining.min(lot.remaining);
-            BigDecimal pnl = matched.multiply(t.getPricePerShare().subtract(lot.price));
-            BigDecimal pnlPct =
-                lot.price.compareTo(BigDecimal.ZERO) > 0
-                    ? t.getPricePerShare()
-                        .subtract(lot.price)
-                        .divide(lot.price, 4, RoundingMode.HALF_UP)
-                        .multiply(BigDecimal.valueOf(100))
-                    : BigDecimal.ZERO;
-            long holdDays = ChronoUnit.DAYS.between(lot.date, t.getTradeDate());
-            result.add(
-                new ClosedTrade(
-                    ticker,
-                    matched,
-                    lot.price,
-                    t.getPricePerShare(),
-                    lot.date,
-                    t.getTradeDate(),
-                    pnl,
-                    pnlPct,
-                    holdDays));
-            lot.remaining = lot.remaining.subtract(matched);
-            sellRemaining = sellRemaining.subtract(matched);
-            if (lot.remaining.compareTo(BigDecimal.ZERO) == 0) {
-              buyQueue.pollFirst();
-            }
+        String side = t.getSide();
+        int mult = t.getMultiplier();
+
+        if ("EXPIRE".equals(side)) {
+          // Close ALL remaining lots at $0
+          closeAllLots(buyQueue, t, key, mult, result);
+          closeAllLots(sellQueue, t, key, mult, result);
+          continue;
+        }
+
+        if ("EXERCISE".equals(side)) {
+          // Close specified quantity from whichever side has open lots
+          Deque<Lot> openQueue = !buyQueue.isEmpty() ? buyQueue : sellQueue;
+          matchLots(
+              openQueue, t.getQuantity(), BigDecimal.ZERO, t.getTradeDate(), key, mult, result);
+          continue;
+        }
+
+        boolean isBuy = "BUY".equals(side);
+        Deque<Lot> oppositeQueue = isBuy ? sellQueue : buyQueue;
+        Deque<Lot> sameQueue = isBuy ? buyQueue : sellQueue;
+
+        if (!oppositeQueue.isEmpty()) {
+          // Closing: match against opposite side; capture any unmatched remainder
+          BigDecimal unmatched =
+              matchLots(
+                  oppositeQueue,
+                  t.getQuantity(),
+                  t.getPricePerShare(),
+                  t.getTradeDate(),
+                  key,
+                  mult,
+                  result);
+          if (unmatched.compareTo(BigDecimal.ZERO) > 0) {
+            sameQueue.addLast(new Lot(unmatched, t.getPricePerShare(), t.getTradeDate(), isBuy));
           }
+        } else {
+          // Opening: add to same side queue
+          sameQueue.addLast(
+              new Lot(t.getQuantity(), t.getPricePerShare(), t.getTradeDate(), isBuy));
         }
       }
     }
     return result;
   }
 
+  private static void closeAllLots(
+      Deque<Lot> queue,
+      TradeEntity closingTrade,
+      ContractKey key,
+      int multiplier,
+      List<ClosedTrade> result) {
+    while (!queue.isEmpty()) {
+      Lot lot = queue.pollFirst();
+      BigDecimal buyPrice = lot.isBuy ? lot.price : BigDecimal.ZERO;
+      BigDecimal sellPrice = lot.isBuy ? BigDecimal.ZERO : lot.price;
+      LocalDate buyDate = lot.isBuy ? lot.date : closingTrade.getTradeDate();
+      LocalDate sellDate = lot.isBuy ? closingTrade.getTradeDate() : lot.date;
+      BigDecimal pnl =
+          sellPrice
+              .subtract(buyPrice)
+              .multiply(lot.remaining)
+              .multiply(BigDecimal.valueOf(multiplier));
+      BigDecimal pnlPct = computePnlPercent(buyPrice, sellPrice);
+      long holdDays = Math.abs(ChronoUnit.DAYS.between(buyDate, sellDate));
+      result.add(
+          new ClosedTrade(
+              key.ticker,
+              lot.remaining,
+              buyPrice,
+              sellPrice,
+              buyDate,
+              sellDate,
+              pnl,
+              pnlPct,
+              holdDays,
+              key.assetType,
+              key.optionType,
+              key.strikePrice,
+              key.expirationDate));
+    }
+  }
+
+  private static BigDecimal matchLots(
+      Deque<Lot> openQueue,
+      BigDecimal closeQty,
+      BigDecimal closePrice,
+      LocalDate closeDate,
+      ContractKey key,
+      int multiplier,
+      List<ClosedTrade> result) {
+    BigDecimal remaining = closeQty;
+    while (remaining.compareTo(BigDecimal.ZERO) > 0 && !openQueue.isEmpty()) {
+      Lot lot = openQueue.peekFirst();
+      BigDecimal matched = remaining.min(lot.remaining);
+
+      BigDecimal buyPrice = lot.isBuy ? lot.price : closePrice;
+      BigDecimal sellPrice = lot.isBuy ? closePrice : lot.price;
+      LocalDate buyDate = lot.isBuy ? lot.date : closeDate;
+      LocalDate sellDate = lot.isBuy ? closeDate : lot.date;
+      BigDecimal pnl =
+          sellPrice.subtract(buyPrice).multiply(matched).multiply(BigDecimal.valueOf(multiplier));
+      BigDecimal pnlPct = computePnlPercent(buyPrice, sellPrice);
+      long holdDays = Math.abs(ChronoUnit.DAYS.between(buyDate, sellDate));
+
+      result.add(
+          new ClosedTrade(
+              key.ticker,
+              matched,
+              buyPrice,
+              sellPrice,
+              buyDate,
+              sellDate,
+              pnl,
+              pnlPct,
+              holdDays,
+              key.assetType,
+              key.optionType,
+              key.strikePrice,
+              key.expirationDate));
+
+      lot.remaining = lot.remaining.subtract(matched);
+      remaining = remaining.subtract(matched);
+      if (lot.remaining.compareTo(BigDecimal.ZERO) == 0) {
+        openQueue.pollFirst();
+      }
+    }
+    return remaining;
+  }
+
+  private static BigDecimal computePnlPercent(BigDecimal buyPrice, BigDecimal sellPrice) {
+    if (buyPrice.compareTo(BigDecimal.ZERO) == 0) {
+      // Short position: percent based on sell (open) price
+      if (sellPrice.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
+      return sellPrice
+          .subtract(buyPrice)
+          .divide(sellPrice, 4, RoundingMode.HALF_UP)
+          .multiply(BigDecimal.valueOf(100));
+    }
+    return sellPrice
+        .subtract(buyPrice)
+        .divide(buyPrice, 4, RoundingMode.HALF_UP)
+        .multiply(BigDecimal.valueOf(100));
+  }
+
   private static EntityNotFoundException notFound(long id) {
     return new EntityNotFoundException("Trade not found: " + id);
   }
 
-  private static class BuyLot {
+  // ── Inner types ──────────────────────────────────────────────────────────
+
+  record ContractKey(
+      String ticker,
+      String assetType,
+      String optionType,
+      BigDecimal strikePrice,
+      LocalDate expirationDate) {
+
+    static ContractKey from(TradeEntity t) {
+      return new ContractKey(
+          t.getTicker(),
+          t.getAssetType(),
+          t.getOptionType(),
+          t.getStrikePrice(),
+          t.getExpirationDate());
+    }
+
+    boolean matches(TradeEntity t) {
+      return Objects.equals(ticker, t.getTicker())
+          && Objects.equals(assetType, t.getAssetType())
+          && Objects.equals(optionType, t.getOptionType())
+          && Objects.equals(strikePrice, t.getStrikePrice())
+          && Objects.equals(expirationDate, t.getExpirationDate());
+    }
+  }
+
+  private static class Lot {
     BigDecimal remaining;
     final BigDecimal price;
     final LocalDate date;
+    final boolean isBuy;
 
-    BuyLot(BigDecimal qty, BigDecimal price, LocalDate date) {
+    Lot(BigDecimal qty, BigDecimal price, LocalDate date, boolean isBuy) {
       this.remaining = qty;
       this.price = price;
       this.date = date;
+      this.isBuy = isBuy;
     }
   }
 }
