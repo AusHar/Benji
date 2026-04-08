@@ -2218,14 +2218,24 @@
             ${closed.map(ct => {
               const cls = ct.pnl >= 0 ? 'td-pos' : 'td-neg';
               const sign = ct.pnl >= 0 ? '+' : '';
+              const isOption = ct.assetType === 'OPTION';
+              const buyDisplay = ct.buyPrice === 0 ? '$0 EXP' : money(ct.buyPrice);
+              const sellDisplay = ct.sellPrice === 0 ? '$0 EXP' : money(ct.sellPrice);
+              const qtyLabel = isOption ? num(ct.quantity) + 'c' : num(ct.quantity);
+              let optionLine = '';
+              if (isOption) {
+                const typeChar = ct.optionType === 'CALL' ? 'Call' : 'Put';
+                const expStr = ct.expirationDate ? new Date(ct.expirationDate + 'T00:00:00').toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'2-digit'}) : '';
+                optionLine = `<tr><td colspan="6" style="padding:0 0 6px 8px;border:none;font-size:9px;color:var(--text-muted);">$${ct.strikePrice} ${typeChar} ${expStr}</td></tr>`;
+              }
               return `<tr>
                 <td class="${cls}"><strong>${ct.ticker}</strong></td>
-                <td>${num(ct.quantity)}</td>
-                <td>${money(ct.buyPrice)}</td>
-                <td>${money(ct.sellPrice)}</td>
+                <td>${qtyLabel}</td>
+                <td>${buyDisplay}</td>
+                <td>${sellDisplay}</td>
                 <td class="${cls}">${sign}${money(ct.pnl)}</td>
                 <td>${ct.holdDays}d</td>
-              </tr>`;
+              </tr>${optionLine}`;
             }).join('')}
           </tbody>
         </table></div>`;
