@@ -53,6 +53,30 @@ class DefaultTradeServiceTest {
         null);
   }
 
+  private TradeEntity optionTrade(
+      String ticker,
+      String side,
+      double qty,
+      double price,
+      String date,
+      String optionType,
+      double strike,
+      String expDate) {
+    return new TradeEntity(
+        USER_ID,
+        ticker,
+        side,
+        BigDecimal.valueOf(qty),
+        BigDecimal.valueOf(price),
+        LocalDate.parse(date),
+        null,
+        "OPTION",
+        optionType,
+        BigDecimal.valueOf(strike),
+        LocalDate.parse(expDate),
+        100);
+  }
+
   @Test
   void fifo_singleBuyAndSell_producesOneClosedTrade() {
     when(repository.findAllChronologicalByUserId(USER_ID))
@@ -200,5 +224,94 @@ class DefaultTradeServiceTest {
     assertThat(stats.totalTrades()).isEqualTo(0);
     assertThat(stats.winRate()).isEqualTo(0.0);
     assertThat(stats.currentStreakType()).isEqualTo("NONE");
+  }
+
+  @Test
+  void option_longCallBuySell_pnlIncludesMultiplier() {
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                optionTrade("AAPL", "BUY", 1, 5.00, "2026-01-01", "CALL", 200, "2026-04-18"),
+                optionTrade("AAPL", "SELL", 1, 8.00, "2026-02-01", "CALL", 200, "2026-04-18")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(1);
+    ClosedTrade ct = closed.get(0);
+    assertThat(ct.assetType()).isEqualTo("OPTION");
+    assertThat(ct.optionType()).isEqualTo("CALL");
+    assertThat(ct.pnl()).isEqualByComparingTo("300.00"); // (8-5) * 1 * 100
+  }
+
+  @Test
+  void option_shortCallBuyBack_pnlPositive() {
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                optionTrade("AAPL", "SELL", 1, 4.50, "2026-01-01", "CALL", 210, "2026-05-16"),
+                optionTrade("AAPL", "BUY", 1, 2.00, "2026-02-01", "CALL", 210, "2026-05-16")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(1);
+    // Short: sell at 4.50, buy at 2.00 → pnl = (4.50 - 2.00) * 1 * 100 = 250
+    assertThat(closed.get(0).pnl()).isEqualByComparingTo("250.00");
+  }
+
+  @Test
+  void option_expireLong_fullLoss() {
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                optionTrade("TSLA", "BUY", 2, 3.25, "2026-01-01", "PUT", 220, "2026-03-21"),
+                optionTrade("TSLA", "EXPIRE", 2, 0, "2026-03-21", "PUT", 220, "2026-03-21")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(1);
+    // Long expire: buy 3.25, sell 0 → (0 - 3.25) * 2 * 100 = -650
+    assertThat(closed.get(0).pnl()).isEqualByComparingTo("-650.00");
+  }
+
+  @Test
+  void option_expireShort_keepPremium() {
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                optionTrade("AAPL", "SELL", 1, 4.50, "2026-01-01", "CALL", 210, "2026-05-16"),
+                optionTrade("AAPL", "EXPIRE", 1, 0, "2026-05-16", "CALL", 210, "2026-05-16")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(1);
+    // Short expire: sell 4.50, buy 0 → (4.50 - 0) * 1 * 100 = 450
+    assertThat(closed.get(0).pnl()).isEqualByComparingTo("450.00");
+  }
+
+  @Test
+  void option_differentContracts_matchedIndependently() {
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                optionTrade("AAPL", "BUY", 1, 5.00, "2026-01-01", "CALL", 200, "2026-04-18"),
+                optionTrade("AAPL", "BUY", 1, 3.00, "2026-01-01", "CALL", 210, "2026-04-18"),
+                optionTrade("AAPL", "SELL", 1, 8.00, "2026-02-01", "CALL", 200, "2026-04-18"),
+                optionTrade("AAPL", "SELL", 1, 4.00, "2026-02-01", "CALL", 210, "2026-04-18")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(2);
+    // $200 strike: (8-5)*100 = 300
+    ClosedTrade s200 =
+        closed.stream().filter(c -> c.strikePrice().doubleValue() == 200).findFirst().orElseThrow();
+    assertThat(s200.pnl()).isEqualByComparingTo("300.00");
+    // $210 strike: (4-3)*100 = 100
+    ClosedTrade s210 =
+        closed.stream().filter(c -> c.strikePrice().doubleValue() == 210).findFirst().orElseThrow();
+    assertThat(s210.pnl()).isEqualByComparingTo("100.00");
+  }
+
+  @Test
+  void equity_existingTests_stillMatchByTicker() {
+    // Equity trades should still be grouped by ticker only (null option fields)
+    when(repository.findAllChronologicalByUserId(USER_ID))
+        .thenReturn(
+            List.of(
+                trade("AAPL", "BUY", 10, 150.00, "2026-01-01"),
+                trade("AAPL", "SELL", 10, 200.00, "2026-02-01")));
+    List<ClosedTrade> closed = service.getClosedTrades();
+    assertThat(closed).hasSize(1);
+    assertThat(closed.get(0).assetType()).isEqualTo("EQUITY");
+    assertThat(closed.get(0).pnl()).isEqualByComparingTo("500.00");
   }
 }
