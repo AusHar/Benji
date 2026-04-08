@@ -2442,10 +2442,21 @@
     btn.disabled = true;
     errEl.textContent = '';
 
+    // For EXPIRE/EXERCISE, show confirmation before submitting
+    if (isExpire || isExercise) {
+      try {
+        await showCloseConfirmation(ticker, isExpire, isExercise, qty, date, notes);
+      } catch (err) {
+        if (err !== 'cancelled') { errEl.textContent = err.message || 'Failed to load trade data.'; }
+      } finally {
+        btn.disabled = false;
+      }
+      return;
+    }
+
     const body = { ticker, side: _tradeSide, tradeDate: date, notes };
     if (!isExpire) body.quantity = qty;
     if (!isExpire && !isExercise) body.pricePerShare = price;
-    if (isExercise) body.quantity = qty;
 
     if (isOption) {
       body.assetType = 'OPTION';
@@ -2483,6 +2494,153 @@
       errEl.textContent = 'Network error.';
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  async function showCloseConfirmation(ticker, isExpire, isExercise, qty, date, notes) {
+    const strike = parseFloat(document.getElementById('lt-strike').value);
+    const exp = document.getElementById('lt-expiration').value;
+    const optType = _tradeOptionType;
+    const typeLabel = optType === 'CALL' ? 'Call' : 'Put';
+    const expLabel = new Date(exp + 'T00:00:00').toLocaleDateString('en-US', {month:'numeric',day:'numeric',year:'2-digit'});
+    const contractLabel = `${ticker} $${strike} ${typeLabel} ${expLabel}`;
+
+    // Fetch all trades for this ticker to compute open position
+    const tradeRes = await get('/api/trades?ticker=' + ticker).catch(() => null);
+    if (!tradeRes) throw new Error('Failed to load trade data.');
+    const trades = tradeRes.trades || [];
+
+    // Filter for matching contract key
+    const contractTrades = trades.filter(t =>
+      t.assetType === 'OPTION' &&
+      t.optionType === optType &&
+      Math.abs((t.strikePrice || 0) - strike) < 0.01 &&
+      t.expirationDate === exp
+    );
+
+    let buyQty = 0, sellQty = 0, closeQty = 0;
+    contractTrades.forEach(t => {
+      if (t.side === 'BUY') buyQty += t.quantity;
+      else if (t.side === 'SELL') sellQty += t.quantity;
+      else if (t.side === 'EXPIRE' || t.side === 'EXERCISE') closeQty += t.quantity;
+    });
+
+    const remaining = Math.abs(buyQty - sellQty) - closeQty;
+    const position = buyQty > sellQty ? 'LONG' : 'SHORT';
+
+    // Build confirmation content
+    const prompt = document.getElementById('lt-link-prompt');
+    document.getElementById('lt-actions').style.display = 'none';
+
+    let html = `<div style="margin-top:16px;background:rgba(78,221,138,.06);border:1px dashed rgba(78,221,138,.2);border-radius:6px;padding:12px;">`;
+
+    if (remaining <= 0) {
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        No open contracts found for<br><strong>${contractLabel}</strong><br>
+        <span style="font-size:9px;">You may need to log trades first.</span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+        <button class="btn btn-sm" onclick="cancelCloseConfirmation()">OK</button>
+      </div>`;
+      html += `</div>`;
+      prompt.innerHTML = html;
+      prompt.style.display = '';
+      throw 'cancelled';
+    }
+
+    if (isExpire) {
+      html += `<div style="font-size:10px;color:var(--green);margin-bottom:8px;text-align:center;">Confirm Expiration</div>`;
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        <strong>${remaining}</strong> ${position} contract${remaining !== 1 ? 's' : ''} open<br>
+        ${contractLabel}<br><br>
+        All contracts close at $0.
+      </div>`;
+    }
+
+    if (isExercise) {
+      html += `<div style="font-size:10px;color:var(--green);margin-bottom:8px;text-align:center;">Confirm ${position === 'SHORT' ? 'Assignment' : 'Exercise'}</div>`;
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;">
+        Closing <strong>${qty}</strong> of ${remaining} open ${position} contract${remaining !== 1 ? 's' : ''}<br>
+        ${contractLabel}
+      </div>`;
+
+      // Determine what equity trade will be created
+      const shares = qty * 100;
+      let eqSide;
+      if (optType === 'CALL') { eqSide = position === 'LONG' ? 'BUY' : 'SELL'; }
+      else { eqSide = position === 'LONG' ? 'SELL' : 'BUY'; }
+      html += `<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">
+        Auto-creates: <strong>${eqSide} ${shares} ${ticker}</strong> @ $${strike.toFixed(2)}
+      </div>`;
+
+      // Check equity position for this ticker
+      const equityTrades = trades.filter(t => t.assetType === 'EQUITY' || (!t.assetType && !t.optionType));
+      let eqBuys = 0, eqSells = 0;
+      equityTrades.forEach(t => {
+        if (t.side === 'BUY') eqBuys += t.quantity;
+        else if (t.side === 'SELL') eqSells += t.quantity;
+      });
+      const eqHeld = eqBuys - eqSells;
+
+      if (eqSide === 'SELL' && eqHeld < shares) {
+        if (eqHeld <= 0) {
+          html += `<div style="font-size:9px;color:#f5a623;text-align:center;margin-top:6px;">&#9888; No ${ticker} shares found — log a BUY first?</div>`;
+        } else {
+          html += `<div style="font-size:9px;color:#f5a623;text-align:center;margin-top:6px;">&#9888; Only ${num(eqHeld)} ${ticker} shares logged (need ${shares})</div>`;
+        }
+      } else if (eqSide === 'SELL' && eqHeld >= shares) {
+        html += `<div style="font-size:9px;color:var(--green);text-align:center;margin-top:6px;">&#10003; ${num(eqHeld)} ${ticker} shares held</div>`;
+      }
+    }
+
+    html += `<div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+      <button class="btn btn-sm" onclick="cancelCloseConfirmation()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="executeCloseSubmit()">Confirm</button>
+    </div></div>`;
+
+    prompt.innerHTML = html;
+    prompt.style.display = '';
+  }
+
+  function cancelCloseConfirmation() {
+    document.getElementById('lt-link-prompt').style.display = 'none';
+    document.getElementById('lt-actions').style.display = '';
+  }
+
+  async function executeCloseSubmit() {
+    const ticker = document.getElementById('lt-ticker').value.trim().toUpperCase();
+    const qty = parseFloat(document.getElementById('lt-qty').value);
+    const date = document.getElementById('lt-date').value;
+    const notes = document.getElementById('lt-notes').value.trim() || null;
+    const errEl = document.getElementById('lt-err');
+
+    const body = { ticker, side: _tradeSide, tradeDate: date, notes };
+    if (_tradeSide === 'EXERCISE') body.quantity = qty;
+    body.assetType = 'OPTION';
+    body.optionType = _tradeOptionType;
+    body.strikePrice = parseFloat(document.getElementById('lt-strike').value);
+    body.expirationDate = document.getElementById('lt-expiration').value;
+
+    try {
+      const r = await fetch('/api/trades', {
+        method: 'POST',
+        headers: { 'X-API-KEY': KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const respBody = await r.json().catch(() => ({}));
+        errEl.textContent = respBody.message || 'Failed to log trade.';
+        document.getElementById('lt-link-prompt').style.display = 'none';
+        document.getElementById('lt-actions').style.display = '';
+        return;
+      }
+      closeLogTrade();
+      loadTrades();
+    } catch (err) {
+      console.error('Close submit error', err);
+      errEl.textContent = 'Network error.';
+      document.getElementById('lt-link-prompt').style.display = 'none';
+      document.getElementById('lt-actions').style.display = '';
     }
   }
 
