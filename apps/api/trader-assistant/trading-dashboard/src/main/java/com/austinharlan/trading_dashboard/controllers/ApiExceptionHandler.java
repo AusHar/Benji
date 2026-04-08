@@ -67,6 +67,11 @@ class ApiExceptionHandler {
         HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", summary, fieldErrors.toArray(new String[0]));
   }
 
+  @ExceptionHandler(IllegalArgumentException.class)
+  ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+    return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
+  }
+
   @ExceptionHandler(HttpMessageNotReadableException.class)
   ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
     return build(
