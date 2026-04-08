@@ -166,6 +166,14 @@ public class DefaultTradeService implements TradeService {
     // Determine if long or short position by checking which side has open lots
     List<TradeEntity> all = repository.findAllChronologicalByUserId(userId);
     ContractKey key = new ContractKey(ticker, "OPTION", optionType, strikePrice, expirationDate);
+    BigDecimal remainingQty = computeRemainingQuantity(all, key);
+    if (remainingQty.compareTo(BigDecimal.ZERO) == 0) {
+      throw new IllegalArgumentException("No open lots found for this contract to exercise");
+    }
+    if (quantity.compareTo(remainingQty) > 0) {
+      throw new IllegalArgumentException(
+          "Exercise quantity " + quantity + " exceeds remaining open lots " + remainingQty);
+    }
     boolean isLong = isLongPosition(all, key);
 
     // Save the option EXERCISE trade
@@ -434,15 +442,19 @@ public class DefaultTradeService implements TradeService {
         Deque<Lot> sameQueue = isBuy ? buyQueue : sellQueue;
 
         if (!oppositeQueue.isEmpty()) {
-          // Closing: match against opposite side
-          matchLots(
-              oppositeQueue,
-              t.getQuantity(),
-              t.getPricePerShare(),
-              t.getTradeDate(),
-              key,
-              mult,
-              result);
+          // Closing: match against opposite side; capture any unmatched remainder
+          BigDecimal unmatched =
+              matchLots(
+                  oppositeQueue,
+                  t.getQuantity(),
+                  t.getPricePerShare(),
+                  t.getTradeDate(),
+                  key,
+                  mult,
+                  result);
+          if (unmatched.compareTo(BigDecimal.ZERO) > 0) {
+            sameQueue.addLast(new Lot(unmatched, t.getPricePerShare(), t.getTradeDate(), isBuy));
+          }
         } else {
           // Opening: add to same side queue
           sameQueue.addLast(
@@ -490,7 +502,7 @@ public class DefaultTradeService implements TradeService {
     }
   }
 
-  private static void matchLots(
+  private static BigDecimal matchLots(
       Deque<Lot> openQueue,
       BigDecimal closeQty,
       BigDecimal closePrice,
@@ -534,6 +546,7 @@ public class DefaultTradeService implements TradeService {
         openQueue.pollFirst();
       }
     }
+    return remaining;
   }
 
   private static BigDecimal computePnlPercent(BigDecimal buyPrice, BigDecimal sellPrice) {
