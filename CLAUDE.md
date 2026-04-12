@@ -71,3 +71,13 @@ Copy `ENV.example` to populate required variables. `MANAGEMENT_PASSWORD` has no 
 - Spotless (Google Java Format) is enforced in CI — run `spotlessApply` before committing.
 - `MANAGEMENT_PASSWORD` has no fallback in `application.yml`; tests that don't use `@ActiveProfiles("test")` rely on `src/test/resources/application.properties` to supply it.
 - Do not commit `Co-Authored-By: Claude` lines in commit messages.
+
+
+## Communication Style
+When explaining code concepts, use simple language suitable for a beginner. Avoid jargon like 'concrete subclass', 'superclass', 'polymorphism' without immediately defining them in plain English with an analogy.
+
+## Testing & Verification
+After deploying or testing UI changes, always verify the feature is actually visible and functional before reporting success. Check for null values, API errors, and rendering issues.
+
+## Build & Deploy
+When working with Java projects, always run `mvn compile` or the relevant build command after edits to catch errors early. For HTML/dashboard widgets, test with real data to catch null/undefined issues.
