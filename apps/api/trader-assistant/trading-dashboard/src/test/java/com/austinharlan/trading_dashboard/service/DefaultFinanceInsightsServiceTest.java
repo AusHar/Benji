@@ -8,8 +8,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.austinharlan.trading_dashboard.config.UserContext;
+import com.austinharlan.trading_dashboard.persistence.FinanceCategoryRepository;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionEntity;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionRepository;
+import com.austinharlan.trading_dashboard.persistence.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -49,7 +51,9 @@ class DefaultFinanceInsightsServiceTest {
     FinanceTransactionRepository repository = mock(FinanceTransactionRepository.class);
     when(repository.findAllByUserIdOrderByPostedAtDesc(eq(1L), any(Pageable.class)))
         .thenReturn(List.of());
-    DefaultFinanceInsightsService service = new DefaultFinanceInsightsService(repository, CLOCK);
+    DefaultFinanceInsightsService service =
+        new DefaultFinanceInsightsService(
+            repository, mock(FinanceCategoryRepository.class), mock(UserRepository.class), CLOCK);
 
     service.listTransactions(null, null);
 
@@ -64,7 +68,9 @@ class DefaultFinanceInsightsServiceTest {
     FinanceTransactionRepository repository = mock(FinanceTransactionRepository.class);
     when(repository.findAllByUserIdOrderByPostedAtDesc(eq(1L), any(Pageable.class)))
         .thenReturn(List.of());
-    DefaultFinanceInsightsService service = new DefaultFinanceInsightsService(repository, CLOCK);
+    DefaultFinanceInsightsService service =
+        new DefaultFinanceInsightsService(
+            repository, mock(FinanceCategoryRepository.class), mock(UserRepository.class), CLOCK);
 
     service.listTransactions(9999, null);
 
@@ -80,7 +86,9 @@ class DefaultFinanceInsightsServiceTest {
     when(repository.findByUserIdAndCategoryIgnoreCaseOrderByPostedAtDesc(
             eq(1L), any(), any(Pageable.class)))
         .thenReturn(List.<FinanceTransactionEntity>of());
-    DefaultFinanceInsightsService service = new DefaultFinanceInsightsService(repository, CLOCK);
+    DefaultFinanceInsightsService service =
+        new DefaultFinanceInsightsService(
+            repository, mock(FinanceCategoryRepository.class), mock(UserRepository.class), CLOCK);
 
     service.listTransactions(20, "groceries");
 

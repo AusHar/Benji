@@ -32,6 +32,9 @@ public class UserEntity {
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
+  @Column(name = "category_seeded", nullable = false)
+  private boolean categorySeeded;
+
   protected UserEntity() {}
 
   public UserEntity(String apiKey, String displayName, boolean admin, boolean demo) {
@@ -68,5 +71,13 @@ public class UserEntity {
 
   public Instant getCreatedAt() {
     return createdAt;
+  }
+
+  public boolean isCategorySeeded() {
+    return categorySeeded;
+  }
+
+  public void setCategorySeeded(boolean categorySeeded) {
+    this.categorySeeded = categorySeeded;
   }
 }

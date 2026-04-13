@@ -273,6 +273,88 @@ paths:
                 $ref: '#/components/schemas/FinanceTransactionsResponse'
         '204':
           description: No transactions matched the query.
+    post:
+      tags:
+        - Finance
+      operationId: addFinanceTransaction
+      summary: Record a new personal finance transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceTransaction'
+        '400':
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/finance/categories:
+    get:
+      tags:
+        - Finance
+      operationId: listFinanceCategories
+      summary: List the current user's finance categories, creating defaults on first access.
+      responses:
+        '200':
+          description: Categories in sort order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceCategoriesResponse'
+    post:
+      tags:
+        - Finance
+      operationId: addFinanceCategory
+      summary: Add a new finance category for the current user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCategoryRequest'
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceCategory'
+        '400':
+          description: Invalid request body or duplicate category.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/finance/categories/{slug}:
+    delete:
+      tags:
+        - Finance
+      operationId: deleteFinanceCategory
+      summary: Remove a finance category for the current user.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Category removed.
+        '404':
+          description: Category not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/journal/entries:
     get:
       tags:
@@ -915,6 +997,68 @@ components:
         notes:
           type: string
           description: Optional annotations captured by the user.
+    AddTransactionRequest:
+      type: object
+      required:
+        - description
+        - amount
+        - category
+      properties:
+        posted_at:
+          type: string
+          format: date-time
+          description: When the transaction occurred. Defaults to now if omitted.
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human readable description of the transaction.
+        amount:
+          type: number
+          format: double
+          description: Signed amount; debits are negative, credits positive.
+        category:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Category slug (must be one of the user's categories).
+        notes:
+          type: string
+          maxLength: 2000
+          description: Optional longer note.
+    FinanceCategory:
+      type: object
+      required:
+        - slug
+        - label
+      properties:
+        slug:
+          type: string
+          description: Normalized category identifier.
+          example: groceries
+        label:
+          type: string
+          description: Display name.
+          example: Groceries
+    FinanceCategoriesResponse:
+      type: object
+      required:
+        - categories
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinanceCategory'
+    AddCategoryRequest:
+      type: object
+      required:
+        - label
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Display name. The slug is derived automatically.
     CompanyOverviewResponse:
       type: object
       required:

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.austinharlan.trading_dashboard.config.UserContext;
 import com.austinharlan.trading_dashboard.finance.FinanceSummaryData;
 import com.austinharlan.trading_dashboard.finance.FinanceTransactionRecord;
+import com.austinharlan.trading_dashboard.persistence.FinanceCategoryRepository;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionEntity;
 import com.austinharlan.trading_dashboard.persistence.FinanceTransactionRepository;
 import com.austinharlan.trading_dashboard.persistence.UserRepository;
@@ -31,6 +32,7 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
       Clock.fixed(Instant.parse("2024-05-15T12:00:00Z"), ZoneOffset.UTC);
 
   @Autowired private FinanceTransactionRepository repository;
+  @Autowired private FinanceCategoryRepository categoryRepository;
   @Autowired private UserRepository userRepository;
 
   private DefaultFinanceInsightsService service;
@@ -40,7 +42,9 @@ class DefaultFinanceInsightsServiceIT extends DatabaseIntegrationTest {
   void setUp() {
     repository.deleteAll();
     testUserId = userRepository.findByApiKey("test-api-key").orElseThrow().getId();
-    service = new DefaultFinanceInsightsService(repository, FIXED_CLOCK);
+    service =
+        new DefaultFinanceInsightsService(
+            repository, categoryRepository, userRepository, FIXED_CLOCK);
     setUserContext(testUserId);
   }
 
