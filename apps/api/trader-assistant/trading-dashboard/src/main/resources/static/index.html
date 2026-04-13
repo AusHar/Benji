@@ -479,6 +479,14 @@
     }
     .btn-primary:hover { background: rgba(78,221,138,.18); box-shadow: var(--glow-sm); }
     .btn-primary:disabled { opacity: .4; cursor: default; }
+    .btn-amber {
+      background: rgba(232,180,90,.10); border: 1px solid rgba(232,180,90,.3);
+      color: var(--amber); font-family: var(--mono); font-size: 11px;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      transition: background .15s, box-shadow .18s;
+    }
+    .btn-amber:hover { background: rgba(232,180,90,.18); box-shadow: 0 0 8px rgba(232,180,90,.25); }
+    .btn-amber:disabled { opacity: .4; cursor: default; }
     /* legacy btn helpers (used on other pages pending their theme pass) */
     .btn { font-family: var(--mono); cursor: pointer; border-radius: 6px; border: none; }
     .btn-sm { font-size: 10px; padding: 6px 12px; }
@@ -1329,7 +1337,7 @@
         <div class="section-head" style="margin-bottom:10px">
           <span class="section-title">Transactions</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn-sm" onclick="openManageCategories()">Manage</button>
+            <button class="btn btn-amber btn-sm" onclick="openManageCategories()">Manage</button>
             <button class="btn btn-primary btn-sm" onclick="openAddTransaction()">+ Add Transaction</button>
           </div>
         </div>
