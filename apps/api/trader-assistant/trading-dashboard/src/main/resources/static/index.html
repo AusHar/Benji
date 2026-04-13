@@ -871,8 +871,18 @@
     }
     .j-editor:empty::before {
       content: attr(data-placeholder);
-      color: rgba(200,192,176,.18);
+      color: rgba(200,192,176,.55);
+      font-style: italic;
       pointer-events: none;
+      animation: j-placeholder-breathe 3.6s ease-in-out infinite;
+    }
+    .j-editor:empty:focus::before {
+      color: rgba(78,221,138,.55);
+      animation: none;
+    }
+    @keyframes j-placeholder-breathe {
+      0%, 100% { opacity: .55; }
+      50%      { opacity: .85; }
     }
     .j-card-foot { padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .j-pills { display: flex; flex-wrap: wrap; gap: 4px; }
