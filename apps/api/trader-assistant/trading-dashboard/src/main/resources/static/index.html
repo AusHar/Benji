@@ -4405,11 +4405,10 @@
     };
     canvas.onmouseleave = () => { tip.style.display = 'none'; };
 
-    // Redraw on resize
-    if (!canvas._ro) {
-      canvas._ro = new ResizeObserver(() => { if (wrap.style.display !== 'none') render(); });
-      canvas._ro.observe(canvas);
-    }
+    // Redraw on resize — disconnect any previous observer so it uses the current render closure
+    if (canvas._ro) canvas._ro.disconnect();
+    canvas._ro = new ResizeObserver(() => { if (wrap.style.display !== 'none') render(); });
+    canvas._ro.observe(canvas);
   }
 
   /* ── Daily Buffett quote ─────────────────── */
