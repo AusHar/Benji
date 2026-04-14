@@ -3124,7 +3124,7 @@
           const pnl    = mktVal != null ? mktVal - x.cost_basis : null;
           const pct    = (pnl != null && x.cost_basis > 0) ? pnl / x.cost_basis : null;
           const cls    = pnl != null ? (pnl >= 0 ? 'td-pos' : 'td-neg') : '';
-          return `<div class="port-card">
+          return `<div class="port-card" data-ticker="${x.ticker}">
             <div class="port-card-header">
               <strong class="port-card-ticker">${x.ticker}</strong>
               <span class="${cls}">${pct != null ? (pct >= 0 ? '+' : '') + (pct * 100).toFixed(2) + '%' : '--'}</span>
@@ -3151,7 +3151,7 @@
               const pnl    = mktVal != null ? mktVal - x.cost_basis : null;
               const pct    = (pnl != null && x.cost_basis > 0) ? pnl / x.cost_basis : null;
               const cls    = pnl != null ? (pnl >= 0 ? 'td-pos' : 'td-neg') : '';
-              return `<tr>
+              return `<tr data-ticker="${x.ticker}">
                 <td><strong>${x.ticker}</strong></td>
                 <td>${num(x.quantity)}</td>
                 <td class="td-amber">${money(x.cost_basis / x.quantity)}</td>
@@ -4081,6 +4081,8 @@
 
   async function deletePosition(ticker) {
     if (!confirm(`Remove ${ticker} from your portfolio?`)) return;
+    // Remove the row/card immediately so the user gets instant feedback
+    document.querySelectorAll(`[data-ticker="${ticker}"]`).forEach(el => el.remove());
     try {
       const r = await fetch('/api/portfolio/positions/' + encodeURIComponent(ticker), {
         method: 'DELETE',
@@ -4092,10 +4094,12 @@
         const body = await r.json().catch(() => ({}));
         console.error('Delete position failed', r.status, body);
         alert(body.message || 'Failed to remove position (' + r.status + ').');
+        loadPortfolio(); // restore the position if delete failed
       }
     } catch (err) {
       console.error('Delete position network error', err);
       alert('Network error — could not remove position.');
+      loadPortfolio(); // restore the position on network error
     }
   }
 
