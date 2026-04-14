@@ -4637,7 +4637,7 @@
     try {
       const res = await fetch('/api/import/csv/preview', {
         method: 'POST',
-        headers: { 'X-API-KEY': getApiKey() },
+        headers: { 'X-API-KEY': KEY },
         body: form
       });
       if (!res.ok) {
@@ -4712,7 +4712,7 @@
     try {
       const res = await fetch('/api/import/csv/confirm', {
         method: 'POST',
-        headers: { 'X-API-KEY': getApiKey() },
+        headers: { 'X-API-KEY': KEY },
         body: form
       });
       const data = await res.json();
