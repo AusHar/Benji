@@ -31,9 +31,9 @@ class CsvImportIT extends DatabaseIntegrationTest {
 
   private long userId;
 
-  // Path relative to the service root (apps/api/trader-assistant/trading-dashboard)
+  // Path relative to the service root (apps/api/trader-assistant/trading-dashboard) — 4 levels up
   private static final Path INDIVIDUAL_CSV =
-      Path.of("../../../docs/Example Statement CSV/Individual Jan1-Apr13.csv");
+      Path.of("../../../../docs/Example Statement CSV/Individual Jan1-Apr13.csv");
 
   @BeforeEach
   void setUp() {

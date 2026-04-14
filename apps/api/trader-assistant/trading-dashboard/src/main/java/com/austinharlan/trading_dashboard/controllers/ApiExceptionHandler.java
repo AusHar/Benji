@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -65,6 +66,11 @@ class ApiExceptionHandler {
         fieldErrors.isEmpty() ? "Request validation failed." : String.join("; ", fieldErrors);
     return build(
         HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", summary, fieldErrors.toArray(new String[0]));
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+    return build(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.getMessage());
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
