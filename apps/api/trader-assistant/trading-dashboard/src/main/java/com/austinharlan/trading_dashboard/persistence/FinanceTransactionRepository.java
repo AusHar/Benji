@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface FinanceTransactionRepository
     extends JpaRepository<FinanceTransactionEntity, String> {
@@ -27,5 +28,6 @@ public interface FinanceTransactionRepository
           + "where t.userId = :userId and t.importDedupKey is not null")
   List<String> findImportDedupKeysByUserId(@Param("userId") Long userId);
 
+  @Transactional
   void deleteAllByUserId(Long userId);
 }
