@@ -48,3 +48,6 @@ node_modules/
 *.envrc
 apps/api/trader-assistant/trading-dashboard/.envrc
 .superpowers/
+
+# Claude Code local config (may contain SSH commands with prod credentials)
+.claude/
