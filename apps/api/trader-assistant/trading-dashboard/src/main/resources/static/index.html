@@ -1239,6 +1239,14 @@
         </svg>
         <span class="nav-label">Journal</span>
       </div>
+      <div class="nav-item" data-page="import">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <span class="nav-label">Import</span>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div class="conn-badge" id="keyBadge" title="Click to sign out">
@@ -1362,6 +1370,77 @@
 
       <!-- Journal -->
       <div class="page" id="page-journal"></div>
+
+      <!-- Import -->
+      <div class="page" id="page-import">
+        <div class="page-header">
+          <h1 class="page-title">Import Activity</h1>
+          <p class="page-subtitle" style="color:var(--text-dim);font-size:0.85em;margin-top:4px">
+            Upload your Robinhood account activity CSV. Crypto activity is not included in Robinhood exports.
+          </p>
+        </div>
+
+        <!-- State 1: Upload form -->
+        <div id="import-form" class="card" style="max-width:480px;padding:24px;margin-top:16px">
+          <div style="margin-bottom:16px">
+            <label style="display:block;margin-bottom:6px;color:var(--text-mid);font-size:0.85em">Account</label>
+            <select id="import-account" style="width:100%;background:var(--bg-card-hi);border:1px solid var(--border-mid);color:var(--text);padding:8px 12px;border-radius:4px;font-family:var(--mono);font-size:0.9em">
+              <option value="">— select account —</option>
+              <option value="INDIVIDUAL">Individual</option>
+              <option value="ROTH_IRA">Roth IRA</option>
+              <option value="TRADITIONAL_IRA">Traditional IRA</option>
+            </select>
+          </div>
+          <div style="margin-bottom:20px">
+            <label style="display:block;margin-bottom:6px;color:var(--text-mid);font-size:0.85em">CSV File</label>
+            <input type="file" id="import-file" accept=".csv"
+              style="width:100%;background:var(--bg-card-hi);border:1px solid var(--border-mid);color:var(--text);padding:8px 12px;border-radius:4px;font-family:var(--mono);font-size:0.9em;cursor:pointer">
+          </div>
+          <button id="import-preview-btn" onclick="runImportPreview()"
+            style="background:var(--green);color:#050a07;border:none;padding:10px 20px;border-radius:4px;font-family:var(--mono);font-weight:500;cursor:pointer;opacity:0.4;pointer-events:none">
+            Preview Import
+          </button>
+          <div id="import-form-error" style="margin-top:12px;color:var(--red);font-size:0.85em;display:none"></div>
+        </div>
+
+        <!-- State 2: Preview table -->
+        <div id="import-preview" style="display:none;margin-top:16px">
+          <div id="import-summary-bar" class="card" style="padding:14px 20px;margin-bottom:12px;font-size:0.88em;color:var(--text-mid)"></div>
+          <div class="card" style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85em">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:8px 12px;color:var(--text-dim)">#</th>
+                  <th style="text-align:left;padding:8px 12px;color:var(--text-dim)">Date</th>
+                  <th style="text-align:left;padding:8px 12px;color:var(--text-dim)">Ticker</th>
+                  <th style="text-align:left;padding:8px 12px;color:var(--text-dim)">Detail</th>
+                  <th style="text-align:left;padding:8px 12px;color:var(--text-dim)">Action</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:12px">
+            <button onclick="resetImport()"
+              style="background:transparent;border:1px solid var(--border-mid);color:var(--text-mid);padding:10px 20px;border-radius:4px;font-family:var(--mono);cursor:pointer">
+              Back
+            </button>
+            <button id="import-confirm-btn" onclick="runImportConfirm()"
+              style="background:var(--green);color:#050a07;border:none;padding:10px 20px;border-radius:4px;font-family:var(--mono);font-weight:500;cursor:pointer">
+              Confirm Import
+            </button>
+          </div>
+          <div id="import-preview-error" style="margin-top:12px;color:var(--red);font-size:0.85em;display:none"></div>
+        </div>
+
+        <!-- State 3: Result -->
+        <div id="import-result" style="display:none;margin-top:16px">
+          <div id="import-result-content" class="card" style="padding:20px;max-width:480px"></div>
+          <button onclick="resetImport()" style="margin-top:16px;background:transparent;border:1px solid var(--border-mid);color:var(--text-mid);padding:10px 20px;border-radius:4px;font-family:var(--mono);cursor:pointer">
+            Import Another File
+          </button>
+        </div>
+      </div>
 
     </div>
   </main>
@@ -1677,7 +1756,7 @@
   });
 
   /* ── Router ─────────────────────────────── */
-  const TITLES = { dashboard: 'Dashboard', quotes: 'Quotes', portfolio: 'Portfolio', finance: 'Finance', journal: 'Journal' };
+  const TITLES = { dashboard: 'Dashboard', quotes: 'Quotes', portfolio: 'Portfolio', finance: 'Finance', journal: 'Journal', import: 'Import' };
 
   document.querySelectorAll('.nav-item').forEach(el => {
     el.addEventListener('click', () => go(el.dataset.page));
@@ -4528,6 +4607,147 @@
 
   /* ── Start ──────────────────────────────── */
   boot();
+
+  // ── Import ────────────────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('import-file');
+    const accountSelect = document.getElementById('import-account');
+    const previewBtn = document.getElementById('import-preview-btn');
+    if (!fileInput) return;
+    const updatePreviewBtn = () => {
+      const ready = fileInput.files.length > 0 && accountSelect.value;
+      previewBtn.style.opacity = ready ? '1' : '0.4';
+      previewBtn.style.pointerEvents = ready ? 'auto' : 'none';
+    };
+    fileInput.addEventListener('change', updatePreviewBtn);
+    accountSelect.addEventListener('change', updatePreviewBtn);
+  });
+
+  async function runImportPreview() {
+    const file = document.getElementById('import-file').files[0];
+    const account = document.getElementById('import-account').value;
+    const errEl = document.getElementById('import-form-error');
+    errEl.style.display = 'none';
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('account', account);
+
+    try {
+      const res = await fetch('/api/import/csv/preview', {
+        method: 'POST',
+        headers: { 'X-API-KEY': getApiKey() },
+        body: form
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        errEl.textContent = err.message || 'Preview failed (' + res.status + ')';
+        errEl.style.display = 'block';
+        return;
+      }
+      const data = await res.json();
+      renderImportPreview(data);
+      document.getElementById('import-form').style.display = 'none';
+      document.getElementById('import-preview').style.display = 'block';
+    } catch (e) {
+      errEl.textContent = 'Network error: ' + e.message;
+      errEl.style.display = 'block';
+    }
+  }
+
+  function renderImportPreview(data) {
+    const s = data.summary;
+    document.getElementById('import-summary-bar').innerHTML =
+      `<b style="color:var(--green)">${s.tradesToImport}</b> trades &nbsp;·&nbsp; ` +
+      `<b style="color:#7ec8ff">${s.cashEventsToImport}</b> cash events &nbsp;·&nbsp; ` +
+      `<b style="color:var(--text-dim)">${s.duplicatesSkipped}</b> duplicates &nbsp;·&nbsp; ` +
+      `<b style="color:var(--amber)">${s.unsupportedSkipped}</b> skipped` +
+      (s.errors > 0 ? ` &nbsp;·&nbsp; <b style="color:var(--red)">${s.errors} errors</b>` : '');
+
+    const confirmBtn = document.getElementById('import-confirm-btn');
+    if (s.errors > 0) {
+      confirmBtn.style.opacity = '0.4';
+      confirmBtn.style.pointerEvents = 'none';
+      document.getElementById('import-preview-error').textContent =
+        s.errors + ' row(s) have parse errors. Fix the file and re-upload.';
+      document.getElementById('import-preview-error').style.display = 'block';
+    } else {
+      confirmBtn.style.opacity = '1';
+      confirmBtn.style.pointerEvents = 'auto';
+      document.getElementById('import-preview-error').style.display = 'none';
+    }
+
+    const BADGE = {
+      IMPORT_TRADE:      ['var(--green)',    '#050a07', 'TRADE'],
+      IMPORT_CASH_EVENT: ['#7ec8ff',         '#050a07', 'CASH'],
+      SKIP_DUPLICATE:    ['var(--text-dim)', '#050a07', 'DUPLICATE'],
+      SKIP_UNSUPPORTED:  ['var(--amber)',    '#050a07', 'SKIPPED'],
+      ERROR:             ['var(--red)',      '#fff',    'ERROR']
+    };
+
+    const tbody = document.getElementById('import-preview-tbody');
+    tbody.innerHTML = '';
+    for (const row of data.rows) {
+      const [bg, fg, label] = BADGE[row.action] || ['gray', '#fff', row.action];
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border)';
+      tr.innerHTML = `
+        <td style="padding:7px 12px;color:var(--text-dim)">${row.rowNumber}</td>
+        <td style="padding:7px 12px;color:var(--text-mid)">${row.activityDate}</td>
+        <td style="padding:7px 12px;font-weight:500">${row.instrument || '—'}</td>
+        <td style="padding:7px 12px;color:var(--text-mid)">${row.detail || ''}${row.error ? '<br><span style="color:var(--red);font-size:0.8em">' + row.error + '</span>' : ''}</td>
+        <td style="padding:7px 12px"><span style="background:${bg};color:${fg};padding:2px 8px;border-radius:3px;font-size:0.78em">${label}</span></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function runImportConfirm() {
+    const file = document.getElementById('import-file').files[0];
+    const account = document.getElementById('import-account').value;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('account', account);
+
+    try {
+      const res = await fetch('/api/import/csv/confirm', {
+        method: 'POST',
+        headers: { 'X-API-KEY': getApiKey() },
+        body: form
+      });
+      const data = await res.json();
+      document.getElementById('import-preview').style.display = 'none';
+      document.getElementById('import-result').style.display = 'block';
+      const content = document.getElementById('import-result-content');
+      if (!res.ok || (data.errors && data.errors.length > 0)) {
+        content.innerHTML = `<p style="color:var(--red);margin-bottom:8px">Import failed.</p>
+          <ul style="color:var(--text-dim);font-size:0.85em">${(data.errors||[]).map(e=>`<li>${e}</li>`).join('')}</ul>`;
+      } else {
+        content.innerHTML =
+          `<p style="color:var(--green);margin-bottom:12px">Import complete</p>` +
+          `<p style="color:var(--text-mid);font-size:0.9em">` +
+          `${data.tradesImported} trades imported &nbsp;·&nbsp; ` +
+          `${data.cashEventsImported} cash events imported &nbsp;·&nbsp; ` +
+          `${data.duplicatesSkipped} duplicates skipped</p>`;
+      }
+    } catch (e) {
+      document.getElementById('import-preview-error').textContent = 'Network error: ' + e.message;
+      document.getElementById('import-preview-error').style.display = 'block';
+    }
+  }
+
+  function resetImport() {
+    document.getElementById('import-form').style.display = 'block';
+    document.getElementById('import-preview').style.display = 'none';
+    document.getElementById('import-result').style.display = 'none';
+    document.getElementById('import-file').value = '';
+    document.getElementById('import-account').value = '';
+    document.getElementById('import-form-error').style.display = 'none';
+    document.getElementById('import-preview-tbody').innerHTML = '';
+    const btn = document.getElementById('import-preview-btn');
+    btn.style.opacity = '0.4';
+    btn.style.pointerEvents = 'none';
+  }
 </script>
 
 <!-- Bottom tab bar (mobile only) -->
@@ -4563,6 +4783,14 @@
       <path d="M5 4h4M5 7h4M5 10h2"/>
     </svg>
     Journal
+  </button>
+  <button data-page="import" onclick="go('import')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    Import
   </button>
 </nav>
 
