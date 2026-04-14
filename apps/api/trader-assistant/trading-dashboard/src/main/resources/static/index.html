@@ -4345,19 +4345,22 @@
 
     function render() {
       const dpr = window.devicePixelRatio || 1;
-      canvas.style.removeProperty('width'); // ensure CSS width:100% controls display size
-      const W   = canvas.offsetWidth || 600;
-      const H   = 300;
+      // Let CSS drive display size (width: 100%, height from media query)
+      canvas.style.removeProperty('width');
+      canvas.style.removeProperty('height');
+      const W = canvas.offsetWidth  || 600;
+      const H = canvas.offsetHeight || 300;
       canvas.width  = W * dpr;
       canvas.height = H * dpr;
-      canvas.style.height = H + 'px';
       const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const total = items.reduce((s, i) => s + i.value, 0);
       const rects = [];
       _tmSquarify(items, 0, 0, W, H, total, rects);
       canvas._rects = rects;
+      canvas._W = W;
+      canvas._H = H;
 
       const PAD = 2, R = 5;
       rects.forEach(r => {
@@ -4389,8 +4392,13 @@
     render();
 
     canvas.onmousemove = e => {
-      const b  = canvas.getBoundingClientRect();
-      const mx = e.clientX - b.left, my = e.clientY - b.top;
+      const b = canvas.getBoundingClientRect();
+      // Scale mouse coords into the rect coordinate frame used at render time,
+      // so hit-testing stays accurate even if the canvas has resized since.
+      const sx = (canvas._W && b.width)  ? canvas._W / b.width  : 1;
+      const sy = (canvas._H && b.height) ? canvas._H / b.height : 1;
+      const mx = (e.clientX - b.left) * sx;
+      const my = (e.clientY - b.top)  * sy;
       const hit = (canvas._rects || []).find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
       if (hit) {
         const pctStr = (hit.pct >= 0 ? '+' : '') + (hit.pct * 100).toFixed(2) + '%';
