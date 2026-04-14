@@ -22,9 +22,11 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -170,9 +172,9 @@ public class CsvImportService implements ImportService {
    *
    * <p>Input list order must match CSV row order so sequences are stable across re-imports.
    */
-  static java.util.List<String> computeDedupKeys(String account, java.util.List<RawRow> rows) {
-    java.util.Map<String, Integer> groupCounters = new java.util.HashMap<>();
-    java.util.List<String> keys = new java.util.ArrayList<>(rows.size());
+  static List<String> computeDedupKeys(String account, List<RawRow> rows) {
+    Map<String, Integer> groupCounters = new HashMap<>();
+    List<String> keys = new ArrayList<>(rows.size());
     for (RawRow row : rows) {
       String base =
           sha256Hex(
@@ -398,7 +400,7 @@ public class CsvImportService implements ImportService {
       price = BigDecimal.ZERO;
     } else {
       qty = new BigDecimal(row.rawQuantity());
-      price = parseAmount(row.rawPrice().isEmpty() ? null : "$" + row.rawPrice());
+      price = parseAmount(row.rawPrice().isBlank() ? null : "$" + row.rawPrice());
       if (price == null) price = BigDecimal.ZERO;
     }
 
