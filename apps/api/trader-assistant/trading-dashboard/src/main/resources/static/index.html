@@ -4079,9 +4079,25 @@
     }
   }
 
-  async function deletePosition(ticker) {
-    if (!confirm(`Remove ${ticker} from your portfolio?`)) return;
-    // Remove the row/card immediately so the user gets instant feedback
+  function deletePosition(ticker) {
+    // Find the Remove button(s) for this ticker and swap to inline confirm
+    document.querySelectorAll(`[data-ticker="${ticker}"] .btn-remove`).forEach(btn => {
+      btn.outerHTML =
+        `<span class="btn-remove-confirm">` +
+          `<span style="margin-right:6px;color:var(--text-mid);font-size:0.82em">Remove?</span>` +
+          `<button class="btn btn-sm" style="background:#c0392b22;border-color:#c0392b55;color:#e57373;margin-right:4px" onclick="confirmDeletePosition('${ticker}')">Yes</button>` +
+          `<button class="btn btn-sm" onclick="cancelDeletePosition('${ticker}')">No</button>` +
+        `</span>`;
+    });
+  }
+
+  function cancelDeletePosition(ticker) {
+    document.querySelectorAll(`[data-ticker="${ticker}"] .btn-remove-confirm`).forEach(el => {
+      el.outerHTML = `<button class="btn-remove" onclick="deletePosition('${ticker}')">Remove</button>`;
+    });
+  }
+
+  async function confirmDeletePosition(ticker) {
     document.querySelectorAll(`[data-ticker="${ticker}"]`).forEach(el => el.remove());
     try {
       const r = await fetch('/api/portfolio/positions/' + encodeURIComponent(ticker), {
@@ -4093,13 +4109,11 @@
       } else {
         const body = await r.json().catch(() => ({}));
         console.error('Delete position failed', r.status, body);
-        alert(body.message || 'Failed to remove position (' + r.status + ').');
-        loadPortfolio(); // restore the position if delete failed
+        loadPortfolio();
       }
     } catch (err) {
       console.error('Delete position network error', err);
-      alert('Network error — could not remove position.');
-      loadPortfolio(); // restore the position on network error
+      loadPortfolio();
     }
   }
 
