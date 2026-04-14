@@ -35,6 +35,12 @@ public class FinanceTransactionEntity {
   @Column(name = "notes")
   private String notes;
 
+  @Column(name = "account", length = 20)
+  private String account;
+
+  @Column(name = "import_dedup_key", length = 64)
+  private String importDedupKey;
+
   protected FinanceTransactionEntity() {
     // for JPA
   }
@@ -116,6 +122,22 @@ public class FinanceTransactionEntity {
 
   public void setNotes(String notes) {
     this.notes = notes;
+  }
+
+  public String getAccount() {
+    return account;
+  }
+
+  public void setAccount(String account) {
+    this.account = account;
+  }
+
+  public String getImportDedupKey() {
+    return importDedupKey;
+  }
+
+  public void setImportDedupKey(String importDedupKey) {
+    this.importDedupKey = importDedupKey;
   }
 
   @Override

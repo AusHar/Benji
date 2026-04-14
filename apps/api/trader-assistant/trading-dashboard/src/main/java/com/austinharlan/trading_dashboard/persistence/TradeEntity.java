@@ -56,6 +56,12 @@ public class TradeEntity {
   @Column(name = "linked_trade_id")
   private Long linkedTradeId;
 
+  @Column(name = "account", length = 20)
+  private String account;
+
+  @Column(name = "import_dedup_key", length = 64)
+  private String importDedupKey;
+
   protected TradeEntity() {}
 
   /** Constructor for equity trades (backward compatible). */
@@ -181,6 +187,22 @@ public class TradeEntity {
 
   public void setPricePerShare(BigDecimal pricePerShare) {
     this.pricePerShare = pricePerShare;
+  }
+
+  public String getAccount() {
+    return account;
+  }
+
+  public void setAccount(String account) {
+    this.account = account;
+  }
+
+  public String getImportDedupKey() {
+    return importDedupKey;
+  }
+
+  public void setImportDedupKey(String importDedupKey) {
+    this.importDedupKey = importDedupKey;
   }
 
   @Override
