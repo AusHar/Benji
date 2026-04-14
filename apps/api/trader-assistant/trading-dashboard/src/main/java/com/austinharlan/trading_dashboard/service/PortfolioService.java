@@ -14,4 +14,12 @@ public interface PortfolioService {
   PortfolioHolding addHolding(String ticker, BigDecimal quantity, BigDecimal pricePerShare);
 
   void deleteHolding(String ticker);
+
+  /**
+   * Adjusts the portfolio position for an equity trade. BUY increases qty and basis; SELL reduces
+   * them proportionally. No-ops for non-EQUITY asset types and for EXPIRE/EXERCISE sides. Safe to
+   * call within an existing transaction — joins via REQUIRED propagation.
+   */
+  void applyTrade(
+      String ticker, String side, String assetType, BigDecimal quantity, BigDecimal pricePerShare);
 }

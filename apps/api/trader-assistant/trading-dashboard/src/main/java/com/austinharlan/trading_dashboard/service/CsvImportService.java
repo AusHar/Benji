@@ -54,11 +54,15 @@ public class CsvImportService implements ImportService {
 
   private final TradeRepository tradeRepository;
   private final FinanceTransactionRepository financeTransactionRepository;
+  private final PortfolioService portfolioService;
 
   public CsvImportService(
-      TradeRepository tradeRepository, FinanceTransactionRepository financeTransactionRepository) {
+      TradeRepository tradeRepository,
+      FinanceTransactionRepository financeTransactionRepository,
+      PortfolioService portfolioService) {
     this.tradeRepository = tradeRepository;
     this.financeTransactionRepository = financeTransactionRepository;
+    this.portfolioService = portfolioService;
   }
 
   // ── Amount parsing ────────────────────────────────────────────────────────
@@ -435,6 +439,7 @@ public class CsvImportService implements ImportService {
     entity.setAccount(account);
     entity.setImportDedupKey(dedupKey);
     tradeRepository.save(entity);
+    portfolioService.applyTrade(row.instrument(), side, assetType, qty, price);
   }
 
   private void insertCashEvent(RawRow row, String account, String dedupKey, long userId) {

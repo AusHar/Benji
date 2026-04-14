@@ -7,6 +7,7 @@ import com.austinharlan.trading_dashboard.portfolio.PortfolioHolding;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioPositionNotFoundException;
 import com.austinharlan.trading_dashboard.portfolio.PortfolioSnapshot;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -73,6 +74,45 @@ public class DefaultPortfolioService implements PortfolioService {
         .findByUserIdAndTicker(userId, ticker)
         .orElseThrow(() -> new PortfolioPositionNotFoundException(ticker));
     repository.deleteByUserIdAndTicker(userId, ticker);
+  }
+
+  @Override
+  @Transactional
+  public void applyTrade(
+      String ticker, String side, String assetType, BigDecimal quantity, BigDecimal pricePerShare) {
+    if (!"EQUITY".equals(assetType) || (!"BUY".equals(side) && !"SELL".equals(side))) {
+      return;
+    }
+    long userId = UserContext.current().userId();
+    if ("BUY".equals(side)) {
+      BigDecimal addedBasis = quantity.multiply(pricePerShare);
+      repository
+          .findByUserIdAndTicker(userId, ticker)
+          .ifPresentOrElse(
+              pos -> {
+                pos.setQty(pos.getQty().add(quantity));
+                pos.setBasis(pos.getBasis().add(addedBasis));
+                repository.save(pos);
+              },
+              () ->
+                  repository.save(
+                      new PortfolioPositionEntity(userId, ticker, quantity, addedBasis)));
+    } else {
+      repository
+          .findByUserIdAndTicker(userId, ticker)
+          .ifPresent(
+              pos -> {
+                BigDecimal newQty = pos.getQty().subtract(quantity);
+                if (newQty.compareTo(BigDecimal.ZERO) <= 0) {
+                  repository.deleteByUserIdAndTicker(userId, ticker);
+                } else {
+                  BigDecimal ratio = newQty.divide(pos.getQty(), 10, RoundingMode.HALF_UP);
+                  pos.setQty(newQty);
+                  pos.setBasis(pos.getBasis().multiply(ratio).setScale(6, RoundingMode.HALF_UP));
+                  repository.save(pos);
+                }
+              });
+    }
   }
 
   private PortfolioHolding toHolding(PortfolioPositionEntity entity) {

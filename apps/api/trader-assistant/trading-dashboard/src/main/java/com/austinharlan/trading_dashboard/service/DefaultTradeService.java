@@ -20,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultTradeService implements TradeService {
 
   private final TradeRepository repository;
+  private final PortfolioService portfolioService;
 
-  public DefaultTradeService(TradeRepository repository) {
+  public DefaultTradeService(TradeRepository repository, PortfolioService portfolioService) {
     this.repository = repository;
+    this.portfolioService = portfolioService;
   }
 
   @Override
@@ -67,7 +69,9 @@ public class DefaultTradeService implements TradeService {
             strikePrice,
             expirationDate,
             multiplier);
-    return repository.save(entity);
+    TradeEntity saved = repository.save(entity);
+    portfolioService.applyTrade(ticker, side, type, quantity, pricePerShare);
+    return saved;
   }
 
   private void validate(
@@ -219,6 +223,7 @@ public class DefaultTradeService implements TradeService {
     equity.setLinkedTradeId(exercise.getId());
     repository.save(exercise);
     repository.save(equity);
+    portfolioService.applyTrade(ticker, equitySide, "EQUITY", shares, strikePrice);
 
     return exercise;
   }

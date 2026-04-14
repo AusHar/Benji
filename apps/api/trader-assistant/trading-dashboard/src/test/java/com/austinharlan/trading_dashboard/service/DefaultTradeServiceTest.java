@@ -27,7 +27,7 @@ class DefaultTradeServiceTest {
   @BeforeEach
   void setUp() {
     repository = mock(TradeRepository.class);
-    service = new DefaultTradeService(repository);
+    service = new DefaultTradeService(repository, mock(PortfolioService.class));
     setUserContext(USER_ID);
   }
 
