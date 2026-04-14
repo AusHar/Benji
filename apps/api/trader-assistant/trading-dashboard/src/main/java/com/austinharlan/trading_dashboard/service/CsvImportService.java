@@ -97,6 +97,88 @@ public class CsvImportService implements ImportService {
     }
   }
 
+  // ── Inner types ───────────────────────────────────────────────────────────
+
+  enum RowAction {
+    IMPORT_TRADE,
+    IMPORT_CASH_EVENT,
+    SKIP_DUPLICATE,
+    SKIP_UNSUPPORTED,
+    ERROR
+  }
+
+  record RawRow(
+      int rowNumber,
+      String activityDate,
+      String processDate,
+      String settleDate,
+      String instrument,
+      String description,
+      String transCode,
+      String rawQuantity,
+      String rawPrice,
+      String rawAmount) {}
+
+  // ── Trans code classification ─────────────────────────────────────────────
+
+  /** Returns TRADE_SIDE for trade trans codes, null for non-trade trans codes. */
+  @Nullable
+  static String tradeSideFor(String transCode) {
+    return switch (transCode) {
+      case "Buy", "BTO", "BTC" -> "BUY";
+      case "Sell", "STC", "STO" -> "SELL";
+      case "OEXP" -> "EXPIRE";
+      case "OASGN" -> "EXERCISE";
+      default -> null;
+    };
+  }
+
+  static boolean isCashEvent(String transCode) {
+    return switch (transCode) {
+      case "CDIV", "SLIP", "INT" -> true;
+      default -> false;
+    };
+  }
+
+  static boolean isOptionTransCode(String transCode) {
+    return switch (transCode) {
+      case "BTO", "STC", "STO", "BTC", "OEXP", "OASGN" -> true;
+      default -> false;
+    };
+  }
+
+  // ── Dedup key ─────────────────────────────────────────────────────────────
+
+  /**
+   * Assigns sequence numbers within groups of identical rows and returns the dedup key for each.
+   *
+   * <p>Input list order must match CSV row order so sequences are stable across re-imports.
+   */
+  static java.util.List<String> computeDedupKeys(String account, java.util.List<RawRow> rows) {
+    java.util.Map<String, Integer> groupCounters = new java.util.HashMap<>();
+    java.util.List<String> keys = new java.util.ArrayList<>(rows.size());
+    for (RawRow row : rows) {
+      String base =
+          sha256Hex(
+              String.join(
+                  "|",
+                  account,
+                  row.activityDate(),
+                  row.processDate(),
+                  row.settleDate(),
+                  row.instrument(),
+                  row.description().replaceAll("\\r?\\n", " ").trim(),
+                  row.transCode(),
+                  row.rawQuantity(),
+                  row.rawPrice(),
+                  row.rawAmount()));
+      int seq = groupCounters.getOrDefault(base, 0);
+      groupCounters.put(base, seq + 1);
+      keys.add(sha256Hex(base + "|" + seq));
+    }
+    return keys;
+  }
+
   // ── ImportService methods (stubs — implemented in Task 7) ─────────────────
 
   @Override

@@ -88,4 +88,147 @@ class CsvImportServiceTest {
   void parseOptionDescription_null_returns_null() {
     assertThat(CsvImportService.parseOptionDescription(null)).isNull();
   }
+
+  // ── tradeSideFor ──────────────────────────────────────────────────────────
+
+  @Test
+  void tradeSideFor_equity_buy() {
+    assertThat(CsvImportService.tradeSideFor("Buy")).isEqualTo("BUY");
+  }
+
+  @Test
+  void tradeSideFor_equity_sell() {
+    assertThat(CsvImportService.tradeSideFor("Sell")).isEqualTo("SELL");
+  }
+
+  @Test
+  void tradeSideFor_bto() {
+    assertThat(CsvImportService.tradeSideFor("BTO")).isEqualTo("BUY");
+  }
+
+  @Test
+  void tradeSideFor_stc() {
+    assertThat(CsvImportService.tradeSideFor("STC")).isEqualTo("SELL");
+  }
+
+  @Test
+  void tradeSideFor_sto() {
+    assertThat(CsvImportService.tradeSideFor("STO")).isEqualTo("SELL");
+  }
+
+  @Test
+  void tradeSideFor_btc() {
+    assertThat(CsvImportService.tradeSideFor("BTC")).isEqualTo("BUY");
+  }
+
+  @Test
+  void tradeSideFor_oexp() {
+    assertThat(CsvImportService.tradeSideFor("OEXP")).isEqualTo("EXPIRE");
+  }
+
+  @Test
+  void tradeSideFor_oasgn() {
+    assertThat(CsvImportService.tradeSideFor("OASGN")).isEqualTo("EXERCISE");
+  }
+
+  @Test
+  void tradeSideFor_ach_returns_null() {
+    assertThat(CsvImportService.tradeSideFor("ACH")).isNull();
+  }
+
+  @Test
+  void tradeSideFor_futswp_returns_null() {
+    assertThat(CsvImportService.tradeSideFor("FUTSWP")).isNull();
+  }
+
+  @Test
+  void isCashEvent_cdiv() {
+    assertThat(CsvImportService.isCashEvent("CDIV")).isTrue();
+  }
+
+  @Test
+  void isCashEvent_slip() {
+    assertThat(CsvImportService.isCashEvent("SLIP")).isTrue();
+  }
+
+  @Test
+  void isCashEvent_int() {
+    assertThat(CsvImportService.isCashEvent("INT")).isTrue();
+  }
+
+  @Test
+  void isCashEvent_buy_returns_false() {
+    assertThat(CsvImportService.isCashEvent("Buy")).isFalse();
+  }
+
+  // ── computeDedupKeys ──────────────────────────────────────────────────────
+
+  @Test
+  void computeDedupKeys_identical_rows_get_distinct_keys() {
+    var row1 =
+        new CsvImportService.RawRow(
+            2,
+            "3/9/2026",
+            "3/9/2026",
+            "3/10/2026",
+            "AAPL",
+            "AAPL 3/9/2026 Call $257.50",
+            "BTO",
+            "1",
+            "$0.35",
+            "($35.04)");
+    var row2 =
+        new CsvImportService.RawRow(
+            3,
+            "3/9/2026",
+            "3/9/2026",
+            "3/10/2026",
+            "AAPL",
+            "AAPL 3/9/2026 Call $257.50",
+            "BTO",
+            "1",
+            "$0.35",
+            "($35.04)");
+    var keys = CsvImportService.computeDedupKeys("INDIVIDUAL", java.util.List.of(row1, row2));
+    assertThat(keys).hasSize(2);
+    assertThat(keys.get(0)).isNotEqualTo(keys.get(1));
+  }
+
+  @Test
+  void computeDedupKeys_same_csv_reimport_produces_same_keys() {
+    var row =
+        new CsvImportService.RawRow(
+            2,
+            "3/9/2026",
+            "3/9/2026",
+            "3/10/2026",
+            "AAPL",
+            "AAPL 3/9/2026 Call $257.50",
+            "BTO",
+            "1",
+            "$0.35",
+            "($35.04)");
+    var keys1 = CsvImportService.computeDedupKeys("INDIVIDUAL", java.util.List.of(row));
+    var keys2 = CsvImportService.computeDedupKeys("INDIVIDUAL", java.util.List.of(row));
+    assertThat(keys1).isEqualTo(keys2);
+  }
+
+  @Test
+  void computeDedupKeys_different_accounts_produce_different_keys() {
+    var row =
+        new CsvImportService.RawRow(
+            2,
+            "3/9/2026",
+            "3/9/2026",
+            "3/10/2026",
+            "AAPL",
+            "AAPL 3/9/2026 Call $257.50",
+            "BTO",
+            "1",
+            "$0.35",
+            "($35.04)");
+    var keysIndividual = CsvImportService.computeDedupKeys("INDIVIDUAL", java.util.List.of(row));
+    var keysRoth = CsvImportService.computeDedupKeys("ROTH_IRA", java.util.List.of(row));
+    assertThat(keysIndividual.get(0)).isNotEqualTo(keysRoth.get(0));
+  }
 }
