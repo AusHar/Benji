@@ -1,0 +1,92 @@
+"Activity Date","Process Date","Settle Date","Instrument","Description","Trans Code","Quantity","Price","Amount"
+"4/8/2026","4/8/2026","4/8/2026","ADYEY","Stock Lending","SLIP","","","$0.01"
+"4/8/2026","4/8/2026","4/8/2026","IGV","Stock Lending","SLIP","","","$0.01"
+"3/13/2026","3/13/2026","3/16/2026","ADYEY","Adyen N.V.
+CUSIP: 00783V104","Buy","2","$10.44","($20.89)"
+"3/13/2026","3/13/2026","3/16/2026","AAPL","Apple
+CUSIP: 037833100","Buy","1","$256.35","($256.35)"
+"3/13/2026","3/13/2026","3/16/2026","AAPL","Apple
+CUSIP: 037833100","Buy","1","$256.48","($256.48)"
+"3/9/2026","3/9/2026","3/10/2026","IGV","iShares Expanded Tech-Software Sector ETF
+CUSIP: 464287515","Sell","1","$88.00","$88.00"
+"3/9/2026","3/9/2026","3/10/2026","NKLR","Terra Innovatum Global
+CUSIP: N85083108","Sell","1","$4.10","$4.10"
+"3/9/2026","3/9/2026","3/10/2026","IRDM","Iridium Communications
+CUSIP: 46269C102","Sell","18.155754","$24.04","$436.46"
+"3/6/2026","3/6/2026","3/6/2026","ADYEY","Stock Lending","SLIP","","","$0.01"
+"3/6/2026","3/6/2026","3/6/2026","NVO","Stock Lending","SLIP","","","$0.01"
+"3/6/2026","3/6/2026","3/6/2026","IGV","Stock Lending","SLIP","","","$0.01"
+"3/4/2026","3/4/2026","3/5/2026","UNH","UnitedHealth
+CUSIP: 91324P102","Sell","0.019895","$293.20","$5.83"
+"3/3/2026","3/3/2026","3/4/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","1","$15.00","($15.01)"
+"3/3/2026","3/3/2026","3/4/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","4","$15.01","($60.02)"
+"3/3/2026","3/3/2026","3/4/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","25","$15.00","($375.13)"
+"2/27/2026","2/27/2026","3/2/2026","HOOD","Robinhood Markets
+CUSIP: 770700102","Buy","5","$75.38","($376.92)"
+"2/27/2026","2/27/2026","3/2/2026","ETHA","ETHA 2/27/2026 Call $15.50","STC","3","$0.01","$2.87"
+"2/26/2026","2/26/2026","2/27/2026","ETHA","ETHA 2/27/2026 Call $15.50","BTO","3","$0.21","($63.12)"
+"2/26/2026","2/26/2026","2/27/2026","ZETA","ZETA 2/27/2026 Call $18.00","STC","5","$0.45","$224.78"
+"2/26/2026","2/26/2026","2/27/2026","ZETA","ZETA 2/27/2026 Call $18.00","BTO","5","$0.32","($160.20)"
+"2/25/2026","2/25/2026","2/26/2026","UNH","UnitedHealth
+CUSIP: 91324P102","Sell","2","$274.02","$548.04"
+"2/25/2026","2/25/2026","2/26/2026","UNH","UnitedHealth
+CUSIP: 91324P102","Sell","1","$274.02","$274.02"
+"2/11/2026","2/11/2026","2/12/2026","ADYEY","Adyen N.V.
+CUSIP: 00783V104","Buy","5","$14.30","($71.50)"
+"2/10/2026","2/10/2026","2/11/2026","HOOD","Robinhood Markets
+CUSIP: 770700102","Buy","4","$79.56","($318.24)"
+"2/10/2026","2/10/2026","2/11/2026","HOOD","Robinhood Markets
+CUSIP: 770700102","Buy","2","$79.70","($159.40)"
+"2/10/2026","2/10/2026","2/11/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","9","$15.22","($136.98)"
+"2/10/2026","2/10/2026","2/11/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","16","$15.22","($243.52)"
+"2/10/2026","2/10/2026","2/11/2026","ETHA","iShares Ethereum Trust ETF
+CUSIP: 46438R105","Buy","25","$15.28","($382.00)"
+"2/6/2026","2/6/2026","2/6/2026","SATL","Stock Lending","SLIP","","","$0.01"
+"2/6/2026","2/6/2026","2/6/2026","NVO","Stock Lending","SLIP","","","$0.01"
+"2/6/2026","2/6/2026","2/6/2026","BRO","Stock Lending","SLIP","","","$0.01"
+"2/4/2026","2/4/2026","2/5/2026","IGV","iShares Expanded Tech-Software Sector ETF
+CUSIP: 464287515","Buy","1","$85.88","($85.88)"
+"2/3/2026","2/3/2026","2/4/2026","USAR","USA Rare Earth
+CUSIP: 91733P107","Sell","7","$25.12","$175.88"
+"2/3/2026","2/3/2026","2/4/2026","USAR","USA Rare Earth
+CUSIP: 91733P107","Sell","23","$25.13","$577.99"
+"2/3/2026","2/3/2026","2/4/2026","NVO","Novo Nordisk
+CUSIP: 670100205","Sell","9","$58.65","$527.85"
+"2/3/2026","2/3/2026","2/4/2026","USAR","USA Rare Earth
+CUSIP: 91733P107","Buy","1","$23.15","($23.15)"
+"2/3/2026","2/3/2026","2/4/2026","USAR","USA Rare Earth
+CUSIP: 91733P107","Buy","4","$23.15","($92.60)"
+"2/3/2026","2/3/2026","2/4/2026","USAR","USA Rare Earth
+CUSIP: 91733P107","Buy","25","$23.12","($578.00)"
+"1/29/2026","1/29/2026","1/30/2026","O","Realty Income
+CUSIP: 756109104","Sell","0.139289","$60.58","$8.44"
+"1/29/2026","1/29/2026","1/30/2026","BRO","Brown & Brown
+CUSIP: 115236101","Sell","0.004088","$71.60","$0.29"
+"1/29/2026","1/29/2026","1/30/2026","BRO","Brown & Brown
+CUSIP: 115236101","Sell","2","$71.60","$143.20"
+"1/29/2026","1/29/2026","1/30/2026","HOOD","Robinhood Markets
+CUSIP: 770700102","Buy","1","$102.96","($102.96)"
+"1/29/2026","1/29/2026","1/30/2026","O","Realty Income
+CUSIP: 756109104","Sell","10","$60.36","$603.60"
+"1/22/2026","1/22/2026","1/22/2026","","Interest on Contribution (IRA Match)","MTCH","","","$3.00"
+"1/22/2026","1/22/2026","1/23/2026","","Prior Year Contribution","PFIR","","","$100.00"
+"1/16/2026","1/16/2026","1/20/2026","O","Realty Income
+CUSIP: 756109104
+Dividend Reinvestment","Buy","0.044886","$60.82","($2.73)"
+"1/15/2026","1/15/2026","1/15/2026","O","Cash Div: R/D 2025-12-31 P/D 2026-01-15 - 10.094403 shares at 0.27","CDIV","","","$2.73"
+"1/13/2026","1/13/2026","1/14/2026","SATL","Satellogic Inc.
+CUSIP: 80401C100","Sell","15","$3.71","$55.65"
+"1/7/2026","1/7/2026","1/7/2026","SATL","Stock Lending","SLIP","","","$0.01"
+"1/7/2026","1/7/2026","1/7/2026","NVO","Stock Lending","SLIP","","","$0.01"
+"1/7/2026","1/7/2026","1/7/2026","NKLR","Stock Lending","SLIP","","","$0.01"
+"1/7/2026","1/7/2026","1/7/2026","BRO","Stock Lending","SLIP","","","$0.01"
+"1/2/2026","1/2/2026","1/5/2026","IRDM","Iridium Communications
+CUSIP: 46269C102
+Dividend Reinvestment","Buy","0.155754","$17.34","($2.70)"
+""
+"","","","","","","","","","The data provided is for informational purposes only. Please consult a professional tax service or personal tax advisor if you need instructions on how to calculate cost basis or questions regarding your specific tax situation. Reminder: This data does not include Robinhood Crypto or Robinhood Spending activity."
