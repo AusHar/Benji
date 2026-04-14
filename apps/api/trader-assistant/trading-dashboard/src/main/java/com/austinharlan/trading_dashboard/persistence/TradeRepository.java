@@ -36,6 +36,11 @@ public interface TradeRepository extends JpaRepository<TradeEntity, Long> {
       """)
   List<TradeEntity> findAllChronologicalByUserId(@Param("userId") Long userId);
 
+  @Query(
+      "select t.importDedupKey from TradeEntity t "
+          + "where t.userId = :userId and t.importDedupKey is not null")
+  List<String> findImportDedupKeysByUserId(@Param("userId") Long userId);
+
   @Transactional
   void deleteAllByUserId(Long userId);
 }

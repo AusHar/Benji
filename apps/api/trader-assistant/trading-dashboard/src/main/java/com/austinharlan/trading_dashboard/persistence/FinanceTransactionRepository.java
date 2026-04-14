@@ -22,5 +22,10 @@ public interface FinanceTransactionRepository
       @Param("startInclusive") Instant startInclusive,
       @Param("endExclusive") Instant endExclusive);
 
+  @Query(
+      "select t.importDedupKey from FinanceTransactionEntity t "
+          + "where t.userId = :userId and t.importDedupKey is not null")
+  List<String> findImportDedupKeysByUserId(@Param("userId") Long userId);
+
   void deleteAllByUserId(Long userId);
 }
