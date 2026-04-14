@@ -1,0 +1,23 @@
+"Activity Date","Process Date","Settle Date","Instrument","Description","Trans Code","Quantity","Price","Amount"
+"1/23/2026","1/23/2026","1/26/2026","EQPT","EquipmentShare.com
+CUSIP: 29445S100","Buy","1","$24.50","($24.50)"
+"3/18/2026","3/18/2026","3/19/2026","EQPT","EquipmentShare.com
+CUSIP: 29445S100","Sell","1","$26.25","$26.25"
+"3/19/2026","3/19/2026","3/20/2026","GT","GT 1/21/2028 Call $5.00","BTO","2","$2.60","($520.08)"
+"3/27/2026","3/27/2026","3/30/2026","RXRX","RXRX 4/2/2026 Put $3.50","STC","1","$0.52","$51.95"
+"1/5/2026","1/5/2026","1/6/2026","RXRX","RXRX 1/16/2026 Call $4.50","STO","4","$0.20","$79.83"
+"3/13/2026","3/13/2026","3/14/2026","VIXW","VIXW 3/14/2026 Put $17.00","BTC","1","$0.10","($10.04)"
+"3/9/2026","3/9/2026","3/10/2026","AAPL","AAPL 3/9/2026 Call $257.50","BTO","1","$0.35","($35.04)"
+"3/9/2026","3/9/2026","3/10/2026","AAPL","AAPL 3/9/2026 Call $257.50","BTO","1","$0.35","($35.04)"
+"1/16/2026","1/16/2026","1/20/2026","RXRX","RXRX 1/16/2026 Call $4.50","OASGN","4","",""
+"1/16/2026","1/16/2026","1/20/2026","RXRX","Recursion Pharmaceuticals
+CUSIP: 75629V104
+4 RXRX Options Assigned","Sell","400","$4.50","$1,799.92"
+"3/27/2026","3/27/2026","3/27/2026","RXRX","Option Expiration for RXRX 3/27/2026 Call $3.50","OEXP","4","",""
+"2/18/2026","2/18/2026","2/18/2026","DLB","Cash Div: R/D 2026-02-10 P/D 2026-02-18 - 2 shares at 0.36","CDIV","","","$0.72"
+"4/8/2026","4/8/2026","4/8/2026","EQPT","Stock Lending","SLIP","","","$0.01"
+"3/31/2026","3/31/2026","3/31/2026","","Interest Payment","INT","","","$0.05"
+"3/25/2026","3/25/2026","3/26/2026","","ACH Deposit","ACH","","","$100.00"
+"4/13/2026","4/13/2026","4/13/2026","","Event Contracts Inter-Entity Cash Transfer","FUTSWP","","","$131.20"
+""
+"","","","","","","","","","The data provided is for informational purposes only. Please consult a professional tax service or personal tax advisor if you need instructions on how to calculate cost basis or questions regarding your specific tax situation. Reminder: This data does not include Robinhood Crypto or Robinhood Spending activity."
