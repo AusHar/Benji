@@ -231,4 +231,26 @@ class CsvImportServiceTest {
     var keysRoth = CsvImportService.computeDedupKeys("ROTH_IRA", java.util.List.of(row));
     assertThat(keysIndividual.get(0)).isNotEqualTo(keysRoth.get(0));
   }
+
+  // ── Pipeline helpers ──────────────────────────────────────────────────────
+
+  @Test
+  void isOptionTransCode_buy_returns_false() {
+    assertThat(CsvImportService.isOptionTransCode("Buy")).isFalse();
+  }
+
+  @Test
+  void isOptionTransCode_bto_returns_true() {
+    assertThat(CsvImportService.isOptionTransCode("BTO")).isTrue();
+  }
+
+  @Test
+  void isOptionTransCode_oexp_returns_true() {
+    assertThat(CsvImportService.isOptionTransCode("OEXP")).isTrue();
+  }
+
+  @Test
+  void isOptionTransCode_oasgn_returns_true() {
+    assertThat(CsvImportService.isOptionTransCode("OASGN")).isTrue();
+  }
 }
