@@ -4406,15 +4406,8 @@
         const col    = hit.pct >= 0 ? '#4fa870' : '#d46050';
         tip.innerHTML = `<strong>${hit.ticker}</strong><br>${money(hit.value)}<br><span style="color:${col}">${pnlStr}&nbsp;(${pctStr})</span>`;
         tip.style.display = 'block';
-        const tW = tip.offsetWidth, tH = tip.offsetHeight;
-        const vW = window.innerWidth, vH = window.innerHeight;
-        const gap = 8;
-        let tx = e.clientX - tW / 2;
-        tx = Math.max(4, Math.min(tx, vW - tW - 4));
-        let ty = e.clientY - tH - gap;
-        if (ty < 4) ty = Math.min(e.clientY + gap, vH - tH - 4);
-        tip.style.left = tx + 'px';
-        tip.style.top  = ty + 'px';
+        tip.style.left = e.clientX + 'px';
+        tip.style.top  = e.clientY + 'px';
       } else {
         tip.style.display = 'none';
       }
