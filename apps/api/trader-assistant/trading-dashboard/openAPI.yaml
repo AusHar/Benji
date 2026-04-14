@@ -748,6 +748,86 @@ paths:
               schema:
                 $ref: '#/components/schemas/TradeCalendarResponse'
 
+  /api/import/csv/preview:
+    post:
+      tags:
+        - Import
+      operationId: previewCsvImport
+      summary: Parse a Robinhood activity CSV and return a preview without writing to the database.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, account]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                account:
+                  type: string
+                  enum: [INDIVIDUAL, ROTH_IRA, TRADITIONAL_IRA]
+      responses:
+        '200':
+          description: Preview of rows that would be imported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportPreviewResponse'
+        '400':
+          description: Could not parse the uploaded file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Demo accounts may not import data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/import/csv/confirm:
+    post:
+      tags:
+        - Import
+      operationId: confirmCsvImport
+      summary: Parse and commit a Robinhood activity CSV. Rejects entirely if any row has a parse error.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, account]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                account:
+                  type: string
+                  enum: [INDIVIDUAL, ROTH_IRA, TRADITIONAL_IRA]
+      responses:
+        '200':
+          description: Import result summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportConfirmResponse'
+        '400':
+          description: Parse errors found — nothing was written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Demo accounts may not import data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/demo/session:
     post:
       operationId: startDemoSession
@@ -1627,6 +1707,67 @@ components:
           type: string
         apiKey:
           type: string
+
+    ImportPreviewResponse:
+      type: object
+      required: [rows, summary]
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRowResult'
+        summary:
+          $ref: '#/components/schemas/ImportPreviewSummary'
+
+    ImportRowResult:
+      type: object
+      required: [rowNumber, activityDate, instrument, transCode, action, detail]
+      properties:
+        rowNumber:
+          type: integer
+        activityDate:
+          type: string
+        instrument:
+          type: string
+        transCode:
+          type: string
+        action:
+          type: string
+          enum: [IMPORT_TRADE, IMPORT_CASH_EVENT, SKIP_DUPLICATE, SKIP_UNSUPPORTED, ERROR]
+        detail:
+          type: string
+        error:
+          type: string
+
+    ImportPreviewSummary:
+      type: object
+      required: [tradesToImport, cashEventsToImport, duplicatesSkipped, unsupportedSkipped, errors]
+      properties:
+        tradesToImport:
+          type: integer
+        cashEventsToImport:
+          type: integer
+        duplicatesSkipped:
+          type: integer
+        unsupportedSkipped:
+          type: integer
+        errors:
+          type: integer
+
+    ImportConfirmResponse:
+      type: object
+      required: [tradesImported, cashEventsImported, duplicatesSkipped, errors]
+      properties:
+        tradesImported:
+          type: integer
+        cashEventsImported:
+          type: integer
+        duplicatesSkipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
 
   securitySchemes:
     ApiKeyAuth:
