@@ -24,7 +24,7 @@ class DevSecurityConfig {
         .addFilterBefore(devUserFilter, AnonymousAuthenticationFilter.class)
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
-        .csrf(AbstractHttpConfigurer::disable);
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/**"));
     return http.build();
   }
 }

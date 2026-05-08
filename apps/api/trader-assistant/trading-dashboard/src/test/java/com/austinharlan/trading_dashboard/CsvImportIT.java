@@ -32,8 +32,8 @@ class CsvImportIT extends DatabaseIntegrationTest {
 
   // 16 data rows: 11 trades, 3 cash events, 2 unsupported (ACH + FUTSWP), 0 errors
   // Includes two byte-for-byte identical BTO rows to exercise dedup key sequencing.
-  // Matches the real Robinhood CSV format: multi-line quoted equity descriptions,
-  // accounting-notation amounts, and the standard footer disclaimer row.
+  // Matches brokerage-style CSV shape: multi-line quoted equity descriptions,
+  // accounting-notation amounts, and a footer row, using only synthetic data.
   private static final String SAMPLE_CSV = "/csv/individual_sample.csv";
 
   @BeforeEach
