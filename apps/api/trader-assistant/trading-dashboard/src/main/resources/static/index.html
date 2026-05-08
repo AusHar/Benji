@@ -807,6 +807,7 @@
     #treemap-tip {
       display: none;
       position: fixed;
+      max-width: min(260px, calc(100vw - 24px));
       background: var(--bg-card-hi);
       color: var(--text);
       border: 1px solid var(--border-mid);
@@ -4391,6 +4392,31 @@
 
     render();
 
+    function positionTreemapTip(e) {
+      const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+      const gap = 12;
+      const edge = 8;
+      const vw = window.innerWidth / rootZoom;
+      const vh = window.innerHeight / rootZoom;
+      const pointerX = e.clientX / rootZoom;
+      const pointerY = e.clientY / rootZoom;
+
+      // Measure after content is written, then keep the panel on-screen.
+      const tw = tip.offsetWidth;
+      const th = tip.offsetHeight;
+      let x = pointerX + gap;
+      let y = pointerY + gap;
+
+      if (x + tw + edge > vw) x = pointerX - tw - gap;
+      if (y + th + edge > vh) y = pointerY - th - gap;
+
+      x = Math.max(edge, Math.min(x, vw - tw - edge));
+      y = Math.max(edge, Math.min(y, vh - th - edge));
+
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+    }
+
     canvas.onmousemove = e => {
       const b = canvas.getBoundingClientRect();
       // Scale mouse coords into the rect coordinate frame used at render time,
@@ -4406,8 +4432,7 @@
         const col    = hit.pct >= 0 ? '#4fa870' : '#d46050';
         tip.innerHTML = `<strong>${hit.ticker}</strong><br>${money(hit.value)}<br><span style="color:${col}">${pnlStr}&nbsp;(${pctStr})</span>`;
         tip.style.display = 'block';
-        tip.style.left = e.clientX + 'px';
-        tip.style.top  = e.clientY + 'px';
+        positionTreemapTip(e);
       } else {
         tip.style.display = 'none';
       }
