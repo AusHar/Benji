@@ -943,6 +943,13 @@
       color: var(--green);
       box-shadow: var(--glow-sm);
     }
+    .learn-chip:focus-visible,
+    .learn-path-card:focus-visible,
+    .learn-concept-card:focus-visible {
+      outline: none;
+      border-color: var(--border-hi);
+      box-shadow: var(--glow-ring);
+    }
     .learn-path-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
