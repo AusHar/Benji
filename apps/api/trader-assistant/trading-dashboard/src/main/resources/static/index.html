@@ -983,11 +983,17 @@
       background: var(--bg-mid);
       border-top: 1px solid var(--border);
       z-index: 200;
-      justify-content: space-around;
+      justify-content: flex-start;
       align-items: stretch;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+    #bottom-tab-bar::-webkit-scrollbar { display: none; }
     #bottom-tab-bar button {
-      flex: 1;
+      flex: 0 0 64px;
+      min-width: 64px;
       display: flex;
       flex-direction: column;
       align-items: center;
