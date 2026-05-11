@@ -2390,6 +2390,185 @@
     selectedId: 'cash-flow'
   };
 
+  function learningPathName(pathId) {
+    return LEARNING_PATHS.find(p => p.id === pathId)?.name || 'Learning';
+  }
+
+  function learningLevelLabel(level) {
+    return String(level || '')
+      .split('-')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  function learningFilteredItems() {
+    const q = learningState.query.trim().toLowerCase();
+    return LEARNING_ITEMS.filter(item => {
+      const pathMatch = learningState.path === 'all' || item.path === learningState.path;
+      if (!pathMatch) return false;
+      if (!q) return true;
+      const haystack = [
+        item.title,
+        item.summary,
+        item.eli5,
+        item.firstPrinciple,
+        item.whyItMatters,
+        item.path,
+        item.level,
+        ...(item.tags || [])
+      ].join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  function renderLearning() {
+    const root = document.getElementById('learning-root');
+    if (!root) return;
+
+    const filtered = learningFilteredItems();
+    if (!filtered.some(item => item.id === learningState.selectedId)) {
+      learningState.selectedId = filtered[0]?.id || LEARNING_ITEMS[0]?.id;
+    }
+    const selected = LEARNING_ITEMS.find(item => item.id === learningState.selectedId) || LEARNING_ITEMS[0];
+
+    root.innerHTML = `
+      <div class="learn-hero">
+        <section class="learn-primer">
+          <div class="learn-kicker">Start Here</div>
+          <div class="learn-title">Finance from first principles</div>
+          <p class="learn-copy">
+            Start with durable ideas before tactics: cash flow, ownership, value, risk, time, and incentives.
+            The goal is not to memorize jargon. The goal is to understand what is really happening underneath the numbers.
+          </p>
+          <div class="learn-principles">
+            <div class="learn-principle"><b>Understand what you own</b><span>Assets are claims on future value, cash flow, or usefulness.</span></div>
+            <div class="learn-principle"><b>Protect the downside</b><span>Good decisions leave room for being wrong.</span></div>
+            <div class="learn-principle"><b>Let time work</b><span>Compounding rewards patience more than constant motion.</span></div>
+          </div>
+        </section>
+        <aside class="learn-search-panel">
+          <div class="section-title" style="margin-bottom:10px">Reference Library</div>
+          <input class="field" id="learningSearch" type="search" placeholder="Search stocks, cash flow, options..." value="${escapeHtml(learningState.query)}" autocomplete="off">
+          <div class="learn-filter-row">
+            ${renderLearningChip('all', 'All')}
+            ${LEARNING_PATHS.map(path => renderLearningChip(path.id, path.name)).join('')}
+          </div>
+        </aside>
+      </div>
+      <div class="learn-path-grid">
+        ${LEARNING_PATHS.map(renderLearningPathCard).join('')}
+      </div>
+      <div class="learn-body">
+        <section>
+          <div class="section-head">
+            <span class="section-title">${filtered.length} Concept${filtered.length === 1 ? '' : 's'}</span>
+            <button class="section-action" onclick="clearLearningFilters()">Clear</button>
+          </div>
+          <div class="learn-concept-list">
+            ${filtered.length ? filtered.map(renderLearningConceptCard).join('') : '<div class="learn-empty">No matching concept yet. Clear filters or try a broader search.</div>'}
+          </div>
+        </section>
+        <section>
+          ${selected ? renderLearningDetail(selected) : '<div class="learn-empty">Choose a concept to start learning.</div>'}
+        </section>
+      </div>
+    `;
+
+    document.getElementById('learningSearch')?.addEventListener('input', e => {
+      const cursor = e.target.selectionStart;
+      learningState.query = e.target.value;
+      renderLearning();
+      const search = document.getElementById('learningSearch');
+      search?.focus();
+      search?.setSelectionRange(cursor, cursor);
+    });
+
+    if (selected?.visualType && typeof renderLearningVisual === 'function') {
+      renderLearningVisual(selected);
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function renderLearningChip(pathId, label) {
+    const active = learningState.path === pathId ? ' active' : '';
+    return `<button class="learn-chip${active}" onclick="selectLearningPath('${pathId}')">${escapeHtml(label)}</button>`;
+  }
+
+  function renderLearningPathCard(path) {
+    const count = LEARNING_ITEMS.filter(item => item.path === path.id).length;
+    const active = learningState.path === path.id ? ' active' : '';
+    return `<button class="learn-path-card${active}" onclick="selectLearningPath('${path.id}')">
+      <div class="learn-path-name">${escapeHtml(path.name)}</div>
+      <div class="learn-path-summary">${escapeHtml(path.summary)}</div>
+      <div class="learn-path-count">${count} concept${count === 1 ? '' : 's'} · ${escapeHtml(path.principle)}</div>
+    </button>`;
+  }
+
+  function renderLearningConceptCard(item) {
+    const active = learningState.selectedId === item.id ? ' active' : '';
+    return `<button class="learn-concept-card${active}" onclick="selectLearningConcept('${item.id}')">
+      <div class="learn-level">${escapeHtml(learningPathName(item.path))} · ${escapeHtml(learningLevelLabel(item.level))}</div>
+      <div class="learn-concept-title">${escapeHtml(item.title)}</div>
+      <div class="learn-concept-summary">${escapeHtml(item.summary)}</div>
+    </button>`;
+  }
+
+  function renderLearningDetail(item) {
+    const related = (item.relatedTerms || [])
+      .map(id => LEARNING_ITEMS.find(candidate => candidate.id === id))
+      .filter(Boolean);
+    return `<article class="learn-detail">
+      <div class="learn-level">${escapeHtml(learningPathName(item.path))} · ${escapeHtml(learningLevelLabel(item.level))}</div>
+      <h2>${escapeHtml(item.title)}</h2>
+      <p class="learn-copy">${escapeHtml(item.summary)}</p>
+      <div class="learn-explain-grid">
+        <div class="learn-explain">
+          <div class="learn-explain-label">ELI5</div>
+          <p>${escapeHtml(item.eli5)}</p>
+        </div>
+        <div class="learn-explain">
+          <div class="learn-explain-label">First Principle</div>
+          <p>${escapeHtml(item.firstPrinciple)}</p>
+        </div>
+        <div class="learn-explain">
+          <div class="learn-explain-label">Why It Matters</div>
+          <p>${escapeHtml(item.whyItMatters)}</p>
+        </div>
+      </div>
+      ${item.visualType ? `<div class="learn-visual" id="learningVisual" aria-label="${escapeHtml(item.title)} visual explainer"></div>` : ''}
+      ${related.length ? `<div class="section-head" style="margin-top:16px;margin-bottom:8px"><span class="section-title">Related</span></div>
+        <div class="learn-filter-row">${related.map(term => `<button class="learn-chip" onclick="selectLearningConcept('${term.id}')">${escapeHtml(term.title)}</button>`).join('')}</div>` : ''}
+    </article>`;
+  }
+
+  function selectLearningPath(pathId) {
+    learningState.path = pathId;
+    learningState.query = '';
+    const first = learningFilteredItems()[0];
+    if (first) learningState.selectedId = first.id;
+    renderLearning();
+  }
+
+  function selectLearningConcept(id) {
+    learningState.selectedId = id;
+    renderLearning();
+  }
+
+  function clearLearningFilters() {
+    learningState.path = 'all';
+    learningState.query = '';
+    learningState.selectedId = 'cash-flow';
+    renderLearning();
+  }
+
   /* ── Watchlist storage ──────────────────── */
   const DEFAULT_WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
   let watchlistEditing = false;
@@ -3813,10 +3992,6 @@
   function categoryLabel(slug) {
     const match = FIN_CATEGORIES.find(c => c.slug === slug);
     return match ? match.label : slug;
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   }
 
   function populateCategoryFilter(selected) {
