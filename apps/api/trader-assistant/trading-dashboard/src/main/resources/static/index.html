@@ -2068,6 +2068,211 @@
        <div class="state-sub">${sub}</div>
      </div>`;
 
+  const LEARNING_PATHS = [
+    {
+      id: 'money-basics',
+      name: 'Money Basics',
+      summary: 'Cash flow before complexity: income, spending, debt, savings, and emergency reserves.',
+      principle: 'A dollar can only do one job at a time.'
+    },
+    {
+      id: 'investing-basics',
+      name: 'Investing Basics',
+      summary: 'Ownership, value, compounding, dividends, funds, and the difference between price and business.',
+      principle: 'A stock is a piece of a business, not just a ticker.'
+    },
+    {
+      id: 'portfolio-risk',
+      name: 'Portfolio & Risk',
+      summary: 'Allocation, volatility, concentration, drawdowns, time horizon, and margin of safety.',
+      principle: 'Survival comes before optimization.'
+    },
+    {
+      id: 'trading-options-intro',
+      name: 'Trading & Options Intro',
+      summary: 'Orders, bid/ask spreads, calls, puts, breakeven, expiration, and payoff diagrams.',
+      principle: 'Tools are useful only when you understand their failure modes.'
+    }
+  ];
+
+  const LEARNING_ITEMS = [
+    {
+      id: 'cash-flow',
+      title: 'Cash Flow',
+      path: 'money-basics',
+      level: 'start-here',
+      tags: ['income', 'expenses', 'budget'],
+      summary: 'Cash flow is the money coming in minus the money going out.',
+      eli5: 'If allowance comes in and snacks go out, what is left is your cash flow.',
+      firstPrinciple: 'Before money can compound, it has to remain under your control.',
+      whyItMatters: 'Positive cash flow gives you choices: save, invest, reduce debt, or build a cushion.',
+      visualType: 'cash-flow-waterfall',
+      relatedTerms: ['emergency-fund', 'debt', 'compound-interest']
+    },
+    {
+      id: 'emergency-fund',
+      title: 'Emergency Fund',
+      path: 'money-basics',
+      level: 'beginner',
+      tags: ['savings', 'risk', 'cash'],
+      summary: 'An emergency fund is money kept available for surprise expenses or income gaps.',
+      eli5: 'It is the umbrella you carry before it rains.',
+      firstPrinciple: 'Liquidity protects you from being forced to sell long-term assets at the wrong time.',
+      whyItMatters: 'A cash cushion can prevent debt spirals and panic decisions.',
+      visualType: 'risk-reward-scale',
+      relatedTerms: ['cash-flow', 'debt']
+    },
+    {
+      id: 'debt',
+      title: 'Debt',
+      path: 'money-basics',
+      level: 'beginner',
+      tags: ['interest', 'borrowing', 'cash flow'],
+      summary: 'Debt is borrowed money that must be repaid, usually with interest.',
+      eli5: 'Debt means future-you has promised to pay for something present-you used.',
+      firstPrinciple: 'Interest can work for you or against you.',
+      whyItMatters: 'High-interest debt can outrun your investments and weaken cash flow.',
+      visualType: 'cash-flow-waterfall',
+      relatedTerms: ['cash-flow', 'compound-interest']
+    },
+    {
+      id: 'stock',
+      title: 'Stock',
+      path: 'investing-basics',
+      level: 'start-here',
+      tags: ['ownership', 'business', 'shares'],
+      summary: 'A stock is a small ownership stake in a business.',
+      eli5: 'If a company were a pizza, a share of stock would be one tiny slice.',
+      firstPrinciple: 'A share is ownership in a real business, not just a blinking price.',
+      whyItMatters: 'Long-term returns depend on business results, the price paid, and time.',
+      visualType: 'ownership-slice',
+      relatedTerms: ['intrinsic-value', 'dividend', 'market-price']
+    },
+    {
+      id: 'etf',
+      title: 'ETF',
+      path: 'investing-basics',
+      level: 'beginner',
+      tags: ['funds', 'diversification', 'index'],
+      summary: 'An ETF is a basket of investments that trades like a stock.',
+      eli5: 'Instead of buying one apple, you buy a fruit basket.',
+      firstPrinciple: 'Diversification reduces dependence on one outcome.',
+      whyItMatters: 'Broad ETFs can make ownership simpler and reduce single-company risk.',
+      visualType: 'diversification-grid',
+      relatedTerms: ['stock', 'diversification', 'allocation']
+    },
+    {
+      id: 'compound-interest',
+      title: 'Compounding',
+      path: 'investing-basics',
+      level: 'start-here',
+      tags: ['time', 'growth', 'interest'],
+      summary: 'Compounding is growth earning more growth over time.',
+      eli5: 'It is a snowball that gets bigger as it rolls because new snow sticks to old snow.',
+      firstPrinciple: 'Time can turn modest returns into meaningful outcomes when gains stay invested.',
+      whyItMatters: 'Starting earlier can matter more than finding the perfect investment.',
+      visualType: 'compounding-curve',
+      relatedTerms: ['dividend', 'time-horizon']
+    },
+    {
+      id: 'intrinsic-value',
+      title: 'Intrinsic Value',
+      path: 'investing-basics',
+      level: 'intermediate',
+      tags: ['value', 'business', 'price'],
+      summary: 'Intrinsic value is what an asset is reasonably worth based on its future cash flows.',
+      eli5: 'It is what the lemonade stand is worth because of the lemonade it can sell, not because someone shouts a price.',
+      firstPrinciple: 'Price is what you pay; value is what you receive.',
+      whyItMatters: 'Investors need a way to judge whether the market price is attractive or dangerous.',
+      visualType: 'risk-reward-scale',
+      relatedTerms: ['stock', 'margin-of-safety', 'market-price']
+    },
+    {
+      id: 'allocation',
+      title: 'Allocation',
+      path: 'portfolio-risk',
+      level: 'beginner',
+      tags: ['portfolio', 'risk', 'diversification'],
+      summary: 'Allocation is how your money is divided across assets.',
+      eli5: 'It is how many eggs you put in each basket.',
+      firstPrinciple: 'What you own, and how much of it you own, drives most portfolio risk.',
+      whyItMatters: 'Allocation helps align investments with goals, time horizon, and risk tolerance.',
+      visualType: 'allocation-pie',
+      relatedTerms: ['diversification', 'volatility', 'time-horizon']
+    },
+    {
+      id: 'margin-of-safety',
+      title: 'Margin of Safety',
+      path: 'portfolio-risk',
+      level: 'intermediate',
+      tags: ['risk', 'value', 'downside'],
+      summary: 'Margin of safety means leaving room for being wrong.',
+      eli5: 'If a bridge must hold 10 tons, you would rather it be built for 20.',
+      firstPrinciple: 'The future is uncertain, so good decisions include a buffer.',
+      whyItMatters: 'A margin of safety can reduce permanent loss when assumptions disappoint.',
+      visualType: 'risk-reward-scale',
+      relatedTerms: ['intrinsic-value', 'drawdown', 'volatility']
+    },
+    {
+      id: 'volatility',
+      title: 'Volatility',
+      path: 'portfolio-risk',
+      level: 'beginner',
+      tags: ['risk', 'price movement', 'portfolio'],
+      summary: 'Volatility is how much an investment price moves around.',
+      eli5: 'It is the bumpiness of the ride.',
+      firstPrinciple: 'Price movement is not the same thing as permanent loss, but it can pressure behavior.',
+      whyItMatters: 'Volatility can create opportunity or panic depending on your time horizon and cash needs.',
+      visualType: 'risk-reward-scale',
+      relatedTerms: ['drawdown', 'time-horizon', 'allocation']
+    },
+    {
+      id: 'call-option',
+      title: 'Call Option',
+      path: 'trading-options-intro',
+      level: 'advanced-preview',
+      tags: ['options', 'calls', 'breakeven'],
+      summary: 'A call option gives the buyer the right, not the obligation, to buy an asset at a set price before expiration.',
+      eli5: 'It is like paying for a coupon that lets you buy something at a fixed price later.',
+      firstPrinciple: 'Options separate exposure from ownership and add time limits.',
+      whyItMatters: 'Calls can magnify gains and losses because the premium can expire worthless.',
+      visualType: 'option-payoff',
+      relatedTerms: ['put-option', 'strike-price', 'expiration']
+    },
+    {
+      id: 'put-option',
+      title: 'Put Option',
+      path: 'trading-options-intro',
+      level: 'advanced-preview',
+      tags: ['options', 'puts', 'breakeven'],
+      summary: 'A put option gives the buyer the right, not the obligation, to sell an asset at a set price before expiration.',
+      eli5: 'It is like paying for price insurance on something you own or want to bet against.',
+      firstPrinciple: 'A put can transfer downside exposure for a known upfront premium.',
+      whyItMatters: 'Puts can hedge risk or speculate on declines, but timing and premium matter.',
+      visualType: 'option-payoff',
+      relatedTerms: ['call-option', 'strike-price', 'expiration']
+    },
+    {
+      id: 'bid-ask-spread',
+      title: 'Bid/Ask Spread',
+      path: 'trading-options-intro',
+      level: 'beginner',
+      tags: ['orders', 'trading', 'liquidity'],
+      summary: 'The bid/ask spread is the gap between what buyers offer and sellers request.',
+      eli5: 'One person wants to pay $9, another wants $10, and the $1 gap is the spread.',
+      firstPrinciple: 'Every trade has friction, even when commissions look free.',
+      whyItMatters: 'Wide spreads can quietly make trades more expensive, especially in options.',
+      visualType: 'risk-reward-scale',
+      relatedTerms: ['market-order', 'limit-order']
+    }
+  ];
+
+  const learningState = {
+    path: 'all',
+    query: '',
+    selectedId: 'cash-flow'
+  };
+
   /* ── Watchlist storage ──────────────────── */
   const DEFAULT_WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
   let watchlistEditing = false;
