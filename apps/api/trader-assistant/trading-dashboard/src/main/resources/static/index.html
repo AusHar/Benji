@@ -3199,6 +3199,7 @@
   function drawCategoryChart(canvasId, transactions) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
+    const wrap = document.getElementById('fin-chart-wrap');
 
     const catMap = {};
     transactions.forEach(t => {
@@ -3206,16 +3207,18 @@
     });
     const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
     if (!entries.length) return;
+    if (wrap) wrap.style.display = 'block';
 
     const barH = 22, gap = 10, labelW = 120, pad = { top: 8, right: 70, bottom: 8 };
     const totalH = pad.top + entries.length * (barH + gap) - gap + pad.bottom;
     const dpr = window.devicePixelRatio || 1;
+    const canvasWidth = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 1;
     canvas.style.height = totalH + 'px';
-    canvas.width  = canvas.offsetWidth * dpr;
+    canvas.width  = canvasWidth * dpr;
     canvas.height = totalH * dpr;
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    const W = canvas.offsetWidth;
+    const W = canvasWidth;
     const barAreaW = W - labelW - pad.right;
     const maxVal = entries[0][1];
 
@@ -3239,7 +3242,7 @@
       ctx.fillText('$' + val.toFixed(0), labelW + barW + 7, y + barH / 2);
     });
 
-    document.getElementById('fin-chart-wrap').style.display = 'block';
+    if (wrap) wrap.style.display = 'block';
   }
 
   async function fetchQuote() {
