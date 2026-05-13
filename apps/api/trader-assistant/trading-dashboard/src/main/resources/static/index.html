@@ -2426,10 +2426,12 @@
     if (!root) return;
 
     const filtered = learningFilteredItems();
-    if (!filtered.some(item => item.id === learningState.selectedId)) {
-      learningState.selectedId = filtered[0]?.id || LEARNING_ITEMS[0]?.id;
+    if (filtered.length && !filtered.some(item => item.id === learningState.selectedId)) {
+      learningState.selectedId = filtered[0].id;
     }
-    const selected = LEARNING_ITEMS.find(item => item.id === learningState.selectedId) || LEARNING_ITEMS[0];
+    const selected = filtered.length
+      ? LEARNING_ITEMS.find(item => item.id === learningState.selectedId)
+      : null;
 
     root.innerHTML = `
       <div class="learn-hero">
@@ -2558,7 +2560,16 @@
   }
 
   function selectLearningConcept(id) {
+    const target = LEARNING_ITEMS.find(item => item.id === id);
+    if (!target) return;
+
     learningState.selectedId = id;
+    if (learningState.path !== 'all' && learningState.path !== target.path) {
+      learningState.path = target.path;
+    }
+    if (!learningFilteredItems().some(item => item.id === id)) {
+      learningState.query = '';
+    }
     renderLearning();
   }
 
