@@ -2580,6 +2580,121 @@
     renderLearning();
   }
 
+  function renderLearningVisual(item) {
+    const el = document.getElementById('learningVisual');
+    if (!el) return;
+    const renderers = {
+      'compounding-curve': learningVisualCompounding,
+      'cash-flow-waterfall': learningVisualCashFlow,
+      'diversification-grid': learningVisualDiversification,
+      'risk-reward-scale': learningVisualRiskReward,
+      'allocation-pie': learningVisualAllocation,
+      'option-payoff': learningVisualOptionPayoff,
+      'ownership-slice': learningVisualOwnership
+    };
+    const renderer = renderers[item.visualType];
+    el.innerHTML = renderer ? renderer(item) : `<div class="learn-empty">This concept is best learned through the explanation above.</div>`;
+  }
+
+  function svgText(x, y, text, color = 'var(--text-dim)', size = 10, anchor = 'middle') {
+    return `<text x="${x}" y="${y}" fill="${color}" font-size="${size}" text-anchor="${anchor}" font-family="IBM Plex Mono, monospace">${escapeHtml(text)}</text>`;
+  }
+
+  function learningVisualCompounding() {
+    return `<svg viewBox="0 0 420 190" role="img">
+      <path d="M34 150H390M34 150V24" stroke="rgba(78,221,138,.25)" stroke-width="1"/>
+      <path d="M40 142 C116 136 170 118 218 91 C278 57 328 33 382 24" fill="none" stroke="var(--green)" stroke-width="3"/>
+      <path d="M40 150 C116 146 170 134 218 111 C278 80 328 58 382 48 L382 150 Z" fill="rgba(78,221,138,.08)"/>
+      ${svgText(44, 170, 'Today', 'var(--text-dim)', 10, 'start')}
+      ${svgText(382, 170, 'Later', 'var(--text-dim)', 10, 'end')}
+      ${svgText(210, 18, 'Growth earns growth when gains stay invested', 'var(--text-mid)', 11)}
+    </svg>`;
+  }
+
+  function learningVisualCashFlow() {
+    const bars = [
+      ['Income', 72, 'var(--green)'],
+      ['Needs', 48, 'var(--amber)'],
+      ['Debt', 26, 'var(--red)'],
+      ['Save', 34, 'var(--green-dim)'],
+      ['Invest', 42, 'var(--green)']
+    ];
+    return `<svg viewBox="0 0 420 190" role="img">
+      ${bars.map((bar, index) => {
+        const x = 34 + index * 76;
+        const h = bar[1];
+        return `<rect x="${x}" y="${150 - h}" width="46" height="${h}" rx="4" fill="${bar[2]}" opacity=".82"/>
+          ${svgText(x + 23, 170, bar[0])}`;
+      }).join('')}
+      ${svgText(210, 22, 'Cash flow decides what jobs your dollars can do', 'var(--text-mid)', 11)}
+    </svg>`;
+  }
+
+  function learningVisualDiversification() {
+    return `<svg viewBox="0 0 420 190" role="img">
+      ${Array.from({ length: 24 }, (_, i) => {
+        const x = 42 + (i % 8) * 40;
+        const y = 48 + Math.floor(i / 8) * 34;
+        const fill = i === 5 ? 'var(--red)' : 'rgba(78,221,138,.55)';
+        return `<rect x="${x}" y="${y}" width="25" height="22" rx="4" fill="${fill}" opacity=".9"/>`;
+      }).join('')}
+      ${svgText(210, 24, 'Many holdings reduce dependence on one outcome', 'var(--text-mid)', 11)}
+      ${svgText(210, 172, 'Diversification cannot remove all risk, but it can reduce single-company risk', 'var(--text-dim)', 10)}
+    </svg>`;
+  }
+
+  function learningVisualRiskReward() {
+    const points = [
+      ['Cash', 50, 126],
+      ['Bonds', 126, 112],
+      ['ETFs', 204, 86],
+      ['Stocks', 286, 62],
+      ['Options', 360, 34]
+    ];
+    return `<svg viewBox="0 0 420 190" role="img">
+      <path d="M38 146H382" stroke="rgba(78,221,138,.22)" stroke-width="8" stroke-linecap="round"/>
+      <path d="M38 146C150 132 230 82 382 34" fill="none" stroke="var(--green)" stroke-width="2"/>
+      ${points.map(([label, x, y]) => `<circle cx="${x}" cy="${y}" r="7" fill="var(--bg-card-hi)" stroke="var(--green)" stroke-width="2"/>${svgText(x, y + 24, label)}`).join('')}
+      ${svgText(38, 170, 'Lower volatility', 'var(--text-dim)', 10, 'start')}
+      ${svgText(382, 170, 'Higher uncertainty', 'var(--text-dim)', 10, 'end')}
+    </svg>`;
+  }
+
+  function learningVisualAllocation() {
+    return `<svg viewBox="0 0 420 190" role="img">
+      <circle cx="145" cy="95" r="58" fill="none" stroke="rgba(78,221,138,.18)" stroke-width="30"/>
+      <circle cx="145" cy="95" r="58" fill="none" stroke="var(--green)" stroke-width="30" stroke-dasharray="210 365" transform="rotate(-90 145 95)"/>
+      <circle cx="145" cy="95" r="58" fill="none" stroke="var(--amber)" stroke-width="30" stroke-dasharray="86 365" stroke-dashoffset="-210" transform="rotate(-90 145 95)"/>
+      <circle cx="145" cy="95" r="58" fill="none" stroke="var(--red)" stroke-width="30" stroke-dasharray="34 365" stroke-dashoffset="-296" transform="rotate(-90 145 95)"/>
+      ${svgText(260, 72, 'What you own', 'var(--text-mid)', 12, 'start')}
+      ${svgText(260, 94, 'How much you own', 'var(--text-mid)', 12, 'start')}
+      ${svgText(260, 116, 'How long you can hold', 'var(--text-mid)', 12, 'start')}
+    </svg>`;
+  }
+
+  function learningVisualOptionPayoff() {
+    return `<svg viewBox="0 0 420 190" role="img">
+      <path d="M40 135H385M205 26V154" stroke="rgba(78,221,138,.22)" stroke-width="1"/>
+      <path d="M54 135H205L364 38" fill="none" stroke="var(--green)" stroke-width="3"/>
+      <path d="M54 40L205 135H364" fill="none" stroke="var(--amber)" stroke-width="3" opacity=".85"/>
+      ${svgText(205, 170, 'Strike', 'var(--text-dim)', 10)}
+      ${svgText(95, 32, 'Put', 'var(--amber)', 11)}
+      ${svgText(330, 32, 'Call', 'var(--green)', 11)}
+      ${svgText(212, 22, 'Payoff changes with price, time, and premium', 'var(--text-mid)', 11)}
+    </svg>`;
+  }
+
+  function learningVisualOwnership() {
+    return `<svg viewBox="0 0 420 190" role="img">
+      <rect x="74" y="48" width="210" height="96" rx="8" fill="rgba(78,221,138,.10)" stroke="rgba(78,221,138,.32)"/>
+      <rect x="74" y="48" width="42" height="96" rx="8" fill="var(--green)" opacity=".72"/>
+      ${svgText(179, 100, 'Business', 'var(--text)', 15)}
+      ${svgText(95, 166, 'Your share', 'var(--green)', 10)}
+      ${svgText(308, 86, 'A stock is a claim', 'var(--text-mid)', 11, 'start')}
+      ${svgText(308, 106, 'on a real company', 'var(--text-mid)', 11, 'start')}
+    </svg>`;
+  }
+
   /* ── Watchlist storage ──────────────────── */
   const DEFAULT_WATCHLIST = ['SPY', 'QQQ', 'VOO', 'AAPL', 'MSFT'];
   let watchlistEditing = false;
